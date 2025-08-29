@@ -11,48 +11,74 @@
   <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Emoji_u1f33c.svg/240px-Emoji_u1f33c.svg.png" />
   <meta property="og:type" content="website" />
 
+  <!-- Google Fonts: Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
-    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#fafafa; }
+    :root { --banner-bg: rgba(255,255,255,0.94); }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#fafafa; color:#111; }
+
     .wrap { display:flex; min-height:100vh; }
-    #map { flex:1; min-height:100vh; }
-    .panel { width:420px; max-width:100%; padding:20px; border-left:1px solid #eee; background:#fff; }
-    .panel h1 { font-size:1.25rem; margin:0 0 12px; }
-    label { display:block; font-size:.9rem; margin:12px 0 6px; }
-    input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
-    textarea { min-height:90px; resize:vertical; }
-    .small { color:#666; font-size:.85rem; min-height:1.2em; }
+    #map { flex:1; min-height:100vh; position:relative; }
+
+    /* Panel lateral */
+    .panel { width:420px; max-width:100%; padding:22px; border-left:1px solid #eee; background:#fff; }
+    .panel h1 { font-size:1.3rem; margin:0 0 14px; }
+    label { display:block; font-size:.95rem; margin:12px 0 6px; }
+    input, textarea, button {
+      width:100%; padding:12px; font-size:1rem; border:1px solid #ddd; border-radius:12px;
+    }
+    textarea { min-height:96px; resize:vertical; }
+    .small { color:#666; font-size:.9rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
     .error { color:#b30000; }
-    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; margin-top:10px; }
+    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:12px; margin-top:10px; font-weight:600; }
+
+    /* Banner centrado arriba (contador + botón) */
+    .top-center-banner {
+      position:absolute; left:50%; top:12px; transform:translateX(-50%);
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      background:var(--banner-bg); padding:10px 16px; border-radius:16px;
+      box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000;
+    }
+    .counter {
+      font-size:1.35rem; font-weight:700; letter-spacing:0.2px;
+    }
+    .top-center-banner .actions { display:flex; gap:8px; width:100%; justify-content:center; }
+    .top-center-banner .actions button {
+      width:auto; padding:6px 10px; font-size:.9rem; margin:0; border-radius:10px; background:#0066cc;
+    }
 
     /* Emoji marker */
-    .emoji-marker { background:transparent; border:none; font-size:26px; line-height:26px; transform:translate(-13px,-13px); pointer-events:none; }
+    .emoji-marker { background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-14px); pointer-events:none; }
     .leaflet-marker-icon[src*="marker-icon"] { display:none!important; }
     .leaflet-marker-shadow { display:none!important; }
 
-    /* Contador de flores */
-    .flower-counter {
-      position:absolute;
-      top:10px;
-      left:10px;
-      background:rgba(255,255,255,0.9);
-      padding:6px 12px;
-      border-radius:12px;
-      font-size:0.95rem;
-      font-weight:500;
-      box-shadow:0 1px 4px rgba(0,0,0,0.15);
-      z-index:1000;
+    /* Responsive */
+    @media (max-width: 900px) {
+      .panel { width: 100%; border-left: 0; border-top: 1px solid #eee; }
+      .wrap { flex-direction: column; }
+      .top-center-banner { top:8px; }
+      .counter { font-size:1.15rem; }
     }
   </style>
 </head>
 <body>
 <div class="wrap">
   <div id="map">
-    <div id="counter" class="flower-counter">🌸 0 flores plantadas</div>
+    <div class="top-center-banner">
+      <div id="counter" class="counter">🌸 0 flores plantadas</div>
+      <div class="actions">
+        <button id="myFlowersBtn" title="Ver tus dedicatorias">🌼 Mis flores</button>
+      </div>
+    </div>
   </div>
+
   <div class="panel">
     <h1>Planta una flor 🌸</h1>
 
@@ -91,16 +117,19 @@
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec';
   const NOMINATIM_EMAIL = 'gracia.david@gmail.com';
 
-  /* === MAPA (CARTO Positron claro) === */
+  /* === MAPA (CARTO Voyager: mar azul y colores agradables) === */
   const cartoAttrib = '© OpenStreetMap contributors © CARTO';
-  const positron = L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
-  const map = L.map('map', { layers:[positron] }).setView([40.4168, -3.7038], 13);
+  const voyager = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
+  const map = L.map('map', { layers:[voyager], zoomControl:true }).setView([40.4168, -3.7038], 13);
 
   /* Marcador 🌸 */
-  const flowerIcon = L.divIcon({ html:'🌸', className:'emoji-marker', iconSize:[26,26], iconAnchor:[13,13] });
+  const flowerIcon = L.divIcon({ html:'🌸', className:'emoji-marker', iconSize:[28,28], iconAnchor:[14,14] });
 
-  let marker = null;
-  const seen = new Set();
+  let marker = null;                 // marcador “en edición”
+  const seen = new Set();            // claves de flores ya dibujadas
+  const markerIndex = new Map();     // key -> marker para localizar “mis flores”
+  const myFlowers = JSON.parse(localStorage.getItem("myFlowers") || "[]"); // tus flores locales
+
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
   const counterEl = $('#counter');
@@ -110,61 +139,63 @@
   function fmtDate(d){ const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; }
   function popupHtml(from,to,msg,dateStr){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}${dateStr?`<br><small>📅 ${escapeHtml(dateStr)}</small>`:''}`; }
   function setPoint(lat,lon){ $('#lat').value=lat; $('#lng').value=lon; if(marker)map.removeLayer(marker); marker=L.marker([lat,lon],{icon:flowerIcon}).addTo(map); map.setView([lat,lon],14); }
-  function keyFor(f){ const ts = f.timestamp ? new Date(f.timestamp).toISOString().slice(0,10) : ''; return `${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${ts}`; }
+  function keyFor(obj){ // obj: {lat,lng,fromName,toName,message,timestamp?}
+    const ts = obj.timestamp ? new Date(obj.timestamp).toISOString().slice(0,10) : '';
+    return `${+obj.lat},${+obj.lng}|${obj.fromName||''}|${obj.toName||''}|${obj.message||''}|${ts}`;
+  }
 
-  /* --- Autocomplete + confirmar ubicación --- */
+  /* --- Autocompletado + confirmar ubicación --- */
   let typingTimer=null;
   $('#place').addEventListener('input',e=>{ const q=e.target.value.trim(); clearTimeout(typingTimer); if(!q)return; typingTimer=setTimeout(()=>fillSuggestions(q),500); });
   $('#confirmBtn').addEventListener('click',()=>searchAndFix($('#place').value.trim()));
   $('#place').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchAndFix($('#place').value.trim()); }});
-  $('#geoBtn').addEventListener('click',()=>{ if(!navigator.geolocation)return; navigator.geolocation.getCurrentPosition(pos=>{ setPoint(pos.coords.latitude,pos.coords.longitude); }); });
+  $('#geoBtn').addEventListener('click',()=>{ if(!navigator.geolocation) return setStatus('Tu navegador no soporta GPS','error'); navigator.geolocation.getCurrentPosition(pos=>{ setPoint(pos.coords.latitude,pos.coords.longitude); }); });
   map.on('click',e=>{ setPoint(e.latlng.lat,e.latlng.lng); });
 
   async function fillSuggestions(query){
     try{
       const url='https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(query)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
-    const res=await fetch(url,{ headers:{ 'Accept':'application/json' }});
-    const list=await res.json();
-    const dl=$('#suggestions'); dl.innerHTML='';
-    (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); });
-    return list||[];
+      const res=await fetch(url,{ headers:{ 'Accept':'application/json' }});
+      const list=await res.json();
+      const dl=$('#suggestions'); dl.innerHTML='';
+      (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); });
+      return list||[];
     }catch{ return []; }
   }
   async function searchAndFix(query){
     if(!query) return setStatus('Escribe una dirección o haz clic en el mapa.','error');
+    setStatus('Buscando…');
     const results=await fillSuggestions(query);
-    if(results.length>0){ const f=results[0]; $('#place').value=f.display_name; setPoint(f.lat,f.lon); }
+    if(results.length>0){ const f=results[0]; $('#place').value=f.display_name; setPoint(f.lat,f.lon); setStatus(''); }
     else setStatus('No se encontró esa ubicación.','error');
   }
 
-  /* --- Cargar flores y actualizar contador --- */
+  /* --- Cargar flores existentes y contarlas (sin borrar las anteriores) --- */
   async function loadFlowers(){
     try{
       const res=await fetch(SCRIPT_URL);
       const data=await res.json();
-      let added=0;
       (data.items||[]).forEach(f=>{
         if(!f.lat || !f.lng) return;
-        const k = keyFor(f);
+        const k = keyFor({lat:f.lat,lng:f.lng,fromName:f.fromName,toName:f.toName,message:f.message,timestamp:f.timestamp});
         if(seen.has(k)) return;
-        seen.add(k); added++;
+        seen.add(k);
         let dateStr='';
         if(f.timestamp){ const d=new Date(f.timestamp); if(!isNaN(d)) dateStr=fmtDate(d); }
-        L.marker([+f.lat,+f.lng],{icon:flowerIcon})
-          .addTo(map)
-          .bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr||''));
+        const m = L.marker([+f.lat,+f.lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr||''));
+        markerIndex.set(k, m);
       });
-      // Actualizar contador
       counterEl.textContent = `🌸 ${seen.size} flores plantadas`;
     }catch{}
   }
 
-  /* --- Guardar flor --- */
+  /* --- Guardar flor (mantener todas, compartir, plantar otra, guardar en "Mis flores") --- */
   $('#plantBtn').addEventListener('click',async()=>{
     const from=$('#fromName').value.trim(), to=$('#toName').value.trim(), msg=$('#message').value.trim(),
           place=$('#place').value.trim(), lat=$('#lat').value.trim(), lng=$('#lng').value.trim();
-    if(!from||!to||!msg||!place||!lat||!lng) return setStatus('Completa todos los campos','error');
+    if(!from||!to||!msg||!place||!lat||!lng) return setStatus('Completa todos los campos y confirma la ubicación','error');
     setStatus('Guardando…');
+
     const today=new Date(); const dateStr=fmtDate(today);
     try{
       const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
@@ -175,17 +206,22 @@
         const k = keyFor({lat,lng,fromName:from,toName:to,message:msg,timestamp:today});
         if(!seen.has(k)) seen.add(k);
         if(marker) marker.remove();
-        L.marker([+lat,+lng],{icon:flowerIcon})
-          .addTo(map)
-          .bindPopup(popupHtml(from,to,msg,dateStr))
-          .openPopup();
+        const m = L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg,dateStr)).openPopup();
+        markerIndex.set(k, m);
         map.setView([+lat,+lng],14);
         counterEl.textContent = `🌸 ${seen.size} flores plantadas`;
+
+        // Guardar en "Mis flores" (localStorage)
+        const mine = JSON.parse(localStorage.getItem("myFlowers") || "[]");
+        if(!mine.find(x => x.k === k)) {
+          mine.push({ k, lat:+lat, lng:+lng, fromName:from, toName:to, message:msg, d: today.toISOString().slice(0,10) });
+          localStorage.setItem("myFlowers", JSON.stringify(mine));
+        }
 
         // Botones virales
         $('#shareBtn').style.display='block';
         $('#resetBtn').style.display='block';
-        const iso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        const iso = today.toISOString().slice(0,10);
         const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${iso}`;
         $('#shareBtn').onclick=()=>{ navigator.clipboard.writeText(url); setStatus('Enlace copiado ✅','ok'); };
         $('#resetBtn').onclick=()=>{ $('#fromName').value=''; $('#toName').value=''; $('#message').value=''; $('#place').value=''; $('#lat').value=''; $('#lng').value=''; $('#shareBtn').style.display='none'; $('#resetBtn').style.display='none'; setStatus('Formulario listo para otra flor.'); };
@@ -193,10 +229,31 @@
     }catch{ setStatus('Error de red','error'); }
   });
 
-  /* --- Inicializar --- */
+  /* --- Botón “Mis flores” (centra y abre la primera si existe) --- */
+  $('#myFlowersBtn').addEventListener('click', ()=>{
+    const mine = JSON.parse(localStorage.getItem("myFlowers") || "[]");
+    if(mine.length === 0) { setStatus('Aún no has plantado ninguna flor en este navegador.','error'); return; }
+    const bounds = L.latLngBounds(mine.map(f => [f.lat, f.lng]));
+    map.fitBounds(bounds, { padding:[50,50] });
+    // intentar abrir la primera popup si está dibujada
+    const m = markerIndex.get(mine[0].k);
+    if(m) m.openPopup();
+  });
+
+  /* --- Deep-link: abrir flor compartida y cargar todas --- */
   (function(){
+    const p=new URLSearchParams(location.search);
+    if(p.has('lat')&&p.has('lng')){
+      const lat=p.get('lat'),lng=p.get('lng'),from=p.get('from')||'',to=p.get('to')||'',msg=p.get('msg')||'',d=p.get('d')||'';
+      let dateStr=''; if(d){ const dd=new Date(d); if(!isNaN(dd)) dateStr=fmtDate(dd); }
+      const k = keyFor({lat,lng,fromName:from,toName:to,message:msg,timestamp:d});
+      seen.add(k);
+      const m = L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg,dateStr)).openPopup();
+      markerIndex.set(k, m);
+      map.setView([+lat,+lng],14);
+    }
     loadFlowers();
-    setInterval(loadFlowers,30000); // refresco cada 30s
+    setInterval(loadFlowers, 30000); // refresco cada 30 s
   })();
 </script>
 </body>
