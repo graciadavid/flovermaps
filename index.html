@@ -32,11 +32,27 @@
     .emoji-marker { background:transparent; border:none; font-size:26px; line-height:26px; transform:translate(-13px,-13px); pointer-events:none; }
     .leaflet-marker-icon[src*="marker-icon"] { display:none!important; }
     .leaflet-marker-shadow { display:none!important; }
+
+    /* Contador de flores */
+    .flower-counter {
+      position:absolute;
+      top:10px;
+      left:10px;
+      background:rgba(255,255,255,0.9);
+      padding:6px 12px;
+      border-radius:12px;
+      font-size:0.95rem;
+      font-weight:500;
+      box-shadow:0 1px 4px rgba(0,0,0,0.15);
+      z-index:1000;
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <div id="map"></div>
+  <div id="map">
+    <div id="counter" class="flower-counter">🌸 0 flores plantadas</div>
+  </div>
   <div class="panel">
     <h1>Planta una flor 🌸</h1>
 
@@ -75,7 +91,7 @@
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec';
   const NOMINATIM_EMAIL = 'gracia.david@gmail.com';
 
-  /* === MAPA (solo CARTO Positron claro) === */
+  /* === MAPA (CARTO Positron claro) === */
   const cartoAttrib = '© OpenStreetMap contributors © CARTO';
   const positron = L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
   const map = L.map('map', { layers:[positron] }).setView([40.4168, -3.7038], 13);
@@ -83,20 +99,18 @@
   /* Marcador 🌸 */
   const flowerIcon = L.divIcon({ html:'🌸', className:'emoji-marker', iconSize:[26,26], iconAnchor:[13,13] });
 
-  let marker = null;                 // marcador "en edición"
-  const seen = new Set();            // claves de flores ya dibujadas (para no duplicar)
+  let marker = null;
+  const seen = new Set();
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
+  const counterEl = $('#counter');
 
   function setStatus(msg, cls=''){ statusEl.className='small '+cls; statusEl.textContent=msg; }
   function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
   function fmtDate(d){ const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; }
   function popupHtml(from,to,msg,dateStr){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}${dateStr?`<br><small>📅 ${escapeHtml(dateStr)}</small>`:''}`; }
   function setPoint(lat,lon){ $('#lat').value=lat; $('#lng').value=lon; if(marker)map.removeLayer(marker); marker=L.marker([lat,lon],{icon:flowerIcon}).addTo(map); map.setView([lat,lon],14); }
-  function keyFor(f){ // clave para evitar duplicados
-    const ts = f.timestamp ? new Date(f.timestamp).toISOString().slice(0,10) : '';
-    return `${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${ts}`;
-  }
+  function keyFor(f){ const ts = f.timestamp ? new Date(f.timestamp).toISOString().slice(0,10) : ''; return `${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${ts}`; }
 
   /* --- Autocomplete + confirmar ubicación --- */
   let typingTimer=null;
@@ -109,47 +123,48 @@
   async function fillSuggestions(query){
     try{
       const url='https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(query)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
-      const res=await fetch(url,{ headers:{ 'Accept':'application/json' }});
-      const list=await res.json();
-      const dl=$('#suggestions'); dl.innerHTML='';
-      (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); });
-      return list||[];
+    const res=await fetch(url,{ headers:{ 'Accept':'application/json' }});
+    const list=await res.json();
+    const dl=$('#suggestions'); dl.innerHTML='';
+    (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); });
+    return list||[];
     }catch{ return []; }
   }
   async function searchAndFix(query){
     if(!query) return setStatus('Escribe una dirección o haz clic en el mapa.','error');
-    setStatus('Buscando…');
     const results=await fillSuggestions(query);
-    if(results.length>0){ const f=results[0]; $('#place').value=f.display_name; setPoint(f.lat,f.lon); setStatus(''); }
+    if(results.length>0){ const f=results[0]; $('#place').value=f.display_name; setPoint(f.lat,f.lon); }
     else setStatus('No se encontró esa ubicación.','error');
   }
 
-  /* --- Cargar flores existentes y mantenerlas siempre --- */
+  /* --- Cargar flores y actualizar contador --- */
   async function loadFlowers(){
     try{
       const res=await fetch(SCRIPT_URL);
       const data=await res.json();
+      let added=0;
       (data.items||[]).forEach(f=>{
         if(!f.lat || !f.lng) return;
         const k = keyFor(f);
-        if(seen.has(k)) return; // ya dibujada
-        seen.add(k);
+        if(seen.has(k)) return;
+        seen.add(k); added++;
         let dateStr='';
         if(f.timestamp){ const d=new Date(f.timestamp); if(!isNaN(d)) dateStr=fmtDate(d); }
         L.marker([+f.lat,+f.lng],{icon:flowerIcon})
           .addTo(map)
           .bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr||''));
       });
+      // Actualizar contador
+      counterEl.textContent = `🌸 ${seen.size} flores plantadas`;
     }catch{}
   }
 
-  /* --- Guardar flor y no borrar las demás --- */
+  /* --- Guardar flor --- */
   $('#plantBtn').addEventListener('click',async()=>{
     const from=$('#fromName').value.trim(), to=$('#toName').value.trim(), msg=$('#message').value.trim(),
           place=$('#place').value.trim(), lat=$('#lat').value.trim(), lng=$('#lng').value.trim();
-    if(!from||!to||!msg||!place||!lat||!lng) return setStatus('Completa todos los campos y confirma la ubicación','error');
+    if(!from||!to||!msg||!place||!lat||!lng) return setStatus('Completa todos los campos','error');
     setStatus('Guardando…');
-
     const today=new Date(); const dateStr=fmtDate(today);
     try{
       const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
@@ -157,8 +172,7 @@
       const data=await res.json();
       if(data.ok){
         setStatus('¡Flor plantada!','ok');
-        // Añade TU flor sin quitar las demás
-        const k = `${+lat},${+lng}|${from}|${to}|${msg}|${today.toISOString().slice(0,10)}`;
+        const k = keyFor({lat,lng,fromName:from,toName:to,message:msg,timestamp:today});
         if(!seen.has(k)) seen.add(k);
         if(marker) marker.remove();
         L.marker([+lat,+lng],{icon:flowerIcon})
@@ -166,6 +180,7 @@
           .bindPopup(popupHtml(from,to,msg,dateStr))
           .openPopup();
         map.setView([+lat,+lng],14);
+        counterEl.textContent = `🌸 ${seen.size} flores plantadas`;
 
         // Botones virales
         $('#shareBtn').style.display='block';
@@ -178,25 +193,10 @@
     }catch{ setStatus('Error de red','error'); }
   });
 
-  /* --- Deep-link: abrir flor compartida y además cargar todas las demás --- */
+  /* --- Inicializar --- */
   (function(){
-    const p=new URLSearchParams(location.search);
-    if(p.has('lat')&&p.has('lng')){
-      const lat=p.get('lat'),lng=p.get('lng'),from=p.get('from')||'',to=p.get('to')||'',msg=p.get('msg')||'',d=p.get('d')||'';
-      let dateStr='';
-      if(d){ const dd=new Date(d); if(!isNaN(dd)) dateStr=fmtDate(dd); }
-      const k = `${+lat},${+lng}|${from}|${to}|${msg}|${d||''}`;
-      seen.add(k);
-      L.marker([+lat,+lng],{icon:flowerIcon})
-        .addTo(map)
-        .bindPopup(popupHtml(from,to,msg,dateStr))
-        .openPopup();
-      map.setView([+lat,+lng],14);
-    }
-    // Cargar existentes ahora…
     loadFlowers();
-    // …y refrescar cada 30s para que se vaya llenando (sin perder las anteriores)
-    setInterval(loadFlowers, 30000);
+    setInterval(loadFlowers,30000); // refresco cada 30s
   })();
 </script>
 </body>
