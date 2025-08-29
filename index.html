@@ -16,15 +16,25 @@
     label { display:block; font-size:.9rem; margin:12px 0 6px; }
     input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
     textarea { min-height:90px; resize:vertical; }
+    .row { display:flex; gap:10px; }
+    .row > div { flex:1; }
     .small { color:#666; font-size:.85rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
     .error { color:#b30000; }
-    .footer { margin-top:14px; font-size:.85rem; color:#555; }
     button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; }
     .btn-row { display:flex; gap:10px; margin-top:8px; }
     .btn-secondary { background:#444; }
     .hint { font-size:.8rem; color:#444; margin-top:6px; }
-    .hidden { display:none; }
+
+    /* Icono emoji como marcador */
+    .emoji-marker {
+      background: transparent;
+      border: none;
+      font-size: 26px;
+      line-height: 26px;
+      transform: translate(-13px, -13px); /* centra el emoji */
+      pointer-events: none; /* el clic pasa al propio marker */
+    }
   </style>
 </head>
 <body>
@@ -50,18 +60,14 @@
       <button id="confirmBtn" class="btn-secondary" type="button">✅ Confirmar ubicación</button>
       <button id="geoBtn" class="btn-secondary" type="button">📍 Usar mi ubicación</button>
     </div>
-    <div class="hint">Escribe y pulsa “Confirmar” (o Enter). También puedes hacer clic en el mapa o usar tu GPS.</div>
+    <div class="hint">Escribe y pulsa “Confirmar ubicación”, o haz clic en el mapa / usa tu GPS.</div>
 
-    <!-- Lat/Lon ocultos (uso interno) -->
-    <input id="lat" class="hidden" />
-    <input id="lng" class="hidden" />
+    <!-- Lat/Lon ocultos -->
+    <input id="lat" type="hidden" />
+    <input id="lng" type="hidden" />
 
     <button id="plantBtn" style="margin-top:12px;">Plantar flor</button>
     <div id="status" class="small"></div>
-
-    <div class="footer">
-      Mapa: OpenStreetMap + Leaflet. Búsqueda: Nominatim. Guardado: Google Sheets.
-    </div>
   </div>
 </div>
 
@@ -72,24 +78,39 @@
 
   /* === MAPA === */
   const map = L.map('map').setView([40.4168, -3.7038], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // Icono emoji 🌸
+  const flowerIcon = L.divIcon({
+    html: '🌸',
+    className: 'emoji-marker',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
 
   let marker = null;
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
-
   function setStatus(msg, cls='') { statusEl.className = 'small ' + cls; statusEl.textContent = msg; }
   function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  function setPoint(lat, lon, label) {
+  function popupHtml(fromName, toName, message) {
+    return `De ${escapeHtml(fromName||'')}<br>Para ${escapeHtml(toName||'')}<br>🌸 ${escapeHtml(message||'')}`;
+  }
+
+  function setPoint(lat, lon, labelForPopup) {
     $('#lat').value = Number(lat).toFixed(6);
     $('#lng').value = Number(lon).toFixed(6);
     if (marker) map.removeLayer(marker);
-    marker = L.marker([lat, lon]).addTo(map).bindPopup(label || `${lat}, ${lon}`).openPopup();
+    marker = L.marker([lat, lon], { icon: flowerIcon }).addTo(map)
+      .bindPopup(labelForPopup || '🌸')
+      .openPopup();
     map.setView([lat, lon], 12);
   }
 
-  // Rellena sugerencias mientras escribes
+  // Autocompletado (sugerencias)
   let typingTimer = null;
   $('#place').addEventListener('input', e => {
     const q = e.target.value.trim();
@@ -98,27 +119,29 @@
     typingTimer = setTimeout(async () => { await fillSuggestions(q); }, 500);
   });
 
-  // ENTER = confirmar
-  $('#place').addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); await confirmLocation($('#place').value.trim()); }
+  // Confirmar ubicación: usa el primer resultado disponible
+  $('#confirmBtn').addEventListener('click', async () => {
+    await searchAndFix($('#place').value.trim());
   });
 
-  // Botón Confirmar ubicación
-  $('#confirmBtn').addEventListener('click', async () => { await confirmLocation($('#place').value.trim()); });
+  // Enter en el campo = confirmar
+  $('#place').addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); await searchAndFix($('#place').value.trim()); }
+  });
 
   // GPS
   $('#geoBtn').addEventListener('click', () => {
     if (!navigator.geolocation) return setStatus('El navegador no soporta geolocalización.', 'error');
     setStatus('Obteniendo tu ubicación…');
     navigator.geolocation.getCurrentPosition(
-      pos => { setPoint(pos.coords.latitude, pos.coords.longitude, 'Mi ubicación'); setStatus(''); },
+      pos => { setPoint(pos.coords.latitude, pos.coords.longitude, '🌸'); setStatus(''); },
       err => setStatus('No se pudo obtener tu ubicación.', 'error'),
       { enableHighAccuracy:true, timeout:10000 }
     );
   });
 
-  // Click mapa
-  map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng, 'Punto elegido en el mapa'); setStatus(''); });
+  // Click en el mapa
+  map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng, '🌸'); setStatus(''); });
 
   async function fillSuggestions(query) {
     try {
@@ -138,21 +161,21 @@
     } catch { return []; }
   }
 
-  async function confirmLocation(query) {
-    if (!query) return setStatus('Escribe una dirección o usa el mapa/GPS.', 'error');
+  async function searchAndFix(query) {
+    if (!query) return setStatus('Escribe una dirección o haz clic en el mapa.', 'error');
     setStatus('Buscando…');
     const results = await fillSuggestions(query);
     if (results.length > 0) {
       const first = results[0];
-      $('#place').value = first.display_name;
-      setPoint(parseFloat(first.lat), parseFloat(first.lon), first.display_name);
-      setStatus('Ubicación confirmada ✅', 'ok');
+      $('#place').value = first.display_name; // dejamos la dirección completa en el input
+      setPoint(parseFloat(first.lat), parseFloat(first.lon), '🌸');
+      setStatus('');
     } else {
-      setStatus('No se encontró esa ubicación. Prueba con otra más concreta.', 'error');
+      setStatus('No se encontró esa ubicación. Prueba otra más concreta.', 'error');
     }
   }
 
-  // Cargar flores
+  // Cargar flores guardadas
   async function loadFlowers() {
     try {
       const res = await fetch(SCRIPT_URL);
@@ -160,15 +183,15 @@
       if (!data.ok) return;
       (data.items || []).forEach(f => {
         if (f.lat && f.lng) {
-          L.marker([Number(f.lat), Number(f.lng)])
+          L.marker([Number(f.lat), Number(f.lng)], { icon: flowerIcon })
             .addTo(map)
-            .bindPopup(`🌸 <b>${escapeHtml(f.toName||'')}</b><br>${escapeHtml(f.message||'')}<br><small>Por ${escapeHtml(f.fromName||'')} • ${escapeHtml(f.place||'')}</small>`);
+            .bindPopup(popupHtml(f.fromName, f.toName, f.message));
         }
       });
     } catch {}
   }
 
-  // Guardar flor con diagnóstico detallado
+  // Guardar flor
   $('#plantBtn').addEventListener('click', async () => {
     const fromName = $('#fromName').value.trim();
     const toName   = $('#toName').value.trim();
@@ -178,7 +201,7 @@
     const lng      = $('#lng').value.trim();
 
     if (!fromName || !toName || !message || !place || !lat || !lng) {
-      return setStatus('Completa los campos y confirma tu ubicación.', 'error');
+      return setStatus('Completa todos los campos y confirma la ubicación (botón, mapa o GPS).', 'error');
     }
     setStatus('Guardando flor…');
 
@@ -189,24 +212,20 @@
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body
       });
-
-      const text = await res.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch { /* a veces Apps Script devuelve HTML en errores */ }
-
-      if (res.ok && data.ok) {
+      const data = await res.json();
+      if (data.ok) {
         setStatus('¡Flor plantada! Ya está guardada.', 'ok');
         const latN = Number(lat), lngN = Number(lng);
         if (marker) marker.remove();
-        L.marker([latN, lngN])
+        L.marker([latN, lngN], { icon: flowerIcon })
           .addTo(map)
-          .bindPopup(`🌸 <b>${escapeHtml(toName)}</b><br>${escapeHtml(message)}<br><small>Por ${escapeHtml(fromName)} • ${escapeHtml(place)}</small>`)
+          .bindPopup(popupHtml(fromName, toName, message))
           .openPopup();
         map.setView([latN, lngN], 12);
       } else {
-        setStatus(`Error al guardar (HTTP ${res.status}). Respuesta: ${text.slice(0,200)}`, 'error');
+        setStatus('No se pudo guardar: ' + (data.error||'Error desconocido'), 'error');
       }
-    } catch (err) {
+    } catch {
       setStatus('Error de red al guardar la flor.', 'error');
     }
   });
