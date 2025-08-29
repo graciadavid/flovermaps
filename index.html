@@ -18,7 +18,7 @@
     textarea { min-height:90px; resize:vertical; }
     .row { display:flex; gap:10px; }
     .row > div { flex:1; }
-    .small { color:#666; font-size:.85rem; }
+    .small { color:#666; font-size:.85rem; min-height:1.2em; }
     .ok { color: #0a7d25; }
     .error { color: #b30000; }
     .footer { margin-top:14px; font-size:.85rem; color:#555; }
@@ -41,9 +41,9 @@
     <textarea id="message" placeholder="Escribe algo bonito…"></textarea>
 
     <label>Ubicación (escribe y elige una sugerencia)</label>
-    <input id="place" placeholder="Ej. Parc Güell, Barcelona" list="suggestions" />
+    <input id="place" placeholder="Ej. Sagrada Família, Barcelona" list="suggestions" />
     <datalist id="suggestions"></datalist>
-    <div class="small">Escribe, espera 1 segundo y elige una sugerencia para fijar el punto.</div>
+    <div class="small">Escribe, espera 1 segundo y elige una sugerencia.</div>
 
     <div class="row">
       <div>
@@ -60,29 +60,29 @@
     <div id="status" class="small"></div>
 
     <div class="footer">
-      Mapa: OpenStreetMap + Leaflet (gratis). Geocoding: vía tu Apps Script (Nominatim).
+      Mapa: OpenStreetMap + Leaflet (gratis). Búsqueda: Nominatim. Guardado: Google Sheets (Apps Script).
     </div>
   </div>
 </div>
 
 <script>
-  // === Config ===
+  /* === CONFIG === */
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPc0nFfMUoC-chPR5KYLIeEH1I79-7JO3zztxZNGUfRekUK1qjzX-3Su7caKdLEBZoYQ/exec';
+  const NOMINATIM_EMAIL = 'gracia.david@gmail.com'; // <-- tu email real
 
-  // === Mapa ===
-  const map = L.map('map').setView([40.4168, -3.7038], 5);
+  /* === MAPA === */
+  const map = L.map('map').setView([40.4168, -3.7038], 5); // España
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
   let marker = null;
-
-  // === UI helpers ===
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
   function setStatus(msg, cls='') { statusEl.className='small '+cls; statusEl.textContent=msg; }
+  function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  // === Autocompletado (consulta a tu Apps Script, que llama a Nominatim) ===
+  /* === AUTOCOMPLETADO: consulta directa a Nominatim con tu email === */
   let typingTimer = null;
   $('#place').addEventListener('input', e => {
     const q = e.target.value.trim();
@@ -90,13 +90,13 @@
     if (!q) { $('#suggestions').innerHTML=''; return; }
     typingTimer = setTimeout(async () => {
       try {
-        const res = await fetch(SCRIPT_URL + '?q=' + encodeURIComponent(q));
-        const data = await res.json();
-        if (!data.ok) return;
-        const list = data.items || [];
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
+                    + encodeURIComponent(q) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+        const list = await res.json();
         const dl = $('#suggestions');
         dl.innerHTML = '';
-        list.forEach(item => {
+        (list || []).forEach(item => {
           const opt = document.createElement('option');
           opt.value = item.display_name;
           opt.dataset.lat = item.lat;
@@ -104,12 +104,12 @@
           dl.appendChild(opt);
         });
       } catch (err) {
-        // silencio: puede fallar si escriben muy rápido
+        // ignorar fallos de red puntuales
       }
-    }, 800); // espera breve para no saturar
+    }, 800); // Espera breve para no saturar
   });
 
-  // Cuando el usuario sale del input "place", si coincide con una sugerencia, fijamos lat/lon y marcador
+  // Cuando eliges una sugerencia exacta, fijamos lat/lon y marcador
   $('#place').addEventListener('change', () => {
     const val = $('#place').value;
     const options = Array.from($('#suggestions').children);
@@ -122,10 +122,11 @@
       if (marker) map.removeLayer(marker);
       marker = L.marker([lat, lon]).addTo(map).bindPopup(val).openPopup();
       map.setView([lat, lon], 12);
+      setStatus('');
     }
   });
 
-  // === Cargar flores existentes ===
+  /* === CARGAR FLORES EXISTENTES DESDE GOOGLE SHEETS === */
   async function loadFlowers() {
     try {
       const res = await fetch(SCRIPT_URL);
@@ -143,7 +144,7 @@
     }
   }
 
-  // === Plantar flor (guardar en Google Sheet) ===
+  /* === ENVIAR FLOR (guardar en la hoja) === */
   $('#plantBtn').addEventListener('click', async () => {
     const fromName = $('#fromName').value.trim();
     const toName   = $('#toName').value.trim();
@@ -166,7 +167,7 @@
       });
       const data = await res.json();
       if (data.ok) {
-        setStatus('¡Flor plantada! Recarga para verla junto a las demás.', 'ok');
+        setStatus('¡Flor plantada! Ya está guardada.', 'ok');
         const latN = Number(lat), lngN = Number(lng);
         if (marker) marker.remove();
         L.marker([latN, lngN])
@@ -182,10 +183,9 @@
     }
   });
 
-  function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-  // iniciar
+  // Inicio
   loadFlowers();
 </script>
 </body>
 </html>
+
