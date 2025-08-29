@@ -11,7 +11,7 @@
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#fafafa; }
     .wrap { display:flex; min-height:100vh; }
     #map { flex:1; min-height:100vh; }
-    .panel { width:380px; max-width:100%; padding:20px; border-left: 1px solid #eee; background:#fff; }
+    .panel { width:420px; max-width:100%; padding:20px; border-left: 1px solid #eee; background:#fff; }
     .panel h1 { font-size:1.25rem; margin:0 0 12px; }
     label { display:block; font-size:.9rem; margin:12px 0 6px; }
     input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
@@ -23,6 +23,9 @@
     .error { color: #b30000; }
     .footer { margin-top:14px; font-size:.85rem; color:#555; }
     button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; }
+    .btn-row { display:flex; gap:10px; margin-top:8px; }
+    .btn-secondary { background:#444; }
+    .hint { font-size:.8rem; color:#444; margin-top:6px; }
   </style>
 </head>
 <body>
@@ -40,12 +43,17 @@
     <label>Mensaje</label>
     <textarea id="message" placeholder="Escribe algo bonito…"></textarea>
 
-    <label>Ubicación (escribe y elige una sugerencia)</label>
+    <label>Ubicación</label>
     <input id="place" placeholder="Ej. Sagrada Família, Barcelona" list="suggestions" />
     <datalist id="suggestions"></datalist>
-    <div class="small">Escribe, espera 1 segundo y elige una sugerencia.</div>
 
-    <div class="row">
+    <div class="btn-row">
+      <button id="searchBtn" class="btn-secondary" type="button">🔎 Buscar ubicación</button>
+      <button id="geoBtn" class="btn-secondary" type="button">📍 Usar mi ubicación</button>
+    </div>
+    <div class="hint">Tip: escribe y pulsa “Buscar” (o Enter). También puedes hacer clic en el mapa.</div>
+
+    <div class="row" style="margin-top:10px;">
       <div>
         <label>Lat</label>
         <input id="lat" placeholder="latitud" readonly />
@@ -56,7 +64,7 @@
       </div>
     </div>
 
-    <button id="plantBtn">Plantar flor</button>
+    <button id="plantBtn" style="margin-top:12px;">Plantar flor</button>
     <div id="status" class="small"></div>
 
     <div class="footer">
@@ -68,7 +76,7 @@
 <script>
   /* === CONFIG === */
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPc0nFfMUoC-chPR5KYLIeEH1I79-7JO3zztxZNGUfRekUK1qjzX-3Su7caKdLEBZoYQ/exec';
-  const NOMINATIM_EMAIL = 'gracia.david@gmail.com'; // <-- tu email real
+  const NOMINATIM_EMAIL = 'gracia.david@gmail.com'; // tu email real
 
   /* === MAPA === */
   const map = L.map('map').setView([40.4168, -3.7038], 5); // España
@@ -82,49 +90,109 @@
   function setStatus(msg, cls='') { statusEl.className='small '+cls; statusEl.textContent=msg; }
   function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  /* === AUTOCOMPLETADO: consulta directa a Nominatim con tu email === */
+  // Poner marcador y lat/lon
+  function setPoint(lat, lon, label) {
+    $('#lat').value = Number(lat).toFixed(6);
+    $('#lng').value = Number(lon).toFixed(6);
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([lat, lon]).addTo(map).bindPopup(label || `${lat}, ${lon}`).openPopup();
+    map.setView([lat, lon], 12);
+  }
+
+  /* === AUTOCOMPLETADO (rellena datalist mientras escribes) === */
   let typingTimer = null;
   $('#place').addEventListener('input', e => {
     const q = e.target.value.trim();
     clearTimeout(typingTimer);
     if (!q) { $('#suggestions').innerHTML=''; return; }
     typingTimer = setTimeout(async () => {
-      try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
-                    + encodeURIComponent(q) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
-        const list = await res.json();
-        const dl = $('#suggestions');
-        dl.innerHTML = '';
-        (list || []).forEach(item => {
-          const opt = document.createElement('option');
-          opt.value = item.display_name;
-          opt.dataset.lat = item.lat;
-          opt.dataset.lon = item.lon;
-          dl.appendChild(opt);
-        });
-      } catch (err) {
-        // ignorar fallos de red puntuales
-      }
-    }, 800); // Espera breve para no saturar
+      await fillSuggestions(q);
+    }, 600);
   });
 
-  // Cuando eliges una sugerencia exacta, fijamos lat/lon y marcador
-  $('#place').addEventListener('change', () => {
-    const val = $('#place').value;
-    const options = Array.from($('#suggestions').children);
-    const match = options.find(o => o.value === val);
-    if (match) {
-      const lat = parseFloat(match.dataset.lat);
-      const lon = parseFloat(match.dataset.lon);
-      $('#lat').value = lat.toFixed(6);
-      $('#lng').value = lon.toFixed(6);
-      if (marker) map.removeLayer(marker);
-      marker = L.marker([lat, lon]).addTo(map).bindPopup(val).openPopup();
-      map.setView([lat, lon], 12);
-      setStatus('');
+  // ENTER en el campo ubicación = buscar y fijar el primer resultado
+  $('#place').addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      await searchAndFix($('#place').value.trim());
     }
   });
+
+  // Botón Buscar ubicación = buscar y fijar el primer resultado
+  $('#searchBtn').addEventListener('click', async () => {
+    await searchAndFix($('#place').value.trim());
+  });
+
+  // Botón GPS
+  $('#geoBtn').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      setStatus('El navegador no soporta geolocalización.', 'error');
+      return;
+    }
+    setStatus('Obteniendo tu ubicación…');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setPoint(lat, lon, 'Mi ubicación');
+        setStatus('');
+      },
+      err => setStatus('No se pudo obtener tu ubicación.', 'error'),
+      { enableHighAccuracy:true, timeout:10000 }
+    );
+  });
+
+  // Click en el mapa = fijar punto
+  map.on('click', (e) => {
+    const { lat, lng } = e.latlng;
+    setPoint(lat, lng, 'Punto seleccionado en el mapa');
+    setStatus('');
+  });
+
+  // Rellena el datalist con sugerencias
+  async function fillSuggestions(query) {
+    try {
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
+                  + encodeURIComponent(query) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      const list = await res.json();
+      const dl = $('#suggestions');
+      dl.innerHTML = '';
+      (list || []).forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.display_name;
+        opt.dataset.lat = item.lat;
+        opt.dataset.lon = item.lon;
+        dl.appendChild(opt);
+      });
+      return list || [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  // Busca y fija: si no hay coincidencia exacta, usa el primer resultado
+  async function searchAndFix(query) {
+    if (!query) { setStatus('Escribe una dirección o haz clic en el mapa.', 'error'); return; }
+    setStatus('Buscando…');
+    const options = Array.from($('#suggestions').children);
+    const exact = options.find(o => o.value === query);
+    if (exact) {
+      setPoint(parseFloat(exact.dataset.lat), parseFloat(exact.dataset.lon), exact.value);
+      setStatus('');
+      return;
+    }
+    // Si no hay coincidencia exacta, consultamos Nominatim y usamos el primer resultado
+    const results = await fillSuggestions(query);
+    if (results.length > 0) {
+      const first = results[0];
+      $('#place').value = first.display_name;
+      setPoint(parseFloat(first.lat), parseFloat(first.lon), first.display_name);
+      setStatus('');
+    } else {
+      setStatus('No se encontró esa ubicación. Prueba con otra más concreta.', 'error');
+    }
+  }
 
   /* === CARGAR FLORES EXISTENTES DESDE GOOGLE SHEETS === */
   async function loadFlowers() {
@@ -139,9 +207,7 @@
             .bindPopup(`🌸 <b>${escapeHtml(f.toName||'')}</b><br>${escapeHtml(f.message||'')}<br><small>Por ${escapeHtml(f.fromName||'')} • ${escapeHtml(f.place||'')}</small>`);
         }
       });
-    } catch (err) {
-      // si falla, no rompemos nada
-    }
+    } catch {}
   }
 
   /* === ENVIAR FLOR (guardar en la hoja) === */
@@ -154,7 +220,7 @@
     const lng      = $('#lng').value.trim();
 
     if (!fromName || !toName || !message || !place || !lat || !lng) {
-      setStatus('Completa todos los campos y elige una sugerencia para fijar la ubicación.', 'error');
+      setStatus('Completa todos los campos y fija la ubicación (Buscar, Enter, mapa o GPS).', 'error');
       return;
     }
     setStatus('Guardando flor…');
@@ -188,4 +254,3 @@
 </script>
 </body>
 </html>
-
