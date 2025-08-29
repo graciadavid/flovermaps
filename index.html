@@ -5,7 +5,7 @@
   <title>Flovermaps – Planta una flor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Open Graph (previsualización en redes) -->
+  <!-- Open Graph -->
   <meta property="og:title" content="Flovermaps – Planta una flor 🌸" />
   <meta property="og:description" content="Planta flores digitales en el mapa y dedícalas a quien quieras. Gratis." />
   <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Emoji_u1f33c.svg/240px-Emoji_u1f33c.svg.png" />
@@ -75,17 +75,31 @@
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec';
   const NOMINATIM_EMAIL = 'gracia.david@gmail.com';
 
-  const map = L.map('map').setView([40.4168, -3.7038], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(map);
+  // ----- MAPAS BONITOS (CARTO) -----
+  const cartoAttrib = '© OpenStreetMap contributors © CARTO';
+  const positron     = L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
+  const positronNL   = L.tileLayer('https://basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
+  const darkMatter   = L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: cartoAttrib, maxZoom: 19 });
 
+  const map = L.map('map', { layers:[positron] }).setView([40.4168, -3.7038], 13);
+  L.control.layers(
+    { 'Positron (claro)': positron, 'Positron sin etiquetas': positronNL, 'Dark Matter (oscuro)': darkMatter },
+    null,
+    { position:'topleft', collapsed:true }
+  ).addTo(map);
+
+  // Marcador 🌸
   const flowerIcon = L.divIcon({ html:'🌸', className:'emoji-marker', iconSize:[26,26], iconAnchor:[13,13] });
   let marker = null;
+
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
   function setStatus(msg, cls=''){ statusEl.className='small '+cls; statusEl.textContent=msg; }
   function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function popupHtml(from,to,msg){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}`; }
-  function setPoint(lat,lon){ $('#lat').value=lat; $('#lng').value=lon; if(marker)map.removeLayer(marker); marker=L.marker([lat,lon],{icon:flowerIcon}).addTo(map); map.setView([lat,lon],12); }
+  function fmtDate(d){ const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}/${mm}/${yy}`; }
+  function popupHtml(from,to,msg,dateStr){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}<br><small>📅 ${escapeHtml(dateStr)}</small>`; }
+
+  function setPoint(lat,lon){ $('#lat').value=lat; $('#lng').value=lon; if(marker)map.removeLayer(marker); marker=L.marker([lat,lon],{icon:flowerIcon}).addTo(map); map.setView([lat,lon],14); }
 
   // Autocomplete + confirmar ubicación
   let typingTimer=null;
@@ -97,49 +111,70 @@
 
   async function fillSuggestions(query){
     const url='https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(query)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
-    const res=await fetch(url); const list=await res.json(); const dl=$('#suggestions'); dl.innerHTML=''; (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); }); return list;
+    const res=await fetch(url); const list=await res.json();
+    const dl=$('#suggestions'); dl.innerHTML=''; (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); });
+    return list;
   }
-  async function searchAndFix(query){
-    const results=await fillSuggestions(query); if(results.length>0){ const f=results[0]; setPoint(f.lat,f.lon); }
-  }
+  async function searchAndFix(query){ const results=await fillSuggestions(query); if(results.length>0){ const f=results[0]; $('#place').value=f.display_name; setPoint(f.lat,f.lon); } }
 
-  // Cargar flores guardadas
+  // Cargar flores guardadas (con fecha)
   async function loadFlowers(){
     const res=await fetch(SCRIPT_URL); const data=await res.json();
-    (data.items||[]).forEach(f=>{ if(f.lat&&f.lng){ L.marker([+f.lat,+f.lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(f.fromName,f.toName,f.message)); }});
+    (data.items||[]).forEach(f=>{
+      if(f.lat && f.lng){
+        let dateStr='';
+        if(f.timestamp){ const d=new Date(f.timestamp); if(!isNaN(d)) dateStr=fmtDate(d); }
+        L.marker([+f.lat,+f.lng],{icon:flowerIcon})
+          .addTo(map)
+          .bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr||''));
+      }
+    });
   }
 
-  // Guardar flor
+  // Guardar flor + compartir con fecha
   $('#plantBtn').addEventListener('click',async()=>{
     const from=$('#fromName').value.trim(),to=$('#toName').value.trim(),msg=$('#message').value.trim(),place=$('#place').value.trim(),lat=$('#lat').value.trim(),lng=$('#lng').value.trim();
-    if(!from||!to||!msg||!place||!lat||!lng)return setStatus('Completa todos los campos','error');
+    if(!from||!to||!msg||!place||!lat||!lng) return setStatus('Completa todos los campos y confirma la ubicación','error');
     setStatus('Guardando…');
-    const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-    const data=await res.json();
-    if(data.ok){
-      setStatus('¡Flor plantada!','ok');
-      if(marker)marker.remove();
-      marker=L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg)).openPopup();
-      map.setView([+lat,+lng],12);
-      // mostrar botones virales
-      $('#shareBtn').style.display='block';
-      $('#resetBtn').style.display='block';
-      // generar enlace compartible
-      const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
-      $('#shareBtn').onclick=()=>{ navigator.clipboard.writeText(url); setStatus('Enlace copiado ✅','ok'); };
-      $('#resetBtn').onclick=()=>{ $('#fromName').value=''; $('#toName').value=''; $('#message').value=''; $('#place').value=''; $('#lat').value=''; $('#lng').value=''; $('#shareBtn').style.display='none'; $('#resetBtn').style.display='none'; if(marker){map.removeLayer(marker); marker=null;} setStatus('Formulario listo para otra flor.'); };
-    } else setStatus('Error: '+(data.error||''),'error');
+
+    const today=new Date(); const dateStr=fmtDate(today);
+    try{
+      const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
+      const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
+      const data=await res.json();
+      if(data.ok){
+        setStatus('¡Flor plantada!','ok');
+        if(marker)marker.remove();
+        marker=L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg,dateStr)).openPopup();
+        map.setView([+lat,+lng],14);
+
+        // Botones virales
+        $('#shareBtn').style.display='block';
+        $('#resetBtn').style.display='block';
+
+        // Enlace compartible con fecha (YYYY-MM-DD)
+        const iso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${iso}`;
+        $('#shareBtn').onclick=()=>{ navigator.clipboard.writeText(url); setStatus('Enlace copiado ✅','ok'); };
+        $('#resetBtn').onclick=()=>{ $('#fromName').value=''; $('#toName').value=''; $('#message').value=''; $('#place').value=''; $('#lat').value=''; $('#lng').value=''; $('#shareBtn').style.display='none'; $('#resetBtn').style.display='none'; if(marker){map.removeLayer(marker); marker=null;} setStatus('Formulario listo para otra flor.'); };
+      } else setStatus('Error: '+(data.error||''),'error');
+    } catch { setStatus('Error de red','error'); }
   });
 
-  // Deep-link: si hay ?lat=.. abre flor
+  // Deep-link: abrir flor compartida (con fecha)
   (function(){
     const p=new URLSearchParams(location.search);
     if(p.has('lat')&&p.has('lng')){
-      const lat=p.get('lat'),lng=p.get('lng'),from=p.get('from')||'',to=p.get('to')||'',msg=p.get('msg')||'';
-      L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg)).openPopup();
-      map.setView([+lat,+lng],12);
-    } else loadFlowers();
+      const lat=p.get('lat'),lng=p.get('lng'),from=p.get('from')||'',to=p.get('to')||'',msg=p.get('msg')||'',d=p.get('d')||'';
+      const dateStr = d ? (()=>{
+        const dd = new Date(d);
+        return isNaN(dd) ? '' : fmtDate(dd);
+      })() : '';
+      L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg,dateStr)).openPopup();
+      map.setView([+lat,+lng],14);
+    } else {
+      loadFlowers();
+    }
   })();
 </script>
 </body>
