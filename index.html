@@ -16,8 +16,6 @@
     label { display:block; font-size:.9rem; margin:12px 0 6px; }
     input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
     textarea { min-height:90px; resize:vertical; }
-    .row { display:flex; gap:10px; }
-    .row > div { flex:1; }
     .small { color:#666; font-size:.85rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
     .error { color:#b30000; }
@@ -26,6 +24,7 @@
     .btn-row { display:flex; gap:10px; margin-top:8px; }
     .btn-secondary { background:#444; }
     .hint { font-size:.8rem; color:#444; margin-top:6px; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
@@ -48,21 +47,14 @@
     <datalist id="suggestions"></datalist>
 
     <div class="btn-row">
-      <button id="searchBtn" class="btn-secondary" type="button">🔎 Buscar ubicación</button>
+      <button id="confirmBtn" class="btn-secondary" type="button">✅ Confirmar ubicación</button>
       <button id="geoBtn" class="btn-secondary" type="button">📍 Usar mi ubicación</button>
     </div>
-    <div class="hint">Tip: escribe y pulsa “Buscar” (o Enter). También puedes hacer clic en el mapa.</div>
+    <div class="hint">Escribe y pulsa “Confirmar” (o Enter). También puedes hacer clic en el mapa o usar tu GPS.</div>
 
-    <div class="row" style="margin-top:10px;">
-      <div>
-        <label>Lat</label>
-        <input id="lat" placeholder="latitud" readonly />
-      </div>
-      <div>
-        <label>Lon</label>
-        <input id="lng" placeholder="longitud" readonly />
-      </div>
-    </div>
+    <!-- Lat/Lon ocultos (uso interno) -->
+    <input id="lat" class="hidden" />
+    <input id="lng" class="hidden" />
 
     <button id="plantBtn" style="margin-top:12px;">Plantar flor</button>
     <div id="status" class="small"></div>
@@ -80,13 +72,12 @@
 
   /* === MAPA === */
   const map = L.map('map').setView([40.4168, -3.7038], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
   let marker = null;
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
+
   function setStatus(msg, cls='') { statusEl.className = 'small ' + cls; statusEl.textContent = msg; }
   function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -98,7 +89,7 @@
     map.setView([lat, lon], 12);
   }
 
-  // Autocompletado (sugerencias mientras escribes)
+  // Rellena sugerencias mientras escribes
   let typingTimer = null;
   $('#place').addEventListener('input', e => {
     const q = e.target.value.trim();
@@ -107,13 +98,13 @@
     typingTimer = setTimeout(async () => { await fillSuggestions(q); }, 500);
   });
 
-  // Enter = buscar y fijar el primer resultado
+  // ENTER = confirmar
   $('#place').addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); await searchAndFix($('#place').value.trim()); }
+    if (e.key === 'Enter') { e.preventDefault(); await confirmLocation($('#place').value.trim()); }
   });
 
-  // Botón Buscar
-  $('#searchBtn').addEventListener('click', async () => { await searchAndFix($('#place').value.trim()); });
+  // Botón Confirmar ubicación
+  $('#confirmBtn').addEventListener('click', async () => { await confirmLocation($('#place').value.trim()); });
 
   // GPS
   $('#geoBtn').addEventListener('click', () => {
@@ -126,10 +117,9 @@
     );
   });
 
-  // Click en el mapa
+  // Click mapa
   map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng, 'Punto elegido en el mapa'); setStatus(''); });
 
-  // Rellena sugerencias
   async function fillSuggestions(query) {
     try {
       const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
@@ -148,22 +138,21 @@
     } catch { return []; }
   }
 
-  // Busca y fija (si no hay coincidencia exacta, usa el primer resultado)
-  async function searchAndFix(query) {
-    if (!query) return setStatus('Escribe una dirección o haz clic en el mapa.', 'error');
+  async function confirmLocation(query) {
+    if (!query) return setStatus('Escribe una dirección o usa el mapa/GPS.', 'error');
     setStatus('Buscando…');
     const results = await fillSuggestions(query);
     if (results.length > 0) {
       const first = results[0];
       $('#place').value = first.display_name;
       setPoint(parseFloat(first.lat), parseFloat(first.lon), first.display_name);
-      setStatus('');
+      setStatus('Ubicación confirmada ✅', 'ok');
     } else {
       setStatus('No se encontró esa ubicación. Prueba con otra más concreta.', 'error');
     }
   }
 
-  // Cargar flores guardadas
+  // Cargar flores
   async function loadFlowers() {
     try {
       const res = await fetch(SCRIPT_URL);
@@ -179,7 +168,7 @@
     } catch {}
   }
 
-  // Guardar flor (x-www-form-urlencoded → evita CORS preflight)
+  // Guardar flor con diagnóstico detallado
   $('#plantBtn').addEventListener('click', async () => {
     const fromName = $('#fromName').value.trim();
     const toName   = $('#toName').value.trim();
@@ -189,7 +178,7 @@
     const lng      = $('#lng').value.trim();
 
     if (!fromName || !toName || !message || !place || !lat || !lng) {
-      return setStatus('Completa todos los campos y fija la ubicación (Buscar/Enter/mapa/GPS).', 'error');
+      return setStatus('Completa los campos y confirma tu ubicación.', 'error');
     }
     setStatus('Guardando flor…');
 
@@ -200,8 +189,12 @@
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body
       });
-      const data = await res.json();
-      if (data.ok) {
+
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch { /* a veces Apps Script devuelve HTML en errores */ }
+
+      if (res.ok && data.ok) {
         setStatus('¡Flor plantada! Ya está guardada.', 'ok');
         const latN = Number(lat), lngN = Number(lng);
         if (marker) marker.remove();
@@ -211,9 +204,9 @@
           .openPopup();
         map.setView([latN, lngN], 12);
       } else {
-        setStatus('No se pudo guardar: ' + (data.error||'Error desconocido'), 'error');
+        setStatus(`Error al guardar (HTTP ${res.status}). Respuesta: ${text.slice(0,200)}`, 'error');
       }
-    } catch {
+    } catch (err) {
       setStatus('Error de red al guardar la flor.', 'error');
     }
   });
