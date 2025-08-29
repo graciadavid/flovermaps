@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <title>Flovermaps – Planta una flor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Open Graph (previsualización en redes) -->
+  <meta property="og:title" content="Flovermaps – Planta una flor 🌸" />
+  <meta property="og:description" content="Planta flores digitales en el mapa y dedícalas a quien quieras. Gratis." />
+  <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Emoji_u1f33c.svg/240px-Emoji_u1f33c.svg.png" />
+  <meta property="og:type" content="website" />
+
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -16,25 +23,17 @@
     label { display:block; font-size:.9rem; margin:12px 0 6px; }
     input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
     textarea { min-height:90px; resize:vertical; }
-    .row { display:flex; gap:10px; }
-    .row > div { flex:1; }
     .small { color:#666; font-size:.85rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
     .error { color:#b30000; }
-    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; }
+    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; margin-top:10px; }
     .btn-row { display:flex; gap:10px; margin-top:8px; }
     .btn-secondary { background:#444; }
-    .hint { font-size:.8rem; color:#444; margin-top:6px; }
 
-    /* Icono emoji como marcador */
-    .emoji-marker {
-      background: transparent;
-      border: none;
-      font-size: 26px;
-      line-height: 26px;
-      transform: translate(-13px, -13px); /* centra el emoji */
-      pointer-events: none; /* el clic pasa al propio marker */
-    }
+    /* Emoji marker */
+    .emoji-marker { background:transparent; border:none; font-size:26px; line-height:26px; transform:translate(-13px,-13px); pointer-events:none; }
+    .leaflet-marker-icon[src*="marker-icon"] { display:none!important; }
+    .leaflet-marker-shadow { display:none!important; }
   </style>
 </head>
 <body>
@@ -44,7 +43,7 @@
     <h1>Planta una flor 🌸</h1>
 
     <label>¿Quién la envía?</label>
-    <input id="fromName" placeholder="Tu nombre" autocomplete="name" />
+    <input id="fromName" placeholder="Tu nombre" />
 
     <label>¿Para quién?</label>
     <input id="toName" placeholder="Nombre del destinatario" />
@@ -60,177 +59,88 @@
       <button id="confirmBtn" class="btn-secondary" type="button">✅ Confirmar ubicación</button>
       <button id="geoBtn" class="btn-secondary" type="button">📍 Usar mi ubicación</button>
     </div>
-    <div class="hint">Escribe y pulsa “Confirmar ubicación”, o haz clic en el mapa / usa tu GPS.</div>
 
-    <!-- Lat/Lon ocultos -->
     <input id="lat" type="hidden" />
     <input id="lng" type="hidden" />
 
-    <button id="plantBtn" style="margin-top:12px;">Plantar flor</button>
+    <button id="plantBtn">Plantar flor</button>
+    <button id="shareBtn" style="display:none; background:#0066cc;">🔗 Compartir flor</button>
+    <button id="resetBtn" style="display:none; background:#666;">➕ Plantar otra</button>
+
     <div id="status" class="small"></div>
   </div>
 </div>
 
 <script>
-  /* === CONFIG === */
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec';
   const NOMINATIM_EMAIL = 'gracia.david@gmail.com';
 
-  /* === MAPA === */
   const map = L.map('map').setView([40.4168, -3.7038], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(map);
 
-  // Icono emoji 🌸
-  const flowerIcon = L.divIcon({
-    html: '🌸',
-    className: 'emoji-marker',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13]
-  });
-
+  const flowerIcon = L.divIcon({ html:'🌸', className:'emoji-marker', iconSize:[26,26], iconAnchor:[13,13] });
   let marker = null;
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
-  function setStatus(msg, cls='') { statusEl.className = 'small ' + cls; statusEl.textContent = msg; }
-  function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function setStatus(msg, cls=''){ statusEl.className='small '+cls; statusEl.textContent=msg; }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function popupHtml(from,to,msg){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}`; }
+  function setPoint(lat,lon){ $('#lat').value=lat; $('#lng').value=lon; if(marker)map.removeLayer(marker); marker=L.marker([lat,lon],{icon:flowerIcon}).addTo(map); map.setView([lat,lon],12); }
 
-  function popupHtml(fromName, toName, message) {
-    return `De ${escapeHtml(fromName||'')}<br>Para ${escapeHtml(toName||'')}<br>🌸 ${escapeHtml(message||'')}`;
+  // Autocomplete + confirmar ubicación
+  let typingTimer=null;
+  $('#place').addEventListener('input',e=>{ const q=e.target.value.trim(); clearTimeout(typingTimer); if(!q)return; typingTimer=setTimeout(()=>fillSuggestions(q),500); });
+  $('#confirmBtn').addEventListener('click',()=>searchAndFix($('#place').value.trim()));
+  $('#place').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); searchAndFix($('#place').value.trim()); }});
+  $('#geoBtn').addEventListener('click',()=>{ if(!navigator.geolocation)return; navigator.geolocation.getCurrentPosition(pos=>{ setPoint(pos.coords.latitude,pos.coords.longitude); }); });
+  map.on('click',e=>{ setPoint(e.latlng.lat,e.latlng.lng); });
+
+  async function fillSuggestions(query){
+    const url='https://nominatim.openstreetmap.org/search?format=json&limit=5&q='+encodeURIComponent(query)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
+    const res=await fetch(url); const list=await res.json(); const dl=$('#suggestions'); dl.innerHTML=''; (list||[]).forEach(i=>{ const opt=document.createElement('option'); opt.value=i.display_name; opt.dataset.lat=i.lat; opt.dataset.lon=i.lon; dl.appendChild(opt); }); return list;
   }
-
-  function setPoint(lat, lon, labelForPopup) {
-    $('#lat').value = Number(lat).toFixed(6);
-    $('#lng').value = Number(lon).toFixed(6);
-    if (marker) map.removeLayer(marker);
-    marker = L.marker([lat, lon], { icon: flowerIcon }).addTo(map)
-      .bindPopup(labelForPopup || '🌸')
-      .openPopup();
-    map.setView([lat, lon], 12);
-  }
-
-  // Autocompletado (sugerencias)
-  let typingTimer = null;
-  $('#place').addEventListener('input', e => {
-    const q = e.target.value.trim();
-    clearTimeout(typingTimer);
-    if (!q) { $('#suggestions').innerHTML=''; return; }
-    typingTimer = setTimeout(async () => { await fillSuggestions(q); }, 500);
-  });
-
-  // Confirmar ubicación: usa el primer resultado disponible
-  $('#confirmBtn').addEventListener('click', async () => {
-    await searchAndFix($('#place').value.trim());
-  });
-
-  // Enter en el campo = confirmar
-  $('#place').addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); await searchAndFix($('#place').value.trim()); }
-  });
-
-  // GPS
-  $('#geoBtn').addEventListener('click', () => {
-    if (!navigator.geolocation) return setStatus('El navegador no soporta geolocalización.', 'error');
-    setStatus('Obteniendo tu ubicación…');
-    navigator.geolocation.getCurrentPosition(
-      pos => { setPoint(pos.coords.latitude, pos.coords.longitude, '🌸'); setStatus(''); },
-      err => setStatus('No se pudo obtener tu ubicación.', 'error'),
-      { enableHighAccuracy:true, timeout:10000 }
-    );
-  });
-
-  // Click en el mapa
-  map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng, '🌸'); setStatus(''); });
-
-  async function fillSuggestions(query) {
-    try {
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
-                + encodeURIComponent(query) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
-      const list = await res.json();
-      const dl = $('#suggestions'); dl.innerHTML = '';
-      (list || []).forEach(item => {
-        const opt = document.createElement('option');
-        opt.value = item.display_name;
-        opt.dataset.lat = item.lat;
-        opt.dataset.lon = item.lon;
-        dl.appendChild(opt);
-      });
-      return list || [];
-    } catch { return []; }
-  }
-
-  async function searchAndFix(query) {
-    if (!query) return setStatus('Escribe una dirección o haz clic en el mapa.', 'error');
-    setStatus('Buscando…');
-    const results = await fillSuggestions(query);
-    if (results.length > 0) {
-      const first = results[0];
-      $('#place').value = first.display_name; // dejamos la dirección completa en el input
-      setPoint(parseFloat(first.lat), parseFloat(first.lon), '🌸');
-      setStatus('');
-    } else {
-      setStatus('No se encontró esa ubicación. Prueba otra más concreta.', 'error');
-    }
+  async function searchAndFix(query){
+    const results=await fillSuggestions(query); if(results.length>0){ const f=results[0]; setPoint(f.lat,f.lon); }
   }
 
   // Cargar flores guardadas
-  async function loadFlowers() {
-    try {
-      const res = await fetch(SCRIPT_URL);
-      const data = await res.json();
-      if (!data.ok) return;
-      (data.items || []).forEach(f => {
-        if (f.lat && f.lng) {
-          L.marker([Number(f.lat), Number(f.lng)], { icon: flowerIcon })
-            .addTo(map)
-            .bindPopup(popupHtml(f.fromName, f.toName, f.message));
-        }
-      });
-    } catch {}
+  async function loadFlowers(){
+    const res=await fetch(SCRIPT_URL); const data=await res.json();
+    (data.items||[]).forEach(f=>{ if(f.lat&&f.lng){ L.marker([+f.lat,+f.lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(f.fromName,f.toName,f.message)); }});
   }
 
   // Guardar flor
-  $('#plantBtn').addEventListener('click', async () => {
-    const fromName = $('#fromName').value.trim();
-    const toName   = $('#toName').value.trim();
-    const message  = $('#message').value.trim();
-    const place    = $('#place').value.trim();
-    const lat      = $('#lat').value.trim();
-    const lng      = $('#lng').value.trim();
-
-    if (!fromName || !toName || !message || !place || !lat || !lng) {
-      return setStatus('Completa todos los campos y confirma la ubicación (botón, mapa o GPS).', 'error');
-    }
-    setStatus('Guardando flor…');
-
-    try {
-      const body = new URLSearchParams({ fromName, toName, message, place, lat, lng }).toString();
-      const res = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setStatus('¡Flor plantada! Ya está guardada.', 'ok');
-        const latN = Number(lat), lngN = Number(lng);
-        if (marker) marker.remove();
-        L.marker([latN, lngN], { icon: flowerIcon })
-          .addTo(map)
-          .bindPopup(popupHtml(fromName, toName, message))
-          .openPopup();
-        map.setView([latN, lngN], 12);
-      } else {
-        setStatus('No se pudo guardar: ' + (data.error||'Error desconocido'), 'error');
-      }
-    } catch {
-      setStatus('Error de red al guardar la flor.', 'error');
-    }
+  $('#plantBtn').addEventListener('click',async()=>{
+    const from=$('#fromName').value.trim(),to=$('#toName').value.trim(),msg=$('#message').value.trim(),place=$('#place').value.trim(),lat=$('#lat').value.trim(),lng=$('#lng').value.trim();
+    if(!from||!to||!msg||!place||!lat||!lng)return setStatus('Completa todos los campos','error');
+    setStatus('Guardando…');
+    const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    const data=await res.json();
+    if(data.ok){
+      setStatus('¡Flor plantada!','ok');
+      if(marker)marker.remove();
+      marker=L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg)).openPopup();
+      map.setView([+lat,+lng],12);
+      // mostrar botones virales
+      $('#shareBtn').style.display='block';
+      $('#resetBtn').style.display='block';
+      // generar enlace compartible
+      const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      $('#shareBtn').onclick=()=>{ navigator.clipboard.writeText(url); setStatus('Enlace copiado ✅','ok'); };
+      $('#resetBtn').onclick=()=>{ $('#fromName').value=''; $('#toName').value=''; $('#message').value=''; $('#place').value=''; $('#lat').value=''; $('#lng').value=''; $('#shareBtn').style.display='none'; $('#resetBtn').style.display='none'; if(marker){map.removeLayer(marker); marker=null;} setStatus('Formulario listo para otra flor.'); };
+    } else setStatus('Error: '+(data.error||''),'error');
   });
 
-  loadFlowers();
+  // Deep-link: si hay ?lat=.. abre flor
+  (function(){
+    const p=new URLSearchParams(location.search);
+    if(p.has('lat')&&p.has('lng')){
+      const lat=p.get('lat'),lng=p.get('lng'),from=p.get('from')||'',to=p.get('to')||'',msg=p.get('msg')||'';
+      L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg)).openPopup();
+      map.setView([+lat,+lng],12);
+    } else loadFlowers();
+  })();
 </script>
 </body>
 </html>
