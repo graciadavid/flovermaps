@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <title>Flovermaps – Planta una flor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet (mapa gratis con OpenStreetMap) -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#fafafa; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#fafafa; }
     .wrap { display:flex; min-height:100vh; }
     #map { flex:1; min-height:100vh; }
-    .panel { width:420px; max-width:100%; padding:20px; border-left: 1px solid #eee; background:#fff; }
+    .panel { width:420px; max-width:100%; padding:20px; border-left:1px solid #eee; background:#fff; }
     .panel h1 { font-size:1.25rem; margin:0 0 12px; }
     label { display:block; font-size:.9rem; margin:12px 0 6px; }
     input, textarea, button { width:100%; padding:10px; font-size:1rem; border:1px solid #ddd; border-radius:8px; }
@@ -19,8 +19,8 @@
     .row { display:flex; gap:10px; }
     .row > div { flex:1; }
     .small { color:#666; font-size:.85rem; min-height:1.2em; }
-    .ok { color: #0a7d25; }
-    .error { color: #b30000; }
+    .ok { color:#0a7d25; }
+    .error { color:#b30000; }
     .footer { margin-top:14px; font-size:.85rem; color:#555; }
     button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; }
     .btn-row { display:flex; gap:10px; margin-top:8px; }
@@ -68,18 +68,18 @@
     <div id="status" class="small"></div>
 
     <div class="footer">
-      Mapa: OpenStreetMap + Leaflet (gratis). Búsqueda: Nominatim. Guardado: Google Sheets (Apps Script).
+      Mapa: OpenStreetMap + Leaflet. Búsqueda: Nominatim. Guardado: Google Sheets.
     </div>
   </div>
 </div>
 
 <script>
   /* === CONFIG === */
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPc0nFfMUoC-chPR5KYLIeEH1I79-7JO3zztxZNGUfRekUK1qjzX-3Su7caKdLEBZoYQ/exec';
-  const NOMINATIM_EMAIL = 'gracia.david@gmail.com'; // tu email real
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec';
+  const NOMINATIM_EMAIL = 'gracia.david@gmail.com';
 
   /* === MAPA === */
-  const map = L.map('map').setView([40.4168, -3.7038], 5); // España
+  const map = L.map('map').setView([40.4168, -3.7038], 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
@@ -87,10 +87,9 @@
   let marker = null;
   const $ = sel => document.querySelector(sel);
   const statusEl = $('#status');
-  function setStatus(msg, cls='') { statusEl.className='small '+cls; statusEl.textContent=msg; }
+  function setStatus(msg, cls='') { statusEl.className = 'small ' + cls; statusEl.textContent = msg; }
   function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  // Poner marcador y lat/lon
   function setPoint(lat, lon, label) {
     $('#lat').value = Number(lat).toFixed(6);
     $('#lng').value = Number(lon).toFixed(6);
@@ -99,65 +98,45 @@
     map.setView([lat, lon], 12);
   }
 
-  /* === AUTOCOMPLETADO (rellena datalist mientras escribes) === */
+  // Autocompletado (sugerencias mientras escribes)
   let typingTimer = null;
   $('#place').addEventListener('input', e => {
     const q = e.target.value.trim();
     clearTimeout(typingTimer);
     if (!q) { $('#suggestions').innerHTML=''; return; }
-    typingTimer = setTimeout(async () => {
-      await fillSuggestions(q);
-    }, 600);
+    typingTimer = setTimeout(async () => { await fillSuggestions(q); }, 500);
   });
 
-  // ENTER en el campo ubicación = buscar y fijar el primer resultado
+  // Enter = buscar y fijar el primer resultado
   $('#place').addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      await searchAndFix($('#place').value.trim());
-    }
+    if (e.key === 'Enter') { e.preventDefault(); await searchAndFix($('#place').value.trim()); }
   });
 
-  // Botón Buscar ubicación = buscar y fijar el primer resultado
-  $('#searchBtn').addEventListener('click', async () => {
-    await searchAndFix($('#place').value.trim());
-  });
+  // Botón Buscar
+  $('#searchBtn').addEventListener('click', async () => { await searchAndFix($('#place').value.trim()); });
 
-  // Botón GPS
+  // GPS
   $('#geoBtn').addEventListener('click', () => {
-    if (!navigator.geolocation) {
-      setStatus('El navegador no soporta geolocalización.', 'error');
-      return;
-    }
+    if (!navigator.geolocation) return setStatus('El navegador no soporta geolocalización.', 'error');
     setStatus('Obteniendo tu ubicación…');
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setPoint(lat, lon, 'Mi ubicación');
-        setStatus('');
-      },
+      pos => { setPoint(pos.coords.latitude, pos.coords.longitude, 'Mi ubicación'); setStatus(''); },
       err => setStatus('No se pudo obtener tu ubicación.', 'error'),
       { enableHighAccuracy:true, timeout:10000 }
     );
   });
 
-  // Click en el mapa = fijar punto
-  map.on('click', (e) => {
-    const { lat, lng } = e.latlng;
-    setPoint(lat, lng, 'Punto seleccionado en el mapa');
-    setStatus('');
-  });
+  // Click en el mapa
+  map.on('click', e => { setPoint(e.latlng.lat, e.latlng.lng, 'Punto elegido en el mapa'); setStatus(''); });
 
-  // Rellena el datalist con sugerencias
+  // Rellena sugerencias
   async function fillSuggestions(query) {
     try {
       const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q='
-                  + encodeURIComponent(query) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
+                + encodeURIComponent(query) + '&email=' + encodeURIComponent(NOMINATIM_EMAIL);
       const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
       const list = await res.json();
-      const dl = $('#suggestions');
-      dl.innerHTML = '';
+      const dl = $('#suggestions'); dl.innerHTML = '';
       (list || []).forEach(item => {
         const opt = document.createElement('option');
         opt.value = item.display_name;
@@ -166,23 +145,13 @@
         dl.appendChild(opt);
       });
       return list || [];
-    } catch (err) {
-      return [];
-    }
+    } catch { return []; }
   }
 
-  // Busca y fija: si no hay coincidencia exacta, usa el primer resultado
+  // Busca y fija (si no hay coincidencia exacta, usa el primer resultado)
   async function searchAndFix(query) {
-    if (!query) { setStatus('Escribe una dirección o haz clic en el mapa.', 'error'); return; }
+    if (!query) return setStatus('Escribe una dirección o haz clic en el mapa.', 'error');
     setStatus('Buscando…');
-    const options = Array.from($('#suggestions').children);
-    const exact = options.find(o => o.value === query);
-    if (exact) {
-      setPoint(parseFloat(exact.dataset.lat), parseFloat(exact.dataset.lon), exact.value);
-      setStatus('');
-      return;
-    }
-    // Si no hay coincidencia exacta, consultamos Nominatim y usamos el primer resultado
     const results = await fillSuggestions(query);
     if (results.length > 0) {
       const first = results[0];
@@ -194,7 +163,7 @@
     }
   }
 
-  /* === CARGAR FLORES EXISTENTES DESDE GOOGLE SHEETS === */
+  // Cargar flores guardadas
   async function loadFlowers() {
     try {
       const res = await fetch(SCRIPT_URL);
@@ -210,7 +179,7 @@
     } catch {}
   }
 
-  /* === ENVIAR FLOR (guardar en la hoja) === */
+  // Guardar flor (x-www-form-urlencoded → evita CORS preflight)
   $('#plantBtn').addEventListener('click', async () => {
     const fromName = $('#fromName').value.trim();
     const toName   = $('#toName').value.trim();
@@ -220,16 +189,16 @@
     const lng      = $('#lng').value.trim();
 
     if (!fromName || !toName || !message || !place || !lat || !lng) {
-      setStatus('Completa todos los campos y fija la ubicación (Buscar, Enter, mapa o GPS).', 'error');
-      return;
+      return setStatus('Completa todos los campos y fija la ubicación (Buscar/Enter/mapa/GPS).', 'error');
     }
     setStatus('Guardando flor…');
 
     try {
+      const body = new URLSearchParams({ fromName, toName, message, place, lat, lng }).toString();
       const res = await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromName, toName, message, place, lat, lng })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body
       });
       const data = await res.json();
       if (data.ok) {
@@ -244,12 +213,11 @@
       } else {
         setStatus('No se pudo guardar: ' + (data.error||'Error desconocido'), 'error');
       }
-    } catch (err) {
+    } catch {
       setStatus('Error de red al guardar la flor.', 'error');
     }
   });
 
-  // Inicio
   loadFlowers();
 </script>
 </body>
