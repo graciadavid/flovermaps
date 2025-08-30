@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flovermaps — versión excelente</title>
+<title>Flovermaps — estable</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-  :root{--pink:#ffe6f0;--ink:#111;--muted:#666;--ok:#0a7d25;--err:#b30000}
+  :root{--pink:#ffe6f0;--ink:#111;--muted:#666;--ok:#0a7d25}
   *{box-sizing:border-box}
   body{margin:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--pink);color:var(--ink)}
   header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #eee;padding:10px 14px;font-weight:800}
 
-  /* Contador + última flor */
+  /* Contador */
   .counter{margin:8px 12px 0;padding:10px 16px;border-radius:14px;background:rgba(255,255,255,.94);box-shadow:0 4px 14px rgba(0,0,0,.08)}
   .counter .top{font-weight:800}
   .counter .sub{font-size:.9rem;color:#444;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  /* Layout principal */
+  /* Layout */
   .wrap{display:flex;gap:0;min-height:calc(100vh - 52px - 76px)}
-  .panel{width:420px;max-width:100%;padding:12px;border-right:1px solid #eee;background:#fff;overflow:auto}
+  .panel{width:420px;max-width:100%;padding:12px;border-right:1px solid #eee;overflow:auto;background:linear-gradient(135deg,#f8fbff,#f6f0ff)}
   .card{border:1px solid #e5e5e5;border-radius:14px;padding:12px;box-shadow:0 4px 14px rgba(0,0,0,.04);background:#fff}
   h1{font-size:1.06rem;margin:0 0 10px}
   label{display:block;margin:6px 0 4px;font-size:.92rem}
@@ -43,8 +43,8 @@
   .sitem:hover,.sitem[aria-selected="true"]{background:#f7f7f7}
 
   /* Mapa */
-  .mapArea{flex:1;position:relative;padding:10px 12px 12px}
-  .frame{position:relative;border:1px solid #e5e5e5;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,#f8fbff,#f6f0ff);box-shadow:0 6px 20px rgba(0,0,0,.06);height:100%}
+  .mapArea{flex:1;position:relative;padding:10px 12px 12px;background:linear-gradient(135deg,#f8fbff,#f6f0ff)}
+  .frame{position:relative;border:1px solid #e5e5e5;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.06);height:50vh} /* altura por defecto para que SIEMPRE cargue */
   #map{position:absolute;inset:5px;border-radius:12px}
   .below{display:flex;gap:8px;justify-content:center;padding:10px 12px 0;flex-wrap:wrap}
   #plantBtn{max-width:300px;display:none}
@@ -57,15 +57,13 @@
   .sprout{animation:sprout 800ms ease-out;transform-origin:bottom center}
   @keyframes sprout{0%{transform:translate(-14px,-28px) scale(.1) rotate(-10deg);opacity:0}60%{transform:translate(-14px,-28px) scale(1.15) rotate(2deg);opacity:1}100%{transform:translate(-14px,-28px) scale(1) rotate(0);opacity:1}}
 
-  /* Toast */
-  .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:70;opacity:0;pointer-events:none;transition:opacity .2s, bottom .2s}
-  .toast.show{opacity:1;bottom:96px}
-
-  /* Responsive móvil */
+  /* Responsive */
+  @media (min-width:901px){
+    .frame{height:auto} /* la igualamos por JS al alto del formulario */
+  }
   @media (max-width:900px){
     .wrap{flex-direction:column}
     .panel{width:auto;border-right:0;border-bottom:1px solid #eee}
-    .frame{height:50vh}
     input,textarea,button{font-size:.92rem;padding:9px 10px}
     .actions button{padding:8px 9px;font-size:.88rem}
   }
@@ -74,14 +72,14 @@
 <body>
 <header>🌸 FLOVERMAPS</header>
 
-<!-- Contador global -->
+<!-- Contador -->
 <div class="counter">
   <div class="top" id="countTop">🌸 0 PLANTADAS</div>
   <div class="sub" id="countSub">Última flor: —</div>
 </div>
 
 <div class="wrap">
-  <!-- Panel / Formulario -->
+  <!-- FORMULARIO -->
   <section class="panel" id="panel">
     <div class="card">
       <h1>Planta una flor</h1>
@@ -99,7 +97,7 @@
         <input id="place" placeholder="Escribe una dirección o usa 'Mi ubicación'…" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="slist">
         <div id="slist" class="slist" role="listbox"></div>
       </div>
-      <div class="muted" id="help">Escribe, elige una sugerencia o haz clic en el mapa. Después, arrastra la flor para ajustar.</div>
+      <div class="muted" id="help">Elige una sugerencia o haz clic en el mapa. Después, arrastra la flor para ajustar.</div>
       <div class="badge" id="fixed">✅ Ubicación fijada</div>
 
       <div class="actions">
@@ -111,7 +109,7 @@
     </div>
   </section>
 
-  <!-- Mapa -->
+  <!-- MAPA -->
   <section class="mapArea" id="mapArea">
     <div class="frame" id="frame"><div id="map"></div></div>
     <div class="below">
@@ -130,7 +128,7 @@ const NOMINATIM_EMAIL = "gracia.david@gmail.com";
 
 /* ==== Estado ==== */
 const seen = new Set();
-let latest = null; // {from,to,place,ts}
+let latest = null;
 let editMarker = null;
 let usedGPS = false;
 let usedMapClick = false;
@@ -144,23 +142,31 @@ const countTop = $("#countTop");
 const countSub = $("#countSub");
 
 /* ==== Leaflet ==== */
-const positron = L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19});
-const map = L.map("map",{layers:[positron],zoomControl:true}).setView([40.4168,-3.7038],13);
-const flowerIcon = L.divIcon({html:"🌸",className:"emoji-marker",iconSize:[28,28],iconAnchor:[14,28]});
+let map, flowerIcon, positron;
+function initMap(){
+  positron = L.tileLayer("https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png",
+    {attribution:"© OpenStreetMap © CARTO", maxZoom:19});
+  map = L.map("map",{layers:[positron], zoomControl:true}).setView([40.4168,-3.7038], 13);
+  flowerIcon = L.divIcon({html:"🌸", className:"emoji-marker", iconSize:[28,28], iconAnchor:[14,28]});
+  // Garantiza render correcto
+  setTimeout(()=>map.invalidateSize(), 120);
+}
+window.addEventListener("load", ()=>{
+  // Altura por defecto ya es 50vh -> el mapa SIEMPRE tiene tamaño al iniciar
+  initMap();
+  // En escritorio igualamos altura del mapa al formulario
+  syncHeights();
+});
 
-/* Ajuste de alturas (desktop: igualar mapa a formulario) */
+/* Igualar alturas en escritorio */
 function syncHeights(){
-  if (window.matchMedia("(max-width:900px)").matches){
-    $("#frame").style.height = "50vh";
-    setTimeout(()=>map.invalidateSize(),50);
-    return;
+  if (window.matchMedia("(min-width:901px)").matches){
+    const h = $("#panel").offsetHeight;
+    $("#frame").style.height = h + "px";
   }
-  const h = $("#panel").offsetHeight;
-  $("#frame").style.height = h + "px";
-  setTimeout(()=>map.invalidateSize(),50);
+  setTimeout(()=>map && map.invalidateSize(), 60);
 }
 addEventListener("resize", syncHeights);
-document.addEventListener("DOMContentLoaded", syncHeights);
 
 /* Helpers */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
@@ -237,9 +243,10 @@ function highlightSuggest(){ [...slist.children].forEach((c,i)=>c.setAttribute("
 
 /* Confirmar */
 $("#confirmBtn").onclick = async ()=>{
-  const q=place.value.trim(); if(!q) return;
+  const q=place.value.trim(); if(!q){ toast("Escribe una dirección", false); return; }
   const r=await searchPlaces(q);
   if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6),Number(f.lon).toFixed(6),18,true); fixedBadge.style.display="inline"; }
+  else toast("Dirección no encontrada", false);
 };
 
 /* GPS */
@@ -256,9 +263,7 @@ function setEditPoint(lat,lng,zoom=18,showHint=false){
   }else{
     editMarker = L.marker([lat,lng],{icon:flowerIcon,draggable:true}).addTo(map);
     if(showHint){
-      editMarker.bindTooltip("Arrastra para ajustar",{
-        permanent:true, direction:"top", offset:[0,-24], className:"hint"
-      }).openTooltip();
+      editMarker.bindTooltip("Arrastra para ajustar",{permanent:true,direction:"top",offset:[0,-24],className:"hint"}).openTooltip();
     }
     editMarker.on("dragend", e=>{
       const p=e.target.getLatLng();
@@ -269,10 +274,17 @@ function setEditPoint(lat,lng,zoom=18,showHint=false){
   map.setView([lat,lng], zoom);
   plantBtn.style.display="inline-block";
 }
+
 /* Click en mapa coloca o mueve el punto */
-map.on("click", e=>{
-  usedMapClick=true; usedGPS=false;
-  setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true);
+document.addEventListener("DOMContentLoaded", ()=>{
+  // asegurar que existe map
+  setTimeout(()=>{
+    if(!map) return;
+    map.on("click", e=>{
+      usedMapClick=true; usedGPS=false;
+      setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true);
+    });
+  }, 150);
 });
 
 /* Guardar flor */
@@ -300,10 +312,9 @@ async function saveFlower(){
     const data=await res.json();
     if(data.ok){
       const now=new Date();
-      const html=popupHtml(from,to,msg,fmtDate(now));
       // convertir el marcador de edición en flor definitiva
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
-      const m = L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(html);
+      const m = L.marker([+lat,+lng],{icon:flowerIcon}).addTo(map).bindPopup(popupHtml(from,to,msg,fmtDate(now)));
       m.on("click",()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       // animación brote
       setTimeout(()=>{
@@ -311,12 +322,14 @@ async function saveFlower(){
         if(icons.length){ const el=icons[icons.length-1]; el.classList.add("sprout"); el.addEventListener("animationend",()=>el.classList.remove("sprout"),{once:true}); }
       },10);
       map.setView([+lat,+lng],19); m.openPopup();
-      // actualizar contador y última
+
+      // contador + última
       seen.add(`${lat},${lng}|${from}|${to}|${msg}|${now.toISOString()}`);
       countTop.textContent = `🌸 ${seen.size} PLANTADAS`;
       latest = {from,to,place:placeText,ts:now.toISOString()};
       setSubtitleFromLatest();
       toast(`Flor para ${to} lista 💖`);
+
       // compartir
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${now.toISOString().slice(0,10)}`;
       shareBtn.style.display="inline-block";
@@ -326,7 +339,8 @@ async function saveFlower(){
           else{ await navigator.clipboard.writeText(shareUrl); shareBtn.textContent="✅ Copiado"; setTimeout(()=>shareBtn.textContent="🔗 Compartir",1400); }
         }catch{}
       };
-      // limpiar UI
+
+      // limpiar
       plantBtn.style.display="none"; plantBtn.disabled=false; plantBtn.textContent="✅ Plantar aquí";
       fixedBadge.style.display="none"; $("#lat").value=""; $("#lng").value="";
       syncHeights();
@@ -343,7 +357,7 @@ async function saveFlower(){
 /* Cargar flores existentes */
 async function loadFlowers(){
   try{
-    const r=await fetch(SCRIPT_URL); const data=await resToJsonSafe(r);
+    const r=await fetch(SCRIPT_URL); const data=await r.json();
     let newestTs = latest?.ts ? new Date(latest.ts) : null;
     let newestItem = latest;
     (data.items||[]).forEach(f=>{
@@ -361,16 +375,13 @@ async function loadFlowers(){
     if(newestItem){ latest = newestItem; setSubtitleFromLatest(); }
     syncHeights();
   }catch{
-    // si falla, mantenemos última conocida
     setSubtitleFromLatest();
   }
 }
-async function resToJsonSafe(r){ try{ return await r.json(); }catch{ return {items:[]}; }}
-
-/* Eventos menores */
 document.addEventListener("DOMContentLoaded", ()=>{
+  // contador chars
   $("#chars").textContent="0/90";
-  syncHeights();
+  // cargar flores
   loadFlowers();
   setInterval(loadFlowers, 30000);
 });
