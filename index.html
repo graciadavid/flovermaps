@@ -36,10 +36,7 @@
 
   /* Layout */
   .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
-  .panel{
-    width:420px; max-width:100%; padding:12px; border-right:1px solid #eee; overflow:auto;
-    background:linear-gradient(135deg,#f8fbff,#f0eaff)
-  }
+  .panel{\n    width:420px; max-width:100%; padding:12px; border-right:1px solid #eee; overflow:auto;\n    background:#ffe6f0\n  }
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:12px; background:#fff}
   h1{font-size:1.05rem; margin:0 0 8px}
   label{display:block; margin:6px 0 4px; font-size:.92rem}
@@ -64,23 +61,17 @@
   .sitem:hover{background:#f8f8f8}
 
   /* Mapa */
-  .mapArea{flex:1; padding:10px 12px; background:linear-gradient(135deg,#f8fbff,#f0eaff)}
+  .mapArea{flex:1; padding:10px 12px; background:#ffe6f0}
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff}
   /* Alturas fijas para asegurar carga inmediata */
   #map{width:100%; height:520px}
   @media (max-width:900px){ #map{height:50vh} }
 
   .below{display:flex; gap:8px; justify-content:center; padding:10px 0; flex-wrap:wrap}
-  #plantBtn{max-width:320px; display:none}
+  #plantBtn{max-width:320px; display:none; background:#444; color:#fff; border:0; border-radius:10px}
   #shareBtn{background:#0066cc; color:#fff; border:0; border-radius:10px; max-width:320px; display:none}
 
-  /* Leaflet */
-  .leaflet-marker-icon[src*="marker-icon"]{display:none!important}
-  .leaflet-marker-shadow{display:none!important}
-  .emoji-marker{background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none}
-
-  /* Toast */
-  .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff;
+  /* Leaflet */\n  .leaflet-marker-icon[src*="marker-icon"]{display:none!important}\n  .leaflet-marker-shadow{display:none!important}\n  .emoji-marker{background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none}\n\n  /* Responsive: mapa debajo del formulario */\n  @media (max-width: 1024px){\n    .wrap{flex-direction:column;}\n    .panel{width:100%; border-right:0;}\n  }\n\n  /* Toast */\n  .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff;
     padding:10px 12px; border-radius:10px; z-index:50; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:92px}
 </style>
@@ -191,7 +182,7 @@ function renderSuggest(list){
   slist.innerHTML=""; list.forEach((it,idx)=>{
     const row=document.createElement("div"); row.className="sitem";
     const primary = (it.display_name||"").split(",")[0];
-    const meta = it.type || it.address?.city || it.address?.town || it.address?.state || "";
+    const road = it.address?.road || it.address?.pedestrian || it.address?.footway || it.address?.residential || it.address?.path || it.address?.neighbourhood;\n    const hn = it.address?.house_number;\n    const primary = (road || hn) ? `${esc(road||"")} ${esc(hn||"")}`.trim() : (it.display_name||"").split(",")[0];\n    const city = it.address?.city || it.address?.town || it.address?.village || it.address?.municipality;\n    const state = it.address?.state || it.address?.province || it.address?.state_district;\n    const meta = [city, state].filter(Boolean).join(", ");
     row.innerHTML = `${esc(primary)} <small>${esc(meta)}</small>`;
     row.onclick=()=>selectSuggest(idx);
     slist.appendChild(row);
