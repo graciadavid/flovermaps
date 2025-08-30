@@ -35,7 +35,6 @@
       border:1px solid #e5e5e5; border-radius:16px; overflow:hidden;
       background: linear-gradient(135deg, #f8fbff, #f6f0ff);
       box-shadow:0 6px 20px rgba(0,0,0,.06);
-      /* la altura se ajusta por JS en desktop; en móvil será 50vh */
       height: 100%;
     }
     #map {
@@ -59,9 +58,10 @@
     .top-center-banner {
       position:absolute; left:50%; top:16px; transform:translateX(-50%);
       background:var(--banner-bg); padding:10px 16px; border-radius:16px;
-      box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; font-weight:700;
-      white-space:nowrap;
+      box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; text-align:center;
     }
+    .counter-top { font-weight:800; font-size:1.05rem; white-space:nowrap; }
+    .counter-sub { margin-top:2px; font-size:.9rem; color:#444; }
 
     /* Botón flotante (solo móvil) dentro del marco */
     .fab-plant {
@@ -106,7 +106,6 @@
 <body>
 <header>
   <div class="logo">🌸 FLOVERMAPS</div>
-  <!-- Menú eliminado -->
 </header>
 
 <!-- Tabs (solo móvil) -->
@@ -120,7 +119,10 @@
   <section class="view view-map" id="view-map">
     <div class="map-frame" id="mapFrame">
       <div id="map"></div>
-      <div class="top-center-banner" id="counter">🌸 PLANTADAS: 0</div>
+      <div class="top-center-banner" id="counter">
+        <div id="counterTop" class="counter-top">🌸 0 PLANTADAS</div>
+        <div id="counterSub" class="counter-sub">Flor plantada en "—" a las "—:—"</div>
+      </div>
       <button class="fab-plant" id="fabPlant">✅ Plantar aquí</button>
     </div>
   </section>
@@ -182,7 +184,8 @@
 
   const $ = sel => document.querySelector(sel);
   const statusEl = $("#status");
-  const counterEl = $("#counter");
+  const counterTopEl = $("#counterTop");
+  const counterSubEl = $("#counterSub");
   const charsLeftEl = $("#charsLeft");
   const fabPlant = $("#fabPlant");
   const mapFrame = $("#mapFrame");
@@ -222,7 +225,6 @@
       setTimeout(()=>map.invalidateSize(), 50);
       return;
     }
-    // Desktop: igualar a la altura del formulario
     const formH = $("#view-plant").offsetHeight;
     mapFrame.style.height = formH + "px";
     setTimeout(()=>map.invalidateSize(), 50);
@@ -233,8 +235,29 @@
   function setStatus(msg,cls=""){ statusEl.className="small "+cls; statusEl.textContent=msg; syncMapHeight(); }
   function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m])); }
   function fmtDate(d){ return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; }
+  function fmtTime(d){ return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
   function popupHtml(from,to,msg,dateStr){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}${dateStr?`<br><small>📅 ${dateStr}</small>`:""}`; }
   function updateLatLng(lat, lon){ $("#lat").value=lat; $("#lng").value=lon; }
+
+  // Intenta extraer "Ciudad" de un texto de lugar
+  function cityFromPlace(place){
+    if(!place) return "—";
+    // Heurística: tomar la 1ª o 2ª parte útil antes de una coma
+    const parts = place.split(",").map(s=>s.trim()).filter(Boolean);
+    if(parts.length===0) return place.trim();
+    // Si la primera parte parece un punto de interés (tiene números o es muy largo), probar la segunda
+    const first = parts[0];
+    if(parts.length>1 && (/\d/.test(first) || first.length>30)) return parts[1];
+    return first;
+  }
+
+  // Actualiza contador con número, ciudad y hora
+  function updateCounter(count, place, date){
+    const city = cityFromPlace(place||"");
+    const time = fmtTime(date||new Date());
+    counterTopEl.textContent = `🌸 ${count} PLANTADAS`;
+    counterSubEl.textContent = `Flor plantada en "${city}" a las "${time}"`;
+  }
 
   // Crea/actualiza el marcador ARRÁSTRABLE para edición
   function setPoint(lat, lon, zoomOverride){
@@ -243,7 +266,6 @@
       editMarker.setLatLng([lat, lon]);
     } else {
       editMarker = L.marker([lat, lon], { icon: flowerIcon, draggable: true }).addTo(map);
-      // al soltar, actualiza coords
       editMarker.on("dragend", (e)=>{
         const p = e.target.getLatLng();
         updateLatLng(p.lat.toFixed(6), p.lng.toFixed(6));
@@ -251,7 +273,6 @@
     }
     const z = (typeof zoomOverride === "number") ? zoomOverride : 14;
     map.setView([lat, lon], z);
-    // En móvil, muestra el botón flotante al tener coords
     if(isMobile()) fabPlant.style.display = "inline-block";
   }
 
@@ -266,16 +287,16 @@
   /* --- Límite de 90 caracteres y contador --- */
   const messageEl = $("#message");
   const MAX_LEN = 90;
-  function refreshCounter(){
+  function refreshCounterChars(){
     const left = MAX_LEN - messageEl.value.length;
-    charsLeftEl.textContent = left;
+    $("#charsLeft").textContent = left;
   }
   messageEl.addEventListener("input", ()=>{
     if(messageEl.value.length > MAX_LEN) messageEl.value = messageEl.value.slice(0, MAX_LEN);
-    refreshCounter();
+    refreshCounterChars();
     syncMapHeight();
   });
-  refreshCounter();
+  refreshCounterChars();
 
   /* --- Búsqueda/confirmación de ubicación (zoom 18 al confirmar) --- */
   async function fillSuggestions(q){
@@ -293,6 +314,8 @@
       const f=r[0];
       setPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18); // zoom 18 para comprobar
       setStatus("Ubicación confirmada. Arrastra la flor para ajustar el punto y planta desde el mapa.");
+      // Actualiza previsualización del contador con la ciudad de la búsqueda
+      updateCounter(seen.size, $("#place").value.trim(), new Date());
       if(isMobile()) switchView('map');
     } else setStatus("No se encontró esa ubicación","error");
   }
@@ -301,19 +324,22 @@
   $("#geoBtn").onclick=()=>navigator.geolocation && navigator.geolocation.getCurrentPosition(p=>{
     setPoint(p.coords.latitude.toFixed(6), p.coords.longitude.toFixed(6), 18);
     setStatus("Ubicación por GPS. Ajusta arrastrando la flor y planta desde el mapa.");
+    updateCounter(seen.size, "Mi ubicación", new Date());
     if(isMobile()) switchView('map');
   });
   map.on("click",e=>{
     setPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18);
     setStatus("Punto elegido en el mapa. Ajusta arrastrando la flor y planta desde el mapa.");
+    updateCounter(seen.size, $("#place").value.trim() || "Punto del mapa", new Date());
     if(isMobile()) switchView('map');
   });
 
-  /* --- Cargar flores existentes + contador “🌸 PLANTADAS:” --- */
+  /* --- Cargar flores existentes + contador “🌸 n PLANTADAS” + última ciudad/hora --- */
   async function loadFlowers(){
     try{
       const res=await fetch(SCRIPT_URL);
       const data=await res.json();
+      let latestTs = null, latestPlace = "";
       (data.items||[]).forEach(f=>{
         if(!f.lat||!f.lng) return;
         const k = `${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
@@ -321,8 +347,19 @@
         seen.add(k);
         const dateStr = f.timestamp ? fmtDate(new Date(f.timestamp)) : "";
         addFlower(f.lat, f.lng, popupHtml(f.fromName||"", f.toName||"", f.message||"", dateStr), false);
+        // rastrear la última plantada (por timestamp)
+        if(f.timestamp){
+          const ts = new Date(f.timestamp);
+          if(!latestTs || ts > latestTs){ latestTs = ts; latestPlace = f.place || ""; }
+        }
       });
-      counterEl.textContent = `🌸 PLANTADAS: ${seen.size}`;
+      // actualizar contador
+      if(latestTs){
+        updateCounter(seen.size, latestPlace, latestTs);
+      } else {
+        counterTopEl.textContent = `🌸 ${seen.size} PLANTADAS`;
+        counterSubEl.textContent = `Flor plantada en "—" a las "—:—"`;
+      }
       syncMapHeight();
     }catch{}
   }
@@ -341,17 +378,20 @@
       const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body});
       const data=await res.json();
       if(data.ok){
-        const dateStr=fmtDate(new Date());
+        const now = new Date();
+        const dateStr=fmtDate(now);
         addFlower(lat, lng, popupHtml(from,to,msg,dateStr), true); // zoom 19 + popup
-        counterEl.textContent = `🌸 PLANTADAS: ${seen.size}`;
+        // como acabamos de plantar, el contador refleja esa flor
+        seen.add(`${+lat},${+lng}|${from}|${to}|${msg}|${now.toISOString()}`);
+        updateCounter(seen.size, place, now);
         setStatus("¡Flor plantada!","ok");
         // botones virales
         $("#shareBtn").style.display="block";
         $("#resetBtn").style.display="block";
-        const iso = new Date().toISOString().slice(0,10);
+        const iso = now.toISOString().slice(0,10);
         const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${iso}`;
         $("#shareBtn").onclick=()=>{ navigator.clipboard.writeText(url); setStatus("Enlace copiado ✅","ok"); };
-        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounter(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } if(isMobile()) fabPlant.style.display="none"; syncMapHeight(); };
+        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounterChars(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } if(isMobile()) fabPlant.style.display="none"; syncMapHeight(); };
         if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
         if(isMobile()) fabPlant.style.display="none";
         syncMapHeight();
@@ -376,8 +416,10 @@
     const p=new URLSearchParams(location.search);
     if(p.has("lat") && p.has("lng")){
       const lat=p.get("lat"), lng=p.get("lng"), from=p.get("from")||"", to=p.get("to")||"", msg=p.get("msg")||"", d=p.get("d")||"";
-      let dateStr=""; if(d){ const dd=new Date(d); if(!isNaN(dd)) dateStr=fmtDate(dd); }
+      let dateStr=""; let dt=null;
+      if(d){ const dd=new Date(d); if(!isNaN(dd)) { dateStr=fmtDate(dd); dt=dd; } }
       addFlower(lat, lng, popupHtml(from,to,msg,dateStr), true);
+      updateCounter(seen.size+1, p.get("place")||"", dt||new Date());
       if(isMobile()) switchView("map");
     }
     loadFlowers();
