@@ -17,33 +17,38 @@
     * { box-sizing: border-box; }
     body { margin:0; font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#fafafa; color:#111; }
 
-    /* HEADER */
+    /* HEADER (solo logo) */
     header {
-      display:flex; justify-content:space-between; align-items:center;
+      display:flex; align-items:center; gap:.75rem;
       padding:10px 16px; background:#fff; border-bottom:1px solid #eee;
       position:sticky; top:0; z-index:2000;
     }
     .logo { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:.5rem; }
-    nav a { margin-left:16px; text-decoration:none; color:#111; font-weight:700; letter-spacing:.3px; }
-    nav a:hover { color:#d00; }
 
     /* LAYOUT */
     .wrap { display:flex; min-height:calc(100vh - 56px); }
-    .view-map { flex:1; position:relative; min-height:calc(100vh - 56px); padding:12px; }
-    /* Marco redondeado que contiene el mapa */
+    .view-map { flex:1; position:relative; padding:12px; }
+
+    /* Marco redondeado con borde fino y degradado; mapa con margen 5px interno */
     .map-frame {
-      position:relative; height:100%;
-      border-radius:16px; overflow:hidden; background:#eaeaea;
-      box-shadow:0 6px 20px rgba(0,0,0,.08);
+      position:relative;
+      border:1px solid #e5e5e5; border-radius:16px; overflow:hidden;
+      background: linear-gradient(135deg, #f8fbff, #f6f0ff);
+      box-shadow:0 6px 20px rgba(0,0,0,.06);
+      /* la altura se ajusta por JS en desktop; en móvil será 50vh */
+      height: 100%;
     }
-    /* El mapa ocupa todo el marco */
-    #map { position:absolute; inset:0; width:100%; height:100%; }
+    #map {
+      position:absolute; top:5px; right:5px; bottom:5px; left:5px;
+      width:auto; height:auto; border-radius:12px;
+    }
 
     .panel { width:420px; max-width:100%; padding:20px; border-left:1px solid #eee; background:#fff; overflow:auto; }
     h1 { font-size:1.25rem; margin:0 0 12px; }
     label { display:block; margin:10px 0 6px; }
     input, textarea, button { width:100%; padding:12px; font-size:1rem; border:1px solid #ddd; border-radius:12px; }
-    textarea { min-height:96px; resize:vertical; }
+    /* Área de mensaje compacta (90 chars) */
+    textarea { min-height:56px; max-height:72px; resize:vertical; }
     .field-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .small { color:#666; font-size:.9rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
@@ -52,25 +57,26 @@
 
     /* Contador centrado dentro del marco del mapa */
     .top-center-banner {
-      position:absolute; left:50%; top:12px; transform:translateX(-50%);
+      position:absolute; left:50%; top:16px; transform:translateX(-50%);
       background:var(--banner-bg); padding:10px 16px; border-radius:16px;
       box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; font-weight:700;
+      white-space:nowrap;
     }
 
     /* Botón flotante (solo móvil) dentro del marco */
     .fab-plant {
-      position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+      position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
       z-index:1000; background:#111; color:#fff; border:0; border-radius:999px;
       padding:14px 18px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,.25);
       display:none; /* se muestra cuando hay lat/lng en móvil */
     }
 
-    /* Marcador emoji (cámbialo por PNG cuando quieras) */
+    /* Marcador emoji (cámbialo por PNG si quieres) */
     .emoji-marker{ background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none; }
     .leaflet-marker-icon[src*="marker-icon"]{ display:none!important; }
     .leaflet-marker-shadow{ display:none!important; }
 
-    /* Tabs móvil */
+    /* Tabs móvil (navegación interna) */
     .tabs { display:none; }
     .view { display:block; }
 
@@ -86,7 +92,8 @@
       .tabs button.active { background:#111; color:#fff; border-color:#111; }
       .view { display:none; }
       .view.active { display:block; }
-      .view-map { height: calc(100dvh - 56px - 54px); }
+      /* Mapa ocupa solo la mitad de la pantalla en móvil */
+      .map-frame { height: 50vh; }
       .panel { width:auto; border-left:0; border-top:1px solid #eee; min-height:calc(100dvh - 56px - 54px); }
       /* Oculta el botón del formulario en móvil; se usa el flotante del mapa */
       #plantBtn { display:none; }
@@ -99,10 +106,7 @@
 <body>
 <header>
   <div class="logo">🌸 FLOVERMAPS</div>
-  <nav>
-    <a href="#" onclick="switchView('plant');return false;">PLANTAR</a>
-    <a href="#" onclick="switchView('map');return false;">MAPA</a>
-  </nav>
+  <!-- Menú eliminado -->
 </header>
 
 <!-- Tabs (solo móvil) -->
@@ -114,7 +118,7 @@
 <div class="wrap">
   <!-- MAPA -->
   <section class="view view-map" id="view-map">
-    <div class="map-frame">
+    <div class="map-frame" id="mapFrame">
       <div id="map"></div>
       <div class="top-center-banner" id="counter">🌸 PLANTADAS: 0</div>
       <button class="fab-plant" id="fabPlant">✅ Plantar aquí</button>
@@ -181,6 +185,7 @@
   const counterEl = $("#counter");
   const charsLeftEl = $("#charsLeft");
   const fabPlant = $("#fabPlant");
+  const mapFrame = $("#mapFrame");
 
   /* --- Responsive: pestañas en móvil --- */
   function isMobile(){ return window.matchMedia("(max-width: 900px)").matches; }
@@ -195,7 +200,7 @@
         mapV.classList.add("active");
         tPlant.classList.remove("active");
         tMap.classList.add("active");
-        setTimeout(()=>map.invalidateSize(),150);
+        setTimeout(()=>{ map.invalidateSize(); },150);
       } else {
         mapV.classList.remove("active");
         plant.classList.add("active");
@@ -206,13 +211,27 @@
     } else {
       tabBar.style.display = "none";
     }
+    syncMapHeight();
   }
-  window.addEventListener("resize", ()=>switchView("plant"));
-  document.addEventListener("DOMContentLoaded", ()=>switchView("plant"));
+  window.addEventListener("resize", ()=>{ switchView("plant"); });
+
+  /* --- Ajuste de altura: desktop = igual al formulario, móvil = 50vh --- */
+  function syncMapHeight(){
+    if(isMobile()){
+      mapFrame.style.height = "50vh";
+      setTimeout(()=>map.invalidateSize(), 50);
+      return;
+    }
+    // Desktop: igualar a la altura del formulario
+    const formH = $("#view-plant").offsetHeight;
+    mapFrame.style.height = formH + "px";
+    setTimeout(()=>map.invalidateSize(), 50);
+  }
+  document.addEventListener("DOMContentLoaded", ()=>{ switchView("plant"); syncMapHeight(); });
 
   /* --- Utilidades --- */
-  function setStatus(msg,cls=""){ statusEl.className="small "+cls; statusEl.textContent=msg; }
-  function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+  function setStatus(msg,cls=""){ statusEl.className="small "+cls; statusEl.textContent=msg; syncMapHeight(); }
+  function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m])); }
   function fmtDate(d){ return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; }
   function popupHtml(from,to,msg,dateStr){ return `De ${escapeHtml(from)}<br>Para ${escapeHtml(to)}<br>🌸 ${escapeHtml(msg)}${dateStr?`<br><small>📅 ${dateStr}</small>`:""}`; }
   function updateLatLng(lat, lon){ $("#lat").value=lat; $("#lng").value=lon; }
@@ -254,6 +273,7 @@
   messageEl.addEventListener("input", ()=>{
     if(messageEl.value.length > MAX_LEN) messageEl.value = messageEl.value.slice(0, MAX_LEN);
     refreshCounter();
+    syncMapHeight();
   });
   refreshCounter();
 
@@ -271,7 +291,7 @@
     const r=await fillSuggestions(q);
     if(r.length>0){
       const f=r[0];
-      setPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18); // 👈 zoom 18 para comprobar
+      setPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18); // zoom 18 para comprobar
       setStatus("Ubicación confirmada. Arrastra la flor para ajustar el punto y planta desde el mapa.");
       if(isMobile()) switchView('map');
     } else setStatus("No se encontró esa ubicación","error");
@@ -303,6 +323,7 @@
         addFlower(f.lat, f.lng, popupHtml(f.fromName||"", f.toName||"", f.message||"", dateStr), false);
       });
       counterEl.textContent = `🌸 PLANTADAS: ${seen.size}`;
+      syncMapHeight();
     }catch{}
   }
 
@@ -330,10 +351,10 @@
         const iso = new Date().toISOString().slice(0,10);
         const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${iso}`;
         $("#shareBtn").onclick=()=>{ navigator.clipboard.writeText(url); setStatus("Enlace copiado ✅","ok"); };
-        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounter(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } if(isMobile()) fabPlant.style.display="none"; };
-        // limpiar marcador de edición y ocultar FAB
+        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounter(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } if(isMobile()) fabPlant.style.display="none"; syncMapHeight(); };
         if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
         if(isMobile()) fabPlant.style.display="none";
+        syncMapHeight();
         return true;
       } else { setStatus("Error: "+(data.error||"Desconocido"),"error"); return false; }
     }catch{ setStatus("Error de red","error"); return false; }
