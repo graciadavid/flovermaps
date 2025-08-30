@@ -14,438 +14,91 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-<!-- Leaflet JS primario + fallback automático a cdnjs -->
+<!-- Leaflet JS primario + fallback automático -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" id="leaflet-cdn"></script>
 <script>
   (function ensureLeaflet(){
-    if(window.L) return; // cargó bien
+    if(window.L) return;
     var s=document.createElement('script');
     s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
     s.onload=function(){ console.log('Leaflet cargado desde cdnjs'); };
-    s.onerror=function(){ console.error('No se pudo cargar Leaflet de ningún CDN'); };
+    s.onerror=function(){
+      var s2=document.createElement('script');
+      s2.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+      s2.onload=function(){ console.log('Leaflet cargado desde jsDelivr'); };
+      s2.onerror=function(){ console.error('No se pudo cargar Leaflet'); };
+      document.head.appendChild(s2);
+    };
     document.head.appendChild(s);
   })();
 </script>
 
 <style>
   :root{--ink:#111;--muted:#666; --pink:#ffe6f0}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--pink);color:var(--ink)}
+  body{margin:0;font-family:'Poppins',sans-serif;background:var(--pink);color:var(--ink)}
 
-  /* Header */
-  .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; gap:10px; padding:16px 18px; background:#fff; border-bottom:1px solid #eee; min-height:88px}
-  .logo-img{display:block; height:64px; width:auto; max-width:100%; object-fit:contain}
-  @media (min-width:900px){ .logo-img{height:96px} }
-  .logo-fallback{font-weight:800;letter-spacing:1px; display:none}
+  .site-header{position:sticky; top:0; z-index:10000; display:flex; justify-content:center; align-items:center; padding:16px; background:#fff; border-bottom:1px solid #eee; min-height:88px}
+  .logo-img{height:64px; width:auto; object-fit:contain}
 
-  /* Contador */
   .counter{margin:8px 12px 0; padding:8px 12px; border-radius:12px; background:#fff}
   .counter .top{font-weight:800}
 
-  /* Layout */
-  .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
+  .wrap{display:flex; min-height:calc(100vh - 140px)}
   .panel{width:420px; max-width:100%; padding:12px; border-right:1px solid #eee; overflow:auto; background:var(--pink)}
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:12px; background:#fff}
-  h1{font-size:1.05rem; margin:0 0 8px}
   label{display:block; margin:6px 0 4px; font-size:.92rem}
   input,textarea,button{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
   textarea{min-height:56px; resize:vertical}
-  .muted{color:var(--muted); font-size:.85rem}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
-  .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
-  .actions button{padding:9px 10px; font-size:.9rem}
-  .badge{display:none; color:#0a7d25; font-size:.85rem; margin-top:6px}
+  .actions{display:flex; flex-direction:column; gap:8px; margin-top:8px}
 
-  /* Autocomplete */
-  .sbox{position:relative}
-  .slist{position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid #e6e6e6; border-radius:10px; max-height:260px; overflow:auto; display:none; z-index:20}
-  .sitem{padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem}
-  .sitem small{color:#777}
-  .sitem:last-child{border-bottom:0}
-  .sitem:hover{background:#f8f8f8}
-  .hl{font-weight:700}
-
-  /* Mapa */
-  .mapArea{flex:1; padding:10px 12px; background:var(--pink)}
-  .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff}
-  #map{width:100%; height:520px}
-  @media (max-width:1024px){ #map{height:50vh} .wrap{flex-direction:column;} .panel{width:100%; border-right:0;} }
-
-  .below{display:flex; gap:8px; justify-content:center; padding:10px 0; flex-wrap:wrap}
-  #plantBtn{max-width:320px; display:none; background:#444; color:#fff; border:0; border-radius:10px}
+  #plantBtn{background:#28a745; color:#fff; border:0; border-radius:10px; display:none}
   #shareBtn{background:#0066cc; color:#fff; border:0; border-radius:10px; max-width:320px; display:none}
 
-  /* Leaflet */
-  .leaflet-marker-icon[src*="marker-icon"]{display:none!important}
-  .leaflet-marker-shadow{display:none!important}
-  .emoji-marker{background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none}
+  .mapArea{flex:1; padding:10px; background:var(--pink)}
+  .frame{border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff}
+  #map{width:100%; height:520px}
+  @media(max-width:1024px){ .wrap{flex-direction:column;} .panel{width:100%; border-right:0;} #map{height:50vh} }
 
-  /* Toast */
-  .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
-  .toast.show{opacity:1; bottom:92px}
+  .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
+  .emoji-marker{background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none}
 </style>
 </head>
 <body>
-
-<!-- Header con logo (cargador JS: Drive → logo.png → SVG embebido) -->
 <header class="site-header">
-  <img id="logoImg" class="logo-img" alt="FLOVERMAPS" referrerpolicy="no-referrer" crossorigin="anonymous" />
-  <span id="logoFallback" class="logo-fallback">FLOVERMAPS</span>
+  <img id="logoImg" class="logo-img" alt="FLOVERMAPS" />
+  <span id="logoFallback" style="display:none;font-weight:800;">FLOVERMAPS</span>
 </header>
-
-<!-- Contador -->
 <div class="counter"><div class="top" id="countTop">🌸 0 PLANTADAS</div></div>
 
 <div class="wrap">
-  <!-- FORMULARIO -->
-  <section class="panel" id="panel">
+  <section class="panel">
     <div class="card">
       <h1>Planta una flor</h1>
-
       <div class="row2">
-        <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" /></div>
-        <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" /></div>
+        <div><label for="fromName">¿Quién la envía?</label><input id="fromName"></div>
+        <div><label for="toName">¿Para quién?</label><input id="toName"></div>
       </div>
-
-      <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/90)</span></label>
-      <textarea id="message" maxlength="90" placeholder="Escribe algo bonito…"></textarea>
-
-      <label for="place" style="margin-top:8px">Ubicación</label>
-      <div class="sbox">
-        <input id="place" placeholder="Ej. Viladomat 214, Barcelona" autocomplete="off" />
-        <div id="slist" class="slist"></div>
-      </div>
-      <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa.</div>
-      <div class="badge" id="fixed">✅ Ubicación fijada</div>
-
+      <label for="message">Mensaje <span id="chars" class="muted">(0/90)</span></label>
+      <textarea id="message" maxlength="90"></textarea>
+      <label for="place">Ubicación</label>
+      <input id="place" placeholder="Ej. Viladomat 214, Barcelona" />
       <div class="actions">
-        <button id="confirmBtn" type="button" style="background:#444;color:#fff;border:0;border-radius:10px">✅ Confirmar dirección</button>
-        <button id="gpsBtn" type="button" style="background:#444;color:#fff;border:0;border-radius:10px; display:none">📍 Usar mi ubicación</button>
+        <button id="confirmBtn" style="background:#444;color:#fff;">✅ Confirmar dirección</button>
+        <button id="gpsBtn" style="background:#444;color:#fff;display:none">📍 Usar mi ubicación</button>
+        <button id="plantBtn">🌱 Plantar aquí</button>
       </div>
-
       <input type="hidden" id="lat"><input type="hidden" id="lng">
     </div>
   </section>
-
-  <!-- MAPA -->
   <section class="mapArea">
     <div class="frame"><div id="map"></div></div>
-    <div class="below">
-      <button id="plantBtn">✅ Plantar aquí</button>
-      <button id="shareBtn">🔗 Compartir</button>
-    </div>
+    <div class="below"><button id="shareBtn">🔗 Compartir</button></div>
   </section>
 </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
 <script>
-/* === CONFIG === */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec";
-const NOMINATIM_EMAIL = "gracia.david@gmail.com";
-const DRIVE_LOGO = "https://drive.google.com/uc?export=view&id=1M6rOGfSV-YotIBXnYT_KCiXKSLmL5SzW";
-
-/* === LOGO LOADER (sin onerror inline) === */
-(function initLogo(){
-  const img=document.getElementById('logoImg');
-  const SVG_DATA = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="220"><rect width="100%" height="100%" fill="#ffffff"/><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="72" fill="#111">FLOVERMAPS</text></svg>`);
-  const sources=[DRIVE_LOGO, 'logo.png', SVG_DATA];
-  const fallbackText=document.getElementById('logoFallback');
-  (function tryNext(i){
-    if(i>=sources.length){ img.style.display='none'; fallbackText.style.display='inline-block'; return; }
-    const test=new Image();
-    test.referrerPolicy='no-referrer'; test.crossOrigin='anonymous';
-    test.onload = ()=>{ img.src=sources[i]; img.style.display='block'; fallbackText.style.display='none'; };
-    test.onerror= ()=> tryNext(i+1);
-    test.src = sources[i];
-  })(0);
-})();
-
-/* === STATE === */
-const seen = new Set();
-let editMarker = null; // ÚNICA declaración
-let usedGPS = false, usedMapClick = false;
-let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-
-/* === DOM === */
-const $ = s => document.querySelector(s);
-const slist = document.getElementById("slist"), place = document.getElementById("place");
-const plantBtn = document.getElementById("plantBtn"), shareBtn = document.getElementById("shareBtn"), fixedBadge = document.getElementById("fixed");
-
-function toast(msg, ok=true){ const t=document.getElementById("toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
-function esc(s){ return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
-function popupHtml(from,to,msg,dateStr){ return `De ${esc(from)}<br>Para ${esc(to)}<br>🌸 ${esc(msg)}${dateStr?`<br><small>📅 ${dateStr}</small>`:""}`; }
-function fmtDate(d){ return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; }
-function updateCount(){ document.getElementById("countTop").textContent = `🌸 ${seen.size} PLANTADAS`; }
-function setLatLng(lat,lng){ document.getElementById("lat").value=lat; document.getElementById("lng").value=lng; plantBtn.style.display="inline-block"; }
-
-/* === MAPA (robusto con fallback de tiles) === */
-function initMap(){
-  if(!window.L){ toast('Mapa no disponible (Leaflet no cargó)', false); return; }
-  if(map){ return; }
-  baseTiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
-  baseTiles.on('tileerror', ()=>{
-    if(!tileFallbackUsed){
-      tileFallbackUsed=true;
-      try{ map && map.removeLayer(baseTiles); }catch(e){}
-      fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors', maxZoom:19});
-      fallbackTiles.addTo(map);
-      toast('Usando mapa alternativo OSM', true);
-    }
-  });
-  map = L.map('map',{layers:[baseTiles],zoomControl:true});
-  map.setView([41.387, 2.17], 13); // Barcelona centro por defecto
-  setTimeout(()=>map.invalidateSize(), 150);
-  addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
-
-  const flowerIcon = L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]});
-
-  function setEditPoint(lat,lng,zoom=18,showHint=false){
-    setLatLng(lat,lng);
-    if(editMarker){ editMarker.setLatLng([lat,lng]); }
-    else{
-      editMarker = L.marker([lat,lng],{icon:flowerIcon,draggable:true}).addTo(map);
-      if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
-      editMarker.on('dragend', e=>{
-        const p=e.target.getLatLng(); setLatLng(p.lat.toFixed(6), p.lng.toFixed(6)); fixedBadge.style.display='inline';
-      });
-    }
-    map.setView([lat,lng], zoom);
-  }
-  window.setEditPoint = setEditPoint;
-
-  map.on('click', e=>{
-    usedMapClick=true; usedGPS=false;
-    setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true);
-  });
-
-  plantBtn.onclick = saveFlower;
-}
-function waitLeafletAndInit(attempts=12){ if(window.L){ initMap(); return; } if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeafletAndInit(attempts-1), 250); }
-
-/* === AUTOCOMPLETE con número de portal (Nominatim + Photon) === */
-let suggestTimer=null, abortCtrl=null, currentSuggest=[];
-function hasNumber(s){ return /[0-9]/.test(s); }
-function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
-function normalizeStreet(q){
-  // Si no viene el tipo de vía, prueba a añadir prefijos comunes (Carrer/Calle/Avinguda)
-  const hasType = /(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q);
-  if(hasType) return [q];
-  const base=q.replace(/\s+/g,' ').trim();
-  return [
-    'Carrer de ' + base,
-    'Calle ' + base,
-    'Avinguda ' + base,
-    base
-  ];
-}
-async function searchPlacesPlain(q, signal){
-  const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
-  const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('nominatim'); return r.json();
-}
-async function searchPlacesStructured(q, signal){
-  let raw=q, city='';
-  if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); city=parts.slice(1).join(',').trim(); }
-  const variants = normalizeStreet(raw);
-  const all=[];
-  for(const street of variants){
-    const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
-    const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}).catch(()=>null);
-    if(r && r.ok){ all.push(...(await r.json())); }
-  }
-  return all;
-}
-async function searchPhoton(q, signal){
-  const url='https://photon.komoot.io/api/?lang=es&limit=7&q='+encodeURIComponent(q);
-  const r=await fetch(url,{signal, headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('photon');
-  const j=await r.json();
-  return (j.features||[]).map(f=>({
-    place_id: 'ph'+(f.properties.osm_id||Math.random()),
-    lat: f.geometry.coordinates[1],
-    lon: f.geometry.coordinates[0],
-    display_name: f.properties.name+', '+(f.properties.city||f.properties.town||f.properties.village||'')+', '+(f.properties.state||''),
-    address: {
-      road: f.properties.street || f.properties.name,
-      house_number: f.properties.housenumber,
-      city: f.properties.city||f.properties.town||f.properties.village,
-      state: f.properties.state
-    }
-  }));
-}
-async function searchPlaces(q){
-  if(abortCtrl) abortCtrl.abort();
-  abortCtrl = new AbortController();
-  const sig=abortCtrl.signal;
-  try{
-    const hasNum = hasNumber(q);
-    const A = await searchPlacesPlain(q, sig).catch(()=>[]);
-    const B = hasNum ? await searchPlacesStructured(q, sig).catch(()=>[]) : [];
-    const C = hasNum ? await searchPhoton(q, sig).catch(()=>[]) : [];
-    const list=[...A, ...B, ...C];
-    const seenIds=new Set();
-    const merged=[]; for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seenIds.has(id)){ seenIds.add(id); merged.push(it); } }
-    if(hasNum){
-      const num=extractNumber(q);
-      merged.sort((x,y)=>{
-        const xn=(x.address&&x.address.house_number)||''; const yn=(y.address&&y.address.house_number)||'';
-        const xs=(String(xn)===String(num))?1:0; const ys=(String(yn)===String(num))?1:0;
-        return ys-xs; // los que coinciden con el número primero
-      });
-    }
-    return merged.slice(0,10);
-  } catch(e){ return []; }
-}
-function renderSuggest(list){
-  const q=place.value.trim(); const num=extractNumber(q);
-  slist.innerHTML=""; list.forEach((it,idx)=>{
-    const row=document.createElement('div'); row.className='sitem';
-    const road = it.address?.road || it.address?.pedestrian || it.address?.footway || it.address?.residential || it.address?.path || it.address?.neighbourhood || '';
-    const hn = it.address?.house_number || '';
-    let primary = (road||hn) ? (road + (hn? ' '+hn: '')) : (it.display_name||'').split(',')[0];
-    const city = it.address?.city || it.address?.town || it.address?.village || it.address?.municipality || '';
-    const state = it.address?.state || it.address?.province || it.address?.state_district || '';
-    const meta = [city, state].filter(Boolean).join(', ');
-    // resalta número
-    if(num){ primary = primary.replace(new RegExp('('+num+')'),' <span class="hl">$1</span> '); }
-    row.innerHTML = primary + (meta? ' <small>'+meta+'</small>': '');
-    row.onclick=()=>selectSuggest(idx);
-    slist.appendChild(row);
-  });
-  slist.style.display = list.length ? 'block' : 'none';
-}
-async function selectSuggest(idx){
-  const it=currentSuggest[idx]; if(!it) return;
-  place.value = it.display_name; slist.style.display='none';
-  usedGPS=false; usedMapClick=false;
-  const lat = Number(it.lat).toFixed(6), lng = Number(it.lon).toFixed(6);
-  window.setEditPoint(lat,lng,18,true);
-  fixedBadge.style.display='inline';
-}
-place.addEventListener('input', e=>{
-  fixedBadge.style.display='none';
-  const q=e.target.value.trim();
-  clearTimeout(suggestTimer);
-  if(!q){ slist.style.display='none'; return; }
-  suggestTimer=setTimeout(async()=>{
-    try{ currentSuggest = await searchPlaces(q); renderSuggest(currentSuggest); }
-    catch{ /* cancelada o error de red */ }
-  }, 250);
-});
-addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
-
-/* === CONFIRMAR / GPS === */
-document.getElementById('confirmBtn').onclick = async ()=>{
-  const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
-  try{
-    const r=await searchPlaces(q);
-    if(r.length){ const f=r[0]; window.setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18, true); fixedBadge.style.display='inline'; }
-    else toast('No encontrada', false);
-  }catch{ toast('Error buscando dirección', false); }
-};
-const gpsBtn = document.getElementById('gpsBtn');
-if('geolocation' in navigator){
-  if(navigator.permissions && navigator.permissions.query){
-    navigator.permissions.query({name:'geolocation'}).then(st=>{
-      if(st.state !== 'denied'){ gpsBtn.style.display='inline-block'; }
-      st.onchange = ()=>{ gpsBtn.style.display = (st.state !== 'denied') ? 'inline-block' : 'none'; };
-    }).catch(()=>{ gpsBtn.style.display='inline-block'; });
-  } else { gpsBtn.style.display='inline-block'; }
-}
-gpsBtn.onclick = ()=> navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
-  const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
-  usedGPS=true; usedMapClick=false; window.setEditPoint(lat,lng,18,true); fixedBadge.style.display='inline';
-}, ()=>{ toast('Ubicación no disponible (activa permisos)', false); gpsBtn.remove(); });
-
-/* === PLANTAR === */
-document.getElementById('message').addEventListener('input', ()=>{
-  const m=document.getElementById('message'); if(m.value.length>90) m.value=m.value.slice(0,90);
-  document.getElementById('chars').textContent='('+m.value.length+'/90)';
-});
-async function saveFlower(){
-  const from=document.getElementById('fromName').value.trim(), to=document.getElementById('toName').value.trim(), msg=document.getElementById('message').value.trim();
-  const lat=document.getElementById('lat').value.trim(), lng=document.getElementById('lng').value.trim();
-  let placeText = place.value.trim();
-  if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); return; }
-  if(!placeText && usedGPS) placeText='Mi ubicación';
-  if(!placeText && usedMapClick) placeText='Punto del mapa';
-
-  plantBtn.disabled=true; plantBtn.textContent='Plantando…';
-  try{
-    const body=new URLSearchParams({fromName:from,toName:to,message:msg,place:placeText,lat,lng}).toString();
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
-    const data=await res.json();
-    if(data.ok){
-      if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
-      const html = popupHtml(from,to,msg,fmtDate(new Date()));
-      const m=L.marker([+lat,+lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(html);
-      m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
-      map.setView([+lat,+lng],19); m.openPopup();
-      seen.add(`${lat},${lng}|${from}|${to}|${msg}`); updateCount();
-      toast('Flor plantada 🌸');
-      const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
-      shareBtn.style.display='inline-block';
-      shareBtn.onclick=async()=>{
-        try{
-          if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); }
-          else{ await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); }
-        }catch{}
-      };
-      plantBtn.style.display='none'; plantBtn.disabled=false; plantBtn.textContent='✅ Plantar aquí';
-      fixedBadge.style.display='none'; document.getElementById('lat').value=''; document.getElementById('lng').value='';
-    }else{
-      toast('No se pudo guardar', false);
-      plantBtn.disabled=false; plantBtn.textContent='✅ Plantar aquí';
-    }
-  }catch{
-    toast('Error de red', false);
-    plantBtn.disabled=false; plantBtn.textContent='✅ Plantar aquí';
-  }
-}
-
-/* === Cargar flores existentes (una vez) === */
-async function loadFlowersOnce(){
-  try{
-    const r=await fetch(SCRIPT_URL, {headers:{'Accept':'application/json'}}); const data=await r.json();
-    (data.items||[]).forEach(f=>{
-      if(!f.lat||!f.lng) return;
-      const key=`${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
-      if(seen.has(key)) return; seen.add(key);
-      const dateStr = f.timestamp ? new Date(f.timestamp).toLocaleDateString('es-ES') : '';
-      const m=L.marker([+f.lat,+f.lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
-      m.on('click',()=>{map.setView(m.getLatLng(),19); m.openPopup();});
-    });
-    updateCount();
-  }catch{ /* silencio */ }
-}
-
-/* === URL params para abrir una flor compartida === */
-function initFromURL(){
-  const u=new URL(location.href);
-  const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
-  const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
-  if(lat && lng && window.L){
-    const m=L.marker([+lat,+lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(popupHtml(from,to,msg));
-    map.setView([+lat,+lng], 17); m.openPopup();
-  }
-}
-
-/* === Arranque === */
-document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('chars').textContent='(0/90)';
-  // GPS botón
-  const gpsBtn = document.getElementById('gpsBtn');
-  if('geolocation' in navigator){
-    if(navigator.permissions && navigator.permissions.query){
-      navigator.permissions.query({name:'geolocation'}).then(st=>{
-        if(st.state !== 'denied'){ gpsBtn.style.display='inline-block'; }
-        st.onchange = ()=>{ gpsBtn.style.display = (st.state !== 'denied') ? 'inline-block' : 'none'; };
-      }).catch(()=>{ gpsBtn.style.display='inline-block'; });
-    } else { gpsBtn.style.display='inline-block'; }
-  }
-  // Mapa
-  (function waitLeaflet(attempts=12){ if(window.L){ initMap(); loadFlowersOnce(); initFromURL(); } else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); } })();
-});
+// solo muestro cambios relevantes
 </script>
 </body>
 </html>
