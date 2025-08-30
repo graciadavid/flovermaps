@@ -47,18 +47,18 @@
     .top-center-banner {
       position:absolute; left:50%; top:12px; transform:translateX(-50%);
       background:var(--banner-bg); padding:10px 16px; border-radius:16px;
-      box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000;
-      font-weight:700;
+      box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; font-weight:700;
     }
 
-    /* Botón flotante (ir a PLANTAR) */
-    .fab {
-      position:absolute; right:12px; bottom:12px; z-index:1000;
-      background:#111; color:#fff; border:0; border-radius:999px;
-      padding:12px 16px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,.25);
+    /* Botón flotante (solo móvil) */
+    .fab-plant {
+      position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+      z-index:1000; background:#111; color:#fff; border:0; border-radius:999px;
+      padding:14px 18px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,.25);
+      display:none; /* se muestra cuando hay lat/lng en móvil */
     }
 
-    /* Marcador emoji (puedes cambiar a PNG cuando quieras) */
+    /* Marcador emoji (cámbialo por PNG cuando quieras) */
     .emoji-marker{ background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none; }
     .leaflet-marker-icon[src*="marker-icon"]{ display:none!important; }
     .leaflet-marker-shadow{ display:none!important; }
@@ -67,6 +67,7 @@
     .tabs { display:none; }
     .view { display:block; }
 
+    /* Responsive móvil */
     @media (max-width: 900px) {
       .wrap { display:block; }
       .tabs {
@@ -81,6 +82,10 @@
       .view-map { height: calc(100dvh - 56px - 54px); }
       #map { height: 100%; }
       .panel { width:auto; border-left:0; border-top:1px solid #eee; min-height:calc(100dvh - 56px - 54px); }
+
+      /* Oculta el botón del formulario en móvil */
+      #plantBtn { display:none; }
+      /* El flotante aparecerá según estado de JS */
     }
 
     /* Contador de caracteres */
@@ -107,7 +112,7 @@
   <section class="view view-map" id="view-map">
     <div id="map">
       <div class="top-center-banner" id="counter">🌸 PLANTADAS: 0</div>
-      <button class="fab" onclick="switchView('plant')">➕ PLANTAR</button>
+      <button class="fab-plant" id="fabPlant">✅ Plantar aquí</button>
     </div>
   </section>
 
@@ -131,7 +136,7 @@
     <input id="place" placeholder="Ej. Sagrada Família, Barcelona" list="suggestions" />
     <datalist id="suggestions"></datalist>
 
-    <div class="small">Escribe y pulsa “Confirmar ubicación”, o haz clic en el mapa / usa tu GPS. Luego puedes **arrastrar la flor** para ajustar el punto exacto.</div>
+    <div class="small">Confirma la dirección y luego **arrastra la flor** sobre el punto exacto. En móvil plantarás desde el **botón del mapa**.</div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button id="confirmBtn" type="button" style="background:#444;">✅ Confirmar ubicación</button>
       <button id="geoBtn" type="button" style="background:#444;">📍 Usar mi ubicación</button>
@@ -141,7 +146,9 @@
     <input id="lat" type="hidden" />
     <input id="lng" type="hidden" />
 
+    <!-- Botón del formulario (visible en escritorio) -->
     <button id="plantBtn">Plantar flor</button>
+
     <button id="shareBtn" style="display:none; background:#0066cc;">🔗 Compartir flor</button>
     <button id="resetBtn" style="display:none; background:#666;">➕ Plantar otra</button>
 
@@ -168,6 +175,7 @@
   const statusEl = $("#status");
   const counterEl = $("#counter");
   const charsLeftEl = $("#charsLeft");
+  const fabPlant = $("#fabPlant");
 
   /* --- Responsive: pestañas en móvil --- */
   function isMobile(){ return window.matchMedia("(max-width: 900px)").matches; }
@@ -219,6 +227,8 @@
     }
     const z = (typeof zoomOverride === "number") ? zoomOverride : 14;
     map.setView([lat, lon], z);
+    // En móvil, muestra el botón flotante al tener coords
+    if(isMobile()) fabPlant.style.display = "inline-block";
   }
 
   // Marcadores (no arrastrables) que hacen ZOOM 19 al clic
@@ -257,20 +267,21 @@
     if(r.length>0){
       const f=r[0];
       setPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18); // 👈 zoom 18 para comprobar
-      setStatus("Ubicación confirmada. Puedes arrastrar la flor para ajustar el punto.");
-      if(isMobile()) switchView('map'); // en móvil, muestro el mapa para la comprobación
+      setStatus("Ubicación confirmada. Arrastra la flor para ajustar el punto y planta desde el mapa.");
+      if(isMobile()) switchView('map');
     } else setStatus("No se encontró esa ubicación","error");
   }
 
   $("#confirmBtn").onclick=()=>searchAndFix($("#place").value.trim());
   $("#geoBtn").onclick=()=>navigator.geolocation && navigator.geolocation.getCurrentPosition(p=>{
     setPoint(p.coords.latitude.toFixed(6), p.coords.longitude.toFixed(6), 18);
-    setStatus("Ubicación por GPS. Ajusta arrastrando la flor si quieres.");
+    setStatus("Ubicación por GPS. Ajusta arrastrando la flor y planta desde el mapa.");
     if(isMobile()) switchView('map');
   });
   map.on("click",e=>{
     setPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18);
-    setStatus("Punto elegido en el mapa. Puedes arrastrar la flor para afinar.");
+    setStatus("Punto elegido en el mapa. Ajusta arrastrando la flor y planta desde el mapa.");
+    if(isMobile()) switchView('map');
   });
 
   /* --- Cargar flores existentes + contador “🌸 PLANTADAS:” --- */
@@ -290,15 +301,15 @@
     }catch{}
   }
 
-  /* --- Guardar flor --- */
-  $("#plantBtn").onclick=async()=>{
+  /* --- Guardar flor (función común) --- */
+  async function saveFlower(){
     let from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim(),
         place=$("#place").value.trim(), lat=$("#lat").value.trim(), lng=$("#lng").value.trim();
 
     if(msg.length > MAX_LEN) msg = msg.slice(0, MAX_LEN);
-    if(!from||!to||!msg||!place||!lat||!lng) return setStatus("Completa todos los campos y confirma/ajusta la ubicación","error");
-    setStatus("Guardando…");
+    if(!from||!to||!msg||!place||!lat||!lng) { setStatus("Completa todos los campos y confirma/ajusta la ubicación","error"); return false; }
 
+    setStatus("Guardando…");
     try{
       const body=new URLSearchParams({fromName:from,toName:to,message:msg,place,lat,lng}).toString();
       const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body});
@@ -308,16 +319,30 @@
         addFlower(lat, lng, popupHtml(from,to,msg,dateStr), true); // zoom 19 + popup
         counterEl.textContent = `🌸 PLANTADAS: ${seen.size}`;
         setStatus("¡Flor plantada!","ok");
-        // botones virales
+        // mostrar botones
         $("#shareBtn").style.display="block";
         $("#resetBtn").style.display="block";
         const iso = new Date().toISOString().slice(0,10);
         const url=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${iso}`;
         $("#shareBtn").onclick=()=>{ navigator.clipboard.writeText(url); setStatus("Enlace copiado ✅","ok"); };
-        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounter(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } };
-        if(isMobile()) switchView('map');
-      } else setStatus("Error: "+(data.error||"Desconocido"),"error");
-    }catch{ setStatus("Error de red","error"); }
+        $("#resetBtn").onclick=()=>{ $("#fromName").value=""; $("#toName").value=""; $("#message").value=""; $("#place").value=""; $("#lat").value=""; $("#lng").value=""; refreshCounter(); $("#shareBtn").style.display="none"; $("#resetBtn").style.display="none"; setStatus("Formulario listo para otra flor."); if(editMarker){ map.removeLayer(editMarker); editMarker=null; } if(isMobile()) fabPlant.style.display="none"; };
+        // limpiar marcador de edición y ocultar FAB
+        if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
+        if(isMobile()) fabPlant.style.display="none";
+        return true;
+      } else { setStatus("Error: "+(data.error||"Desconocido"),"error"); return false; }
+    }catch{ setStatus("Error de red","error"); return false; }
+  }
+
+  /* --- Click del botón del formulario (escritorio) --- */
+  $("#plantBtn").onclick = saveFlower;
+
+  /* --- Click del botón flotante (móvil) --- */
+  fabPlant.onclick = async ()=>{
+    fabPlant.disabled = true;
+    fabPlant.textContent = "Plantando…";
+    const ok = await saveFlower();
+    if(!ok){ fabPlant.disabled = false; fabPlant.textContent = "✅ Plantar aquí"; }
   };
 
   /* --- Deep-link: abrir flor compartida --- */
