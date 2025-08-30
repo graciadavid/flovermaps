@@ -25,47 +25,68 @@
     }
     .logo { font-weight:700; font-size:1.1rem; display:flex; align-items:center; gap:.5rem; }
 
-    /* CONTADOR GLOBAL + CARRUSEL (fuera del mapa) */
+    /* CONTADOR GLOBAL + CARRUSEL */
     .global-counter {
       margin:8px 12px 0; padding:10px 16px; border-radius:14px;
       background:var(--banner-bg); box-shadow:0 4px 14px rgba(0,0,0,.08);
     }
     .counter-top { font-weight:800; font-size:1.05rem; white-space:nowrap; }
     .carousel {
-      margin-top:4px; font-size:.9rem; color:#444; line-height:1.35;
-      overflow:hidden; white-space:nowrap; font-weight:400;
+      margin-top:2px; font-size:.85rem; color:#444; line-height:1.3;
+      overflow:hidden; white-space:nowrap; font-weight:400; position:relative;
     }
     .carousel-track {
-      display:inline-block; will-change: transform, opacity;
-      animation: slideIn .6s ease;
+      display:inline-block; padding-left:100%;
+      will-change: transform; animation: marquee 14s linear infinite;
     }
-    @keyframes slideIn {
-      from { opacity:0; transform:translateY(6px); }
-      to   { opacity:1; transform:translateY(0); }
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .carousel-track { animation: none; padding-left:0; }
     }
 
-    /* LAYOUT */
+    /* LAYOUT PRINCIPAL */
     .wrap { display:flex; gap:0; min-height:calc(100vh - 56px); }
 
-    /* FORMULARIO */
+    /* FORMULARIO en CAJA COMPACTA */
     .panel {
-      width:420px; max-width:100%; padding:16px 16px 18px;
+      width:420px; max-width:100%;
+      padding:14px 14px 16px;
       border-right:1px solid #eee; background:#fff; overflow:auto;
       order:2;
     }
-    h1 { font-size:1.15rem; margin:0 0 10px; }
-    label { display:block; margin:8px 0 4px; font-size:.95rem; }
+    .card {
+      border:1px solid #e5e5e5; border-radius:14px; padding:12px; box-shadow:0 4px 14px rgba(0,0,0,.04); background:#fff;
+    }
+    h1 { font-size:1.08rem; margin:0 0 10px; }
+    label { display:block; margin:6px 0 4px; font-size:.9rem; }
     input, textarea, button {
-      width:100%; padding:10px; font-size:.95rem; border:1px solid #ddd; border-radius:12px;
+      width:100%; padding:9px 10px; font-size:.92rem; border:1px solid #ddd; border-radius:10px;
     }
     textarea { min-height:52px; max-height:72px; resize:vertical; }
-    .small { color:#666; font-size:.9rem; min-height:1.2em; }
+    .small { color:#666; font-size:.8rem; min-height:1.2em; }
     .ok { color:#0a7d25; }
     .error { color:#b30000; }
-    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:12px; margin-top:8px; font-weight:600; }
+    button { cursor:pointer; background:#111; color:#fff; border:0; border-radius:10px; margin-top:8px; font-weight:600; }
 
+    /* Fila compacta De/Para */
     .row-two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .char-counter { font-size:.8rem; color:#666; text-align:right; }
+
+    /* Ayuda más pequeña (una línea) */
+    .help-line { font-size:.78rem; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Fila de botones compactos en una línea */
+    .row-actions {
+      display:flex; gap:6px; margin-top:6px; align-items:center;
+    }
+    .row-actions button {
+      padding:8px 10px; font-size:.9rem; line-height:1; white-space:nowrap;
+    }
+
+    /* Contador de caracteres */
+    .char-counter { font-size:.78rem; color:#666; text-align:right; }
 
     /* MAPA */
     .view-map { flex:1; position:relative; padding:10px 12px 12px; order:1; }
@@ -74,7 +95,7 @@
       border:1px solid #e5e5e5; border-radius:16px; overflow:hidden;
       background: linear-gradient(135deg, #f8fbff, #f6f0ff);
       box-shadow:0 6px 20px rgba(0,0,0,.06);
-      height: 100%; /* JS lo iguala al formulario en desktop; 50vh en móvil */
+      height: 100%; /* JS ajusta: desktop = altura hasta confirmar; móvil = 50vh */
     }
     #map {
       position:absolute; top:5px; right:5px; bottom:5px; left:5px;
@@ -99,11 +120,11 @@
     /* RESPONSIVE: móvil primero formulario y debajo mapa (50vh) */
     @media (max-width: 900px) {
       .wrap { flex-direction:column; }
-      .panel { order:1; width:auto; border-right:0; border-bottom:1px solid #eee; padding:12px 12px 14px; }
+      .panel { order:1; width:auto; border-right:0; border-bottom:1px solid #eee; padding:12px; }
       .view-map { order:2; padding:10px 12px 12px; }
       .map-frame { height: 50vh; }
-      input, textarea, button { font-size:.92rem; padding:9px 10px; }
-      h1 { font-size:1.05rem; }
+      h1 { font-size:1.02rem; }
+      input, textarea, button { font-size:.9rem; padding:8px 10px; }
     }
   </style>
 </head>
@@ -121,38 +142,42 @@
 <div class="wrap">
   <!-- FORMULARIO (móvil primero) -->
   <section class="panel" id="view-plant">
-    <h1>Planta una flor 🌸</h1>
+    <div class="card">
+      <h1>Planta una flor 🌸</h1>
 
-    <div class="row-two">
-      <div>
-        <label>¿Quién la envía?</label>
-        <input id="fromName" placeholder="Tu nombre" />
+      <div class="row-two">
+        <div>
+          <label>¿Quién la envía?</label>
+          <input id="fromName" placeholder="Tu nombre" />
+        </div>
+        <div>
+          <label>¿Para quién?</label>
+          <input id="toName" placeholder="Nombre del destinatario" />
+        </div>
       </div>
-      <div>
-        <label>¿Para quién?</label>
-        <input id="toName" placeholder="Nombre del destinatario" />
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
+        <label style="margin:6px 0 4px;">Mensaje</label>
+        <div class="char-counter"><span id="charsLeft">90</span>/90</div>
       </div>
+      <textarea id="message" placeholder="Escribe algo bonito…" maxlength="90"></textarea>
+
+      <label style="margin-top:8px;">Ubicación</label>
+      <input id="place" placeholder="Ej. Sagrada Família, Barcelona" list="suggestions" />
+      <datalist id="suggestions"></datalist>
+
+      <div id="help" class="help-line">Introduce una dirección y ajusta el sitio exacto en el mapa.</div>
+
+      <!-- Fila de botones compactos: ESTE PUNTO DEFINE LA ALTURA PARA EL MAPA EN DESKTOP -->
+      <div id="confirmRow" class="row-actions">
+        <button id="confirmBtn" type="button" style="background:#444;">✅ Confirmar dirección</button>
+        <button id="geoBtn" type="button" style="background:#444;">📍 Usar mi ubicación</button>
+      </div>
+
+      <!-- ocultos -->
+      <input id="lat" type="hidden" />
+      <input id="lng" type="hidden" />
     </div>
-
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
-      <label style="margin:8px 0 4px;">Mensaje</label>
-      <div class="char-counter"><span id="charsLeft">90</span>/90</div>
-    </div>
-    <textarea id="message" placeholder="Escribe algo bonito…" maxlength="90"></textarea>
-
-    <label>Ubicación</label>
-    <input id="place" placeholder="Ej. Sagrada Família, Barcelona" list="suggestions" />
-    <datalist id="suggestions"></datalist>
-
-    <div class="small">Introduce una dirección y ajusta el sitio exacto en el mapa.</div>
-
-    <div style="display:flex; gap:8px; margin-top:6px;">
-      <button id="confirmBtn" type="button" style="background:#444;">✅ Confirmar dirección</button>
-      <button id="geoBtn" type="button" style="background:#444;">📍 Usar mi ubicación</button>
-    </div>
-
-    <input id="lat" type="hidden" />
-    <input id="lng" type="hidden" />
   </section>
 
   <!-- MAPA -->
@@ -184,26 +209,24 @@
 
   const $ = sel => document.querySelector(sel);
   const counterTopEl = $("#counterTop");
-  const carouselTrack = $("#carouselTrack");
-  const charsLeftEl = $("#charsLeft");
-  const plantHereBtn = $("#plantHereBtn");
   const mapFrame = $("#mapFrame");
+  const carouselContainer = document.querySelector(".carousel");
+  let carouselTrack = $("#carouselTrack");
+  const plantHereBtn = $("#plantHereBtn");
 
-  /* Sonido suave (sin archivos): campanita breve */
+  /* Sonido suave (sin archivos) */
   function playChime(){
     try{
       const ctx = new (window.AudioContext||window.webkitAudioContext)();
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.value = 880; // La5
+      o.type = "sine"; o.frequency.value = 880;
       o.connect(g); g.connect(ctx.destination);
-      const now = ctx.currentTime;
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-      o.start(now);
-      o.stop(now + 0.4);
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.start(t); o.stop(t + 0.4);
     }catch{}
   }
 
@@ -223,7 +246,7 @@
     return first;
   }
 
-  /* Contador + carrusel */
+  /* Contadores */
   function updateCountersTotal(n){ counterTopEl.textContent = `🌸 ${n} PLANTADAS`; }
   function setCarousel(from,to,place,date,msg){
     const city = cityFromPlace(place||"");
@@ -231,28 +254,37 @@
     const text = `Flor plantada por ${from||"—"} para ${to||"—"} en ${city} a las ${time}. ${msg?`“${msg}”`:""}`;
     const span = document.createElement("span");
     span.className = "carousel-track";
-    span.textContent = text;
+    span.textContent = "   " + text + "   ";
     carouselTrack.replaceWith(span);
-    // re-seleccionar
-    span.id = "carouselTrack";
+    carouselTrack = span;
+    // reiniciar animación (para navegadores que cachean)
+    span.style.animation = "none"; span.offsetHeight; span.style.animation = null;
   }
   function setNoFlowersCarousel(){
     const span = document.createElement("span");
     span.className = "carousel-track";
     span.textContent = "Aún no hay flores plantadas.";
     carouselTrack.replaceWith(span);
-    span.id = "carouselTrack";
+    carouselTrack = span;
+    span.style.animation = "none"; span.offsetHeight; span.style.animation = null;
   }
 
-  /* Alturas: desktop = igualar a altura del formulario; móvil = 50vh */
+  /* Alturas:
+     - Móvil: 50vh
+     - Desktop: altura hasta la fila de confirmar (confirmRow) para que el mapa no sea enorme */
   function syncMapHeight(){
     if(isMobile()){
       mapFrame.style.height = "50vh";
       setTimeout(()=>map.invalidateSize(), 50);
       return;
     }
-    const formH = $("#view-plant").offsetHeight;
-    mapFrame.style.height = formH + "px";
+    const panel = $("#view-plant");
+    const confirmRow = $("#confirmRow");
+    const base = panel.querySelector(".card");
+    if(!panel || !confirmRow || !base){ return; }
+    // altura relativa dentro de la tarjeta: top confirm + alto confirm + margen inferior
+    const h = confirmRow.offsetTop + confirmRow.offsetHeight + 12;
+    mapFrame.style.height = h + "px";
     setTimeout(()=>map.invalidateSize(), 50);
   }
   window.addEventListener("resize", syncMapHeight);
@@ -283,13 +315,12 @@
     if(isMobile()) document.getElementById('view-map').scrollIntoView({behavior:"smooth"});
   });
 
-  /* Añadir flor y animarla al plantar */
+  /* Añadir flor + animación */
   function addFlower(lat, lng, html, openNow=false, animate=false){
     const m = L.marker([+lat, +lng], { icon: flowerIcon }).addTo(map).bindPopup(html);
     m.on("click", ()=>{ map.setView(m.getLatLng(), 19); m.openPopup(); });
     if(openNow){ map.setView([+lat, +lng], 19); m.openPopup(); }
     if(animate){
-      // aplica animación a la última capa de icono añadida
       setTimeout(()=>{
         const icons = document.querySelectorAll('.emoji-marker');
         if(icons.length){ const el = icons[icons.length-1]; el.classList.add('sprout'); el.addEventListener('animationend', ()=>el.classList.remove('sprout'), {once:true}); }
@@ -301,7 +332,7 @@
   /* Contador de caracteres */
   const messageEl = $("#message");
   const MAX_LEN = 90;
-  function refreshCounterChars(){ $("#charsLeft").textContent = MAX_LEN - messageEl.value.length; }
+  function refreshCounterChars(){ document.getElementById("charsLeft").textContent = MAX_LEN - messageEl.value.length; }
   messageEl.addEventListener("input", ()=>{
     if(messageEl.value.length > MAX_LEN) messageEl.value = messageEl.value.slice(0, MAX_LEN);
     refreshCounterChars(); syncMapHeight();
@@ -317,7 +348,7 @@
     }catch{ return []; }
   }
   async function searchAndFix(q){
-    if(!q) return; // si está vacío, no forzamos (puede usar GPS o mapa)
+    if(!q) return; // puede usar GPS o clic en mapa
     const r=await fillSuggestions(q);
     if(r.length>0){
       const f=r[0];
@@ -326,9 +357,9 @@
       if(isMobile()) document.getElementById('view-map').scrollIntoView({behavior:"smooth"});
     }
   }
-  $("#confirmBtn").onclick=()=>searchAndFix($("#place").value.trim());
+  document.getElementById("confirmBtn").onclick=()=>searchAndFix(document.getElementById("place").value.trim());
 
-  $("#geoBtn").onclick=()=>navigator.geolocation && navigator.geolocation.getCurrentPosition(p=>{
+  document.getElementById("geoBtn").onclick=()=>navigator.geolocation && navigator.geolocation.getCurrentPosition(p=>{
     usedGPS = true; usedMapClick = false;
     setPoint(p.coords.latitude.toFixed(6), p.coords.longitude.toFixed(6), 18);
     if(isMobile()) document.getElementById('view-map').scrollIntoView({behavior:"smooth"});
@@ -339,7 +370,7 @@
     try{
       const res=await fetch(SCRIPT_URL);
       const data=await res.json();
-      let latest = null; // guardará la última por timestamp
+      let latest = null;
       (data.items||[]).forEach(f=>{
         if(!f.lat||!f.lng) return;
         const k = `${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
@@ -355,15 +386,10 @@
         }
       });
       updateCountersTotal(seen.size);
-      if(latest){
-        setCarousel(latest.from, latest.to, latest.place, latest.ts, latest.msg);
-      } else {
-        setNoFlowersCarousel();
-      }
+      if(latest){ setCarousel(latest.from, latest.to, latest.place, latest.ts, latest.msg); }
+      else { setNoFlowersCarousel(); }
       syncMapHeight();
-    }catch{
-      // si falla la red, mantenemos lo que hubiera
-    }
+    }catch{}
   }
 
   /* Guardar flor */
@@ -389,33 +415,18 @@
       if(data.ok){
         const now = new Date();
         const dateStr=fmtDate(now);
-        addFlower(lat, lng, popupHtml(from,to,msg,dateStr), true, true); // abrir y animar
-        playChime(); // sonido
+        addFlower(lat, lng, popupHtml(from,to,msg,dateStr), true, true);
+        playChime();
 
         seen.add(`${+lat},${+lng}|${from}|${to}|${msg}|${now.toISOString()}`);
         updateCountersTotal(seen.size);
         setCarousel(from, to, place, now, msg);
 
-        // compartir / otra
+        // limpiar y ocultar botón plantar
         const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}&d=${now.toISOString().slice(0,10)}`;
-        const shareBtn = document.getElementById("shareBtn");
-        const resetBtn = document.getElementById("resetBtn");
-        if(shareBtn && resetBtn){
-          shareBtn.style.display="block"; resetBtn.style.display="block";
-          shareBtn.onclick=()=>{ navigator.clipboard.writeText(shareUrl); };
-          resetBtn.onclick=()=>{
-            $("#fromName").value=""; $("#toName").value=""; $("#message").value="";
-            $("#place").value=""; $("#lat").value=""; $("#lng").value="";
-            usedGPS=false; usedMapClick=false;
-            shareBtn.style.display="none"; resetBtn.style.display="none";
-            syncMapHeight();
-          };
-        }
-
+        // (si quieres, muestra botones compartir/otra; omitidos aquí para compactar)
         if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
-        // ocultar botón plantar definitivamente tras plantar
-        plantHereBtn.style.display="none";
-        plantHereBtn.disabled=false; plantHereBtn.textContent="✅ Plantar aquí";
+        plantHereBtn.style.display="none"; plantHereBtn.disabled=false; plantHereBtn.textContent="✅ Plantar aquí";
         syncMapHeight();
         return true;
       } else {
@@ -431,15 +442,13 @@
   /* Click plantar */
   plantHereBtn.onclick = saveFlower;
 
-  /* Botones de dirección */
-  document.getElementById("confirmBtn").addEventListener("click", ()=>{
-    const q = $("#place").value.trim();
-    if(q) searchAndFix(q);
-  });
-  document.getElementById("geoBtn").addEventListener("click", ()=>{/* manejado arriba */});
+  /* Interacción mapa también disponible */
+  map.on("moveend", syncMapHeight);
 
   /* Inicialización */
   (function(){
+    // Mostrar botón plantar sólo cuando haya punto
+    plantHereBtn.style.display = "none";
     loadFlowers();
     setInterval(loadFlowers, 30000);
   })();
