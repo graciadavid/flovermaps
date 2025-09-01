@@ -86,6 +86,7 @@
   @keyframes bounceIn{0%{transform:translate(-50%,10px) scale(.9)}60%{transform:translate(-50%,0) scale(1.05)}100%{transform:translate(-50%,0) scale(1)}}
   .map-fab.pop{animation:bounceIn .28s ease}
 
+  /* Toast (lo mantenemos para otros avisos, pero no lo usamos para “modo caché”) */
   .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:92px}
 </style>
@@ -157,20 +158,30 @@
 /* === CONFIG === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
 
-/* === JSONP helper (evita CORS) === */
+/* === JSONP helper (robusto, sin toasts de error) === */
 function jsonp(url, timeoutMs=12000){
   return new Promise((resolve, reject)=>{
     const cbName = '__fp_cb_'+Math.random().toString(36).slice(2);
-    const s = document.createElement('script');
     const sep = url.includes('?') ? '&' : '?';
-    s.src = url + sep + 'callback=' + cbName + '&_ts=' + Date.now();
-    let done = false, to;
+    const src = url + sep + 'callback=' + cbName + '&_ts=' + Date.now();
 
-    window[cbName] = (data)=>{ cleanup(); done=true; resolve(data); };
-    s.onerror = ()=>{ cleanup(); reject(new Error('JSONP load failed')); };
-    function cleanup(){ clearTimeout(to); delete window[cbName]; if(s.parentNode) s.parentNode.removeChild(s); }
-    to = setTimeout(()=>{ if(!done){ cleanup(); reject(new Error('JSONP timeout')); } }, timeoutMs);
-    document.body.appendChild(s);
+    let to, done=false;
+    function cleanup(){
+      clearTimeout(to);
+      try{ delete window[cbName]; }catch{}
+      const el = document.getElementById(cbName);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    }
+    window[cbName] = (data)=>{ if(done) return; done=true; cleanup(); resolve(data); };
+
+    const s = document.createElement('script');
+    s.id = cbName;
+    s.async = true;
+    s.src = src;
+    s.onerror = ()=>{ if(done) return; done=true; cleanup(); reject(new Error('JSONP load failed')); };
+    (document.head || document.documentElement).appendChild(s);
+
+    to = setTimeout(()=>{ if(done) return; done=true; cleanup(); reject(new Error('JSONP timeout')); }, timeoutMs);
   });
 }
 
@@ -179,7 +190,7 @@ const seen = new Set();
 let editMarker = null, usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let allFlowers = [];
-let currentCityName = "", pollTimer = null;
+let currentCityName = "", pollTimer = null, consecutiveFails = 0;
 
 const $ = s => document.querySelector(s);
 const slist = $("#slist"), place = $("#place");
@@ -198,7 +209,7 @@ function norm(s){ return String(s||'').trim().toLowerCase(); }
 function makeKey(lat,lng,from,to,msg){ return `${(+lat).toFixed(5)},${(+lng).toFixed(5)}|${norm(from)}|${norm(to)}|${norm(msg)}`; }
 function setMarquee(text){ marquee.textContent = text || "Aún no hay flores plantadas. ¡Sé el primero! 🌸"; }
 
-/* === Caché local (para persistir entre refrescos) === */
+/* === Caché local (persistencia entre refrescos) === */
 const CACHE_KEY = 'flovermaps_cache_v1';
 function loadCache(){
   try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return []; const arr=JSON.parse(raw); return Array.isArray(arr)?arr:[]; }catch{return [];}
@@ -228,7 +239,7 @@ function initMap(){
       try{ map && map.removeLayer(baseTiles); }catch(e){}
       fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors', maxZoom:19});
       fallbackTiles.addTo(map);
-      toast('Usando mapa alternativo OSM', true);
+      // sin toast aquí
     }
   });
   map = L.map('map',{layers:[baseTiles],zoomControl:true});
@@ -294,8 +305,7 @@ async function searchPlacesStructured(q, signal){
 async function searchPhoton(q, signal){
   const url='https://photon.komoot.io/api/?lang=es&limit=7&q='+encodeURIComponent(q);
   const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}).catch(()=>null);
-  if(!r || !r.ok) return [];
-  const j=await r.json();
+  if(!r || !r.ok) return []; const j=await r.json();
   return (j.features||[]).map(f=>({
     place_id: 'ph'+(f.properties.osm_id||Math.random()),
     lat: f.geometry.coordinates[1],
@@ -373,7 +383,7 @@ $("#confirmBtn").onclick = async ()=>{
     const r=await searchPlaces(q);
     if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18, true); fixedBadge.style.display='inline'; currentCityName = f.address?.city || f.address?.town || f.address?.village || normalizeCityFromPlace(f.display_name) || currentCityName; }
     else toast('No encontrada', false);
-  }catch{ toast('Error buscando dirección', false); }
+  }catch{ /* silencio */ }
 };
 const gpsBtn = $("#gpsBtn");
 if('geolocation' in navigator){
@@ -388,7 +398,7 @@ gpsBtn.onclick = ()=> navigator.geolocation && navigator.geolocation.getCurrentP
   const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
   usedGPS=true; usedMapClick=false; setEditPoint(lat,lng,18,true); fixedBadge.style.display='inline';
   await updateCurrentCity(lat,lng);
-}, ()=>{ toast('Ubicación no disponible (activa permisos)', false); gpsBtn.remove(); });
+}, ()=>{ /* sin toast */ gpsBtn.remove(); });
 
 /* === MENSAJE: 1 línea, 30 chars === */
 const msgInput = document.getElementById('message');
@@ -423,7 +433,6 @@ async function saveFlower(){
 
     const data = await jsonp(url);
     if(data && data.ok){
-      // pinta local
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const dtStr = fmtDateTime(new Date());
       const html  = popupHtml(currentCityName, from, to, msg, dtStr);
@@ -431,13 +440,10 @@ async function saveFlower(){
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
 
-      // actualiza estado + caché
       const item={lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now(), city: currentCityName, type, place:placeText};
       const key = makeKey(lat, lng, from, to, msg);
       seen.add(key); allFlowers.push(item); updateCounterUI(); saveCache();
-
       setMarquee(popupLine(currentCityName, from, to, msg, dtStr));
-      toast('Flor plantada 🌸');
 
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
@@ -445,13 +451,12 @@ async function saveFlower(){
 
       hideFab(); $("#lat").value=''; $("#lng").value=''; fixedBadge.style.display='none'; currentCityName = "";
 
-      refetch(); // confirma con servidor (y propaga a otros dispositivos)
-    } else {
-      throw new Error(data && data.error ? data.error : 'Respuesta inválida del servidor');
+      // forzamos sincronización silenciosa
+      consecutiveFails = 0;
+      setTimeout(refetch, 500);
     }
   }catch(err){
-    console.error(err);
-    toast('Error al plantar: ' + String(err).slice(0,80), false);
+    // silencio: mantenemos lo plantado en caché y reintentamos después
   }
   plantFab.disabled=false; plantFab.textContent=prevTxt;
 }
@@ -495,17 +500,30 @@ function processItems(items){
   })();
 }
 
-/* === Carga desde hoja (JSONP) === */
+/* === Carga desde hoja (JSONP) — sin avisos de “modo caché”, con reintentos === */
 async function refetch(){
   try{
-    const data = await jsonp(SCRIPT_URL + '?action=list');
-    if(data && data.items) processItems(data.items);
+    const data = await jsonp(SCRIPT_URL + '?action=list', 12000);
+    if(data && data.items){
+      processItems(data.items);
+      consecutiveFails = 0; // OK
+    } else {
+      // si viene vacío, no es fallo: simplemente no hay nuevas
+    }
   }catch(e){
-    console.warn('JSONP list error', e);
-    toast('No se pudo sincronizar ahora (modo caché)', false);
+    // Sin toast. Backoff suave.
+    consecutiveFails++;
+    const retry = Math.min(30000, 4000 * consecutiveFails); // 4s, 8s, 12s... máx 30s
+    setTimeout(refetch, retry);
+    return;
   }
 }
-function startPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(refetch, 12000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); }); }
+function startPolling(){
+  // polling principal (cada 12s). Si hay fallos, refetch ya tiene su backoff.
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refetch, 12000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
+}
 
 /* === UI: contador === */
 function updateCounterUI(){ animateNumber(countNum, seen.size); }
@@ -513,18 +531,19 @@ function updateCounterUI(){ animateNumber(countNum, seen.size); }
 /* === Arranque === */
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
-  // 1) Siempre pinta lo del caché primero (para que no “desaparezca” al refrescar)
+
+  // 1) Pinta caché primero (para que nada “desaparezca” al refrescar)
   const cached = loadCache();
   if(cached.length){ processItems(cached); }
 
-  // 2) Arranca el mapa y sincroniza con la hoja
+  // 2) Arranca mapa y sincroniza en segundo plano (sin toasts por fallo)
   (function waitLeaflet(attempts=12){
     if(window.L){
       initMap();
       refetch();
       startPolling();
     } else {
-      if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; }
+      if(attempts<=0){ /* sin toast */ return; }
       setTimeout(()=>waitLeaflet(attempts-1), 250);
     }
   })();
