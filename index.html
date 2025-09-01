@@ -86,7 +86,7 @@
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:2px}
   #map{width:100%; height:520px}
   @media (max-width:1024px){
-    #map{height:42vh} /* móvil: un poco más pequeño */
+    #map{height:42vh}
     .wrap{flex-direction:column;}
     .panel{width:100%; border-right:0;}
   }
@@ -198,71 +198,34 @@ let editMarker = null;
 let usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let allFlowers = [];
-let currentCityName = ""; // ciudad detectada para el popup actual
+let currentCityName = "";
 let pollTimer = null;
 
-/* === DOM helpers === */
+/* === DOM === */
 const $ = s => document.querySelector(s);
 const slist = $("#slist"), place = $("#place");
 const plantFab = $("#plantFab"), shareBtn = $("#shareBtn"), fixedBadge = $("#fixed");
 const countNum = $("#countNum"), marquee = $("#marqueeText");
 
 /* === Utils === */
-function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
-function fmtDateTime(d){
-  const dd=String(d.getDate()).padStart(2,"0");
-  const mm=String(d.getMonth()+1).padStart(2,"0");
-  const yy=d.getFullYear();
-  const hh=String(d.getHours()).padStart(2,"0");
-  const mi=String(d.getMinutes()).padStart(2,"0");
-  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
-}
-function normalizeCityFromPlace(txt){
-  if(!txt) return "";
-  const parts = txt.split(",").map(s=>s.trim()).filter(Boolean);
-  if(parts.length>=2) return parts[1];
-  return "";
-}
-async function reverseGeocodeCity(lat,lng){
-  try{
-    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
-    const r=await fetch(url,{headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) return "";
-    const j=await r.json();
-    const a=j.address||{};
-    return a.city || a.town || a.village || a.municipality || a.state || "";
-  }catch{ return ""; }
-}
-function popupLine(city, from, to, msg, dtStr){
-  const cityTxt = city ? city : "tu zona";
-  return `🌸 Flor Plantada en ${cityTxt} 🌸 ${from} a ${to}: ${msg} ${dtStr}.`;
-}
-function popupHtml(city, from, to, msg, dtStr){
-  // escapado simple
-  const esc = s => String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-  return `<div>${esc(popupLine(city,from,to,msg,dtStr))}</div>`;
-}
-function animateNumber(el, to){
-  const from = Number(el.textContent.replace(/\D/g,'')) || 0;
-  const start = performance.now();
-  const dur = 400;
-  function step(t){ const k=Math.min(1,(t-start)/dur); el.textContent=Math.round(from+(to-from)*k); if(k<1) requestAnimationFrame(step); }
-  requestAnimationFrame(step);
-}
+function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1800); }
+function fmtDateTime(d){ const dd=String(d.getDate()).padStart(2,"0"); const mm=String(d.getMonth()+1).padStart(2,"0"); const yy=d.getFullYear(); const hh=String(d.getHours()).padStart(2,"0"); const mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; }
+function normalizeCityFromPlace(txt){ if(!txt) return ""; const parts = txt.split(",").map(s=>s.trim()).filter(Boolean); return parts.length>=2 ? parts[1] : ""; }
+async function reverseGeocodeCity(lat,lng){ try{ const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`; const r=await fetch(url,{headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) return ""; const j=await r.json(); const a=j.address||{}; return a.city||a.town||a.village||a.municipality||a.state||""; }catch{ return ""; } }
+function popupLine(city, from, to, msg, dtStr){ const cityTxt = city || "tu zona"; return `🌸 Flor Plantada en ${cityTxt} 🌸 ${from} a ${to}: ${msg} ${dtStr}.`; }
+function popupHtml(city, from, to, msg, dtStr){ const esc = s => String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); return `<div>${esc(popupLine(city,from,to,msg,dtStr))}</div>`; }
+function animateNumber(el, to){ const from = Number(el.textContent.replace(/\D/g,'')) || 0; const start = performance.now(); const dur = 400; function step(t){ const k=Math.min(1,(t-start)/dur); el.textContent=Math.round(from+(to-from)*k); if(k<1) requestAnimationFrame(step); } requestAnimationFrame(step); }
 function norm(s){ return String(s||'').trim().toLowerCase(); }
 function makeKey(lat,lng,from,to,msg){ return `${(+lat).toFixed(5)},${(+lng).toFixed(5)}|${norm(from)}|${norm(to)}|${norm(msg)}`; }
 function setMarquee(text){ marquee.textContent = text || "Aún no hay flores plantadas. ¡Sé el primero! 🌸"; }
 
 /* === Icono === */
-function emojiIcon(){
-  const html = '<span class="e" role="img" aria-label="flor">🌸</span>';
-  return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]});
-}
+function emojiIcon(){ const html = '<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 
-/* === MAPA (robusto) === */
+/* === MAPA === */
 function initMap(){
   if(!window.L){ toast('Mapa no disponible (Leaflet no cargó)', false); return; }
   if(map){ return; }
-
   baseTiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{
     if(!tileFallbackUsed){
@@ -273,72 +236,43 @@ function initMap(){
       toast('Usando mapa alternativo OSM', true);
     }
   });
-
   map = L.map('map',{layers:[baseTiles],zoomControl:true});
-  map.setView([40.41694, -3.70361], 13); // Puerta del Sol, Madrid
+  map.setView([40.41694, -3.70361], 13);
   setTimeout(()=>map.invalidateSize(), 150);
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
-
-  map.on('click', e=>{
-    usedMapClick=true; usedGPS=false;
-    setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true);
-  });
-
+  map.on('click', e=>{ usedMapClick=true; usedGPS=false; setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true); });
   map.on('move zoom zoomend', updateFabPosition);
 }
-
-async function updateCurrentCity(lat,lng){
-  currentCityName = normalizeCityFromPlace(place.value) || await reverseGeocodeCity(lat,lng) || "";
-}
-
+async function updateCurrentCity(lat,lng){ currentCityName = normalizeCityFromPlace(place.value) || await reverseGeocodeCity(lat,lng) || ""; }
 function setEditPoint(lat,lng,zoom=18,showHint=false){
   $("#lat").value=lat; $("#lng").value=lng;
-
-  if(editMarker){
-    editMarker.setLatLng([lat,lng]);
-  } else {
+  if(editMarker){ editMarker.setLatLng([lat,lng]); }
+  else{
     editMarker = L.marker([lat,lng],{icon:emojiIcon(),draggable:true}).addTo(map);
-
-    // Evita que el mapa se mueva mientras arrastras el pin (móvil/desktop)
     const lockMap = ()=>{ if(map && map.dragging) map.dragging.disable(); };
     const unlockMap = ()=>{ if(map && map.dragging) map.dragging.enable(); };
-
     editMarker.on('mousedown', lockMap);
     editMarker.on('touchstart', lockMap, {passive:true});
     editMarker.on('dragstart', lockMap);
     editMarker.on('mouseup', unlockMap);
     editMarker.on('touchend', unlockMap, {passive:true});
-    editMarker.on('dragend', e=>{
-      unlockMap();
-      const p=e.target.getLatLng();
-      $("#lat").value=p.lat.toFixed(6);
-      $("#lng").value=p.lng.toFixed(6);
-      fixedBadge.style.display='inline';
-      updateFabPosition();
-      updateCurrentCity($("#lat").value, $("#lng").value);
-    });
-
-    if(showHint){
-      editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip();
-    }
+    editMarker.on('dragend', e=>{ unlockMap(); const p=e.target.getLatLng(); $("#lat").value=p.lat.toFixed(6); $("#lng").value=p.lng.toFixed(6); fixedBadge.style.display='inline'; updateFabPosition(); updateCurrentCity($("#lat").value, $("#lng").value); });
+    if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
     editMarker.on('drag', updateFabPosition);
   }
-
   map.setView([lat,lng], zoom);
   showFab();
   updateCurrentCity(lat,lng);
 }
 
-/* === Botón flotante “Plantar aquí” === */
+/* === FAB === */
 function updateFabPosition(){
   if(!plantFab || !editMarker || !map) return;
-  const mapEl   = map.getContainer();
-  const frameEl = mapEl.parentElement;
+  const mapEl = map.getContainer(), frameEl = mapEl.parentElement;
   const p = map.latLngToContainerPoint(editMarker.getLatLng());
-  const mapRect   = mapEl.getBoundingClientRect();
-  const frameRect = frameEl.getBoundingClientRect();
+  const mapRect = mapEl.getBoundingClientRect(), frameRect = frameEl.getBoundingClientRect();
   const left = p.x + (mapRect.left - frameRect.left);
-  const top  = p.y + (mapRect.top  - frameRect.top) + 34; // debajo del pin
+  const top  = p.y + (mapRect.top  - frameRect.top) + 34;
   const pad = 8, maxX = frameRect.width - pad, maxY = frameRect.height - pad;
   plantFab.style.left = Math.max(pad, Math.min(left, maxX)) + 'px';
   plantFab.style.top  = Math.max(pad, Math.min(top,  maxY)) + 'px';
@@ -350,21 +284,11 @@ function hideFab(){ if(!plantFab) return; plantFab.style.display='none'; }
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
-function normalizeStreet(q){
-  const hasType = /(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q);
-  if(hasType) return [q];
-  const base=q.replace(/\s+/g,' ').trim();
-  return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base];
-}
-async function searchPlacesPlain(q, signal){
-  const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q);
-  const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) throw new Error('nominatim'); return r.json();
-}
+function normalizeStreet(q){ const hasType=/(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q); if(hasType) return [q]; const base=q.replace(/\s+/g,' ').trim(); return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base]; }
+async function searchPlacesPlain(q, signal){ const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q); const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) throw new Error('nominatim'); return r.json(); }
 async function searchPlacesStructured(q, signal){
-  let raw=q, city='';
-  if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); city=parts.slice(1).join(',').trim(); }
-  const variants = normalizeStreet(raw);
-  const all=[];
+  let raw=q, city=''; if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); city=parts.slice(1).join(',').trim(); }
+  const variants = normalizeStreet(raw); const all=[];
   for(const street of variants){
     const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city);
     const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}).catch(()=>null);
@@ -400,8 +324,8 @@ async function searchPlaces(q){
     const B = hasNum ? await searchPlacesStructured(q, sig).catch(()=>[]) : [];
     const C = hasNum ? await searchPhoton(q, sig).catch(()=>[]) : [];
     const list=[...A, ...B, ...C];
-    const seenIds=new Set();
-    const merged=[]; for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seenIds.has(id)){ seenIds.add(id); merged.push(it); } }
+    const seenIds=new Set(); const merged=[];
+    for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seenIds.has(id)){ seenIds.add(id); merged.push(it); } }
     if(hasNum){
       const num=extractNumber(q);
       merged.sort((x,y)=>{
@@ -477,20 +401,16 @@ gpsBtn.onclick = ()=> navigator.geolocation && navigator.geolocation.getCurrentP
 
 /* === MENSAJE: 1 línea, 30 chars === */
 const msgInput = document.getElementById('message');
-msgInput.addEventListener('input', ()=>{
-  msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30);
-  document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)';
-});
+msgInput.addEventListener('input', ()=>{ msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* === PLANTAR === */
+/* === PLANTAR (con fix CORS: sin charset) === */
 async function saveFlower(){
-  const from=document.getElementById('fromName').value.trim(),
-        to=document.getElementById('toName').value.trim(),
+  const from=$("#fromName").value.trim(),
+        to=$("#toName").value.trim(),
         msg=msgInput.value.trim(),
-        type=(document.querySelector('input[name="flowerType"]:checked')||{}).value||'basic';
-  const lat=document.getElementById('lat').value.trim(),
-        lng=document.getElementById('lng').value.trim();
+        type=(document.querySelector('input[name=\"flowerType\"]:checked')||{}).value||'basic';
+  const lat=$("#lat").value.trim(), lng=$("#lng").value.trim();
   let placeText = place.value.trim();
   if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); return; }
   if(msg.length>30){ toast('Máximo 30 caracteres', false); return; }
@@ -500,53 +420,52 @@ async function saveFlower(){
 
   plantFab.disabled=true; const prevTxt=plantFab.textContent; plantFab.textContent='⏳';
   try{
-    const body=new URLSearchParams({fromName:from,toName:to,message:msg,place:placeText,lat,lng,flowerType:type}).toString();
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
-    const data=await res.json();
-    if(data.ok){
+    const body = new URLSearchParams({fromName:from,toName:to,message:msg,place:placeText,lat,lng,flowerType:type}).toString();
+    const res  = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }, // <-- FIX CORS: sin charset
+      body,
+      redirect: 'follow'
+    });
+
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); } catch(e) {
+      throw new Error('Respuesta no JSON: ' + raw.slice(0,120));
+    }
+
+    if(data && data.ok){
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const dtStr = fmtDateTime(new Date());
-      const html = popupHtml(currentCityName, from, to, msg, dtStr);
+      const html  = popupHtml(currentCityName, from, to, msg, dtStr);
       const m=L.marker([+lat,+lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
 
       const item={lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now(), city: currentCityName, type, place:placeText};
       const key = makeKey(lat, lng, from, to, msg);
-      seen.add(key);
-      allFlowers.push(item);
-      updateCounterUI();
-
+      seen.add(key); allFlowers.push(item); updateCounterUI();
       setMarquee(popupLine(currentCityName, from, to, msg, dtStr));
       toast('Flor plantada 🌸');
 
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
-      shareBtn.onclick=async()=>{
-        try{
-          if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); }
-          else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); }
-        }catch{}
-      };
+      shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
-      hideFab();
-      document.getElementById('lat').value='';
-      document.getElementById('lng').value='';
-      fixedBadge.style.display='none';
-      currentCityName = "";
-
-      refetch(); // refresca desde servidor para otros dispositivos
-    }else{
-      toast('No se pudo guardar', false);
+      hideFab(); $("#lat").value=''; $("#lng").value=''; fixedBadge.style.display='none'; currentCityName = "";
+      refetch();
+    } else {
+      throw new Error(data && data.error ? data.error : 'Respuesta inválida del servidor');
     }
-  }catch{
-    toast('Error de red', false);
+  }catch(err){
+    console.error(err);
+    toast('Error al plantar: ' + String(err).slice(0,80), false);
   }
   plantFab.disabled=false; plantFab.textContent=prevTxt;
 }
 if(plantFab){ plantFab.addEventListener('click', saveFlower); }
 
-/* === Marcadores persistentes (carga + polling) === */
+/* === Marcadores (carga + polling) === */
 async function addMarkerWithCity(f){
   const lat=+f.lat, lng=+f.lng;
   let city = f.city || normalizeCityFromPlace(f.place||"") || "";
@@ -557,43 +476,17 @@ async function addMarkerWithCity(f){
   mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
 }
 function processItems(items){
-  let added = 0;
-  const normalized = [];
+  let added = 0; const normalized = [];
   for(const f of (items||[])){
     if(!f.lat||!f.lng) continue;
     const key = makeKey(f.lat, f.lng, f.fromName||'', f.toName||'', (f.message||'').slice(0,30));
-    if(seen.has(key)) continue;
-    seen.add(key);
-    normalized.push({
-      lat:+f.lat, lng:+f.lng,
-      fromName:f.fromName||'', toName:f.toName||'',
-      message:(f.message||'').slice(0,30), place:f.place||'',
-      timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(),
-      city: f.city||'', type:f.flowerType||'basic'
-    });
+    if(seen.has(key)) continue; seen.add(key);
+    normalized.push({ lat:+f.lat, lng:+f.lng, fromName:f.fromName||'', toName:f.toName||'', message:(f.message||'').slice(0,30), place:f.place||'', timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(), city: f.city||'', type:f.flowerType||'basic' });
   }
-  (async ()=>{
-    for(const f of normalized){ await addMarkerWithCity(f); added++; }
-    if(added>0){
-      allFlowers.push(...normalized);
-      updateCounterUI();
-      const last = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0];
-      if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); }
-    }
-  })();
+  (async ()=>{ for(const f of normalized){ await addMarkerWithCity(f); added++; } if(added>0){ allFlowers.push(...normalized); updateCounterUI(); const last=[...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0]; if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); } } })();
 }
-async function refetch(){
-  try{
-    const r=await fetch(SCRIPT_URL + '?t=' + Date.now(), {headers:{'Accept':'application/json','Cache-Control':'no-cache'}});
-    const data=await r.json();
-    processItems(data.items||[]);
-  }catch{}
-}
-function startPolling(){
-  if(pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(refetch, 12000); // cada 12 s
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
-}
+async function refetch(){ try{ const r=await fetch(SCRIPT_URL + '?t=' + Date.now(), {headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); const txt=await r.text(); let data; try{ data=JSON.parse(txt); }catch(e){ console.warn('GET no JSON:', txt.slice(0,120)); return; } processItems(data.items||[]); }catch{} }
+function startPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(refetch, 12000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); }); }
 
 /* === UI: contador === */
 function updateCounterUI(){ animateNumber(countNum, seen.size); }
@@ -602,14 +495,8 @@ function updateCounterUI(){ animateNumber(countNum, seen.size); }
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
   (function waitLeaflet(attempts=12){
-    if(window.L){ 
-      initMap(); 
-      refetch();      // primera carga desde servidor
-      startPolling(); // y polling continuo
-    } else { 
-      if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } 
-      setTimeout(()=>waitLeaflet(attempts-1), 250); 
-    }
+    if(window.L){ initMap(); refetch(); startPolling(); }
+    else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); }
   })();
 });
 </script>
