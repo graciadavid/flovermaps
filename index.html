@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flovermaps</title>
 
-<!-- Favicon y meta -->
 <link rel="icon" href="logo.png" type="image/png">
 <meta name="theme-color" content="#01c064" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 
-<!-- Tipografía y Leaflet CSS -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-<!-- Leaflet JS (con fallbacks) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" id="leaflet-cdn"></script>
 <script>
   (function ensureLeaflet(){
@@ -35,21 +32,18 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#fff}
 
-  /* Header con marco blanco */
   .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:12px; background:var(--bg);}
   .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px}
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
   .logo-fallback{font-weight:800;letter-spacing:1px; display:none; color:#111}
 
-  /* Contador + Carrusel */
   .counter{margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#fff; border:1px solid #eee; color:#111; font-weight:700}
   .carousel{margin:8px 12px 0; border-radius:14px; background:#fff; border:1px solid #eee; overflow:hidden}
   .marquee{white-space:nowrap; will-change:transform; display:block; color:#111; padding:10px 12px; animation:marq 16s linear infinite}
   .marquee:hover{animation-play-state:paused}
   @keyframes marq{ 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
 
-  /* Layout */
   .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
   .panel{width:420px; max-width:100%; padding:14px; border-right:0; overflow:auto; background:transparent}
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:#111; margin:2px}
@@ -66,14 +60,12 @@
   .btn-share{background:#0066cc;color:#fff}
   .badge{display:none; color:#0a7d25; font-size:.85rem; margin-top:6px}
 
-  /* Radio pushbuttons */
   .choice{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
   .choice input{display:none}
   .choice label{border:1px solid #ddd; border-radius:10px; padding:10px; text-align:center; cursor:pointer; background:#fafafa; user-select:none}
   .choice input:checked + label{border-color:#22c55e; background:#eafff2; font-weight:600}
   .choice label.disabled{opacity:.55; cursor:not-allowed}
 
-  /* Autocomplete */
   .sbox{position:relative}
   .slist{position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid #e6e6e6; border-radius:10px; max-height:260px; overflow:auto; display:none; z-index:20}
   .sitem{padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem}
@@ -81,7 +73,6 @@
   .sitem small{color:#777}
   .hl{font-weight:700}
 
-  /* Mapa */
   .mapArea{flex:1; padding:12px 14px; background:transparent}
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:2px}
   #map{width:100%; height:520px}
@@ -91,14 +82,12 @@
     .panel{width:100%; border-right:0;}
   }
 
-  /* Emoji marker */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
   .emoji-marker{background:transparent; border:none; display:flex; align-items:center; justify-content:center; transform:translate(-14px,-28px)}
   .emoji-marker .e{font-size:30px; line-height:30px; text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 0 4px rgba(0,0,0,.25)}
   @media (min-width:900px){ .emoji-marker .e{font-size:34px; line-height:34px} }
   .emoji-marker.is-selected .e{transform:translateY(-1px) scale(1.05)}
 
-  /* Botón flotante (pequeño) dentro del mapa + micro rebote */
   .map-fab{
     position:absolute; z-index:900; display:none; align-items:center; gap:8px;
     padding:6px 10px; border-radius:999px; border:0; cursor:pointer;
@@ -111,14 +100,12 @@
   @keyframes bounceIn{0%{transform:translate(-50%,10px) scale(.9)}60%{transform:translate(-50%,0) scale(1.05)}100%{transform:translate(-50%,0) scale(1)}}
   .map-fab.pop{animation:bounceIn .28s ease}
 
-  /* Toast */
   .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:92px}
 </style>
 </head>
 <body>
 
-<!-- Header con marco blanco -->
 <header class="site-header">
   <div class="header-card">
     <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block'">
@@ -126,14 +113,10 @@
   </div>
 </header>
 
-<!-- Contador -->
 <div class="counter" id="counter">Flores Plantadas: <span id="countNum">0</span></div>
-
-<!-- Carrusel con la ÚLTIMA flor plantada -->
 <div class="carousel"><div class="marquee" id="marqueeText">Aún no hay flores plantadas. ¡Sé el primero! 🌸</div></div>
 
 <div class="wrap">
-  <!-- FORMULARIO -->
   <section class="panel" id="panel">
     <div class="card">
       <h1>Planta una flor</h1>
@@ -144,14 +127,11 @@
       </div>
 
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
-      <!-- Mensaje: 1 línea, 30 caracteres -->
       <input id="message" maxlength="30" placeholder="Escribe algo bonito…" inputmode="text" autocomplete="off" />
 
-      <!-- Radio pushbuttons: Flor / Flor Premium -->
       <div class="choice" aria-label="Tipo de flor">
         <input type="radio" id="flowerBasic" name="flowerType" value="basic" checked>
         <label for="flowerBasic">🌸 Flor</label>
-
         <input type="radio" id="flowerPremium" name="flowerType" value="premium" disabled>
         <label for="flowerPremium" class="disabled">🌹 Flor Premium</label>
       </div>
@@ -174,7 +154,6 @@
     </div>
   </section>
 
-  <!-- MAPA -->
   <section class="mapArea">
     <div class="frame">
       <div id="map"></div>
@@ -191,6 +170,27 @@
 <script>
 /* === CONFIG === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
+
+/* === JSONP helper (evita CORS) === */
+function jsonp(url, timeoutMs=12000){
+  return new Promise((resolve, reject)=>{
+    const cbName = '__fp_cb_'+Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const sep = url.includes('?') ? '&' : '?';
+    s.src = url + sep + 'callback=' + cbName + '&_ts=' + Date.now();
+    let done = false, to;
+
+    window[cbName] = (data)=>{ cleanup(); done=true; resolve(data); };
+    s.onerror = ()=>{ cleanup(); reject(new Error('JSONP load failed')); };
+    function cleanup(){
+      clearTimeout(to);
+      delete window[cbName];
+      if(s.parentNode) s.parentNode.removeChild(s);
+    }
+    to = setTimeout(()=>{ if(!done){ cleanup(); reject(new Error('JSONP timeout')); } }, timeoutMs);
+    document.body.appendChild(s);
+  });
+}
 
 /* === STATE === */
 const seen = new Set();
@@ -306,12 +306,7 @@ async function searchPhoton(q, signal){
     lat: f.geometry.coordinates[1],
     lon: f.geometry.coordinates[0],
     display_name: f.properties.name+', '+(f.properties.city||f.properties.town||f.properties.village||'')+', '+(f.properties.state||''),
-    address: {
-      road: f.properties.street || f.properties.name,
-      house_number: f.properties.housenumber,
-      city: f.properties.city||f.properties.town||f.properties.village,
-      state: f.properties.state
-    }
+    address: { road: f.properties.street || f.properties.name, housenumber: f.properties.housenumber, house_number: f.properties.housenumber, city: f.properties.city||f.properties.town||f.properties.village, state: f.properties.state }
   }));
 }
 async function searchPlaces(q){
@@ -329,7 +324,8 @@ async function searchPlaces(q){
     if(hasNum){
       const num=extractNumber(q);
       merged.sort((x,y)=>{
-        const xn=(x.address&&x.address.house_number)||''; const yn=(y.address&&y.address.house_number)||'';
+        const xn=(x.address&& (x.address.house_number||x.address.housenumber))||'';
+        const yn=(y.address&& (y.address.house_number||y.address.housenumber))||'';
         const xs=(String(xn)===String(num))?1:0; const ys=(String(yn)===String(num))?1:0;
         return ys-xs;
       });
@@ -342,7 +338,7 @@ function renderSuggest(list){
   slist.innerHTML=""; list.forEach((it,idx)=>{
     const row=document.createElement('div'); row.className='sitem';
     const road = it.address?.road || it.address?.pedestrian || it.address?.footway || it.address?.residential || it.address?.path || it.address?.neighbourhood || '';
-    const hn = it.address?.house_number || '';
+    const hn = it.address?.house_number || it.address?.housenumber || '';
     let primary = (road||hn) ? (road + (hn? ' '+hn: '')) : (it.display_name||'').split(',')[0];
     const city = it.address?.city || it.address?.town || it.address?.village || it.address?.municipality || '';
     const state = it.address?.state || it.address?.province || it.address?.state_district || '';
@@ -404,7 +400,7 @@ const msgInput = document.getElementById('message');
 msgInput.addEventListener('input', ()=>{ msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* === PLANTAR (con fix CORS: sin charset) === */
+/* === PLANTAR (JSONP: sin CORS) === */
 async function saveFlower(){
   const from=$("#fromName").value.trim(),
         to=$("#toName").value.trim(),
@@ -420,20 +416,17 @@ async function saveFlower(){
 
   plantFab.disabled=true; const prevTxt=plantFab.textContent; plantFab.textContent='⏳';
   try{
-    const body = new URLSearchParams({fromName:from,toName:to,message:msg,place:placeText,lat,lng,flowerType:type}).toString();
-    const res  = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { "Content-Type": "application/x-www-form-urlencoded" }, // <-- FIX CORS: sin charset
-      body,
-      redirect: 'follow'
-    });
+    const url = SCRIPT_URL
+      + '?action=add'
+      + '&fromName=' + encodeURIComponent(from)
+      + '&toName='   + encodeURIComponent(to)
+      + '&message='  + encodeURIComponent(msg)
+      + '&place='    + encodeURIComponent(placeText)
+      + '&lat='      + encodeURIComponent(lat)
+      + '&lng='      + encodeURIComponent(lng)
+      + '&flowerType='+encodeURIComponent(type);
 
-    const raw = await res.text();
-    let data;
-    try { data = JSON.parse(raw); } catch(e) {
-      throw new Error('Respuesta no JSON: ' + raw.slice(0,120));
-    }
-
+    const data = await jsonp(url);
     if(data && data.ok){
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const dtStr = fmtDateTime(new Date());
@@ -453,7 +446,7 @@ async function saveFlower(){
       shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
       hideFab(); $("#lat").value=''; $("#lng").value=''; fixedBadge.style.display='none'; currentCityName = "";
-      refetch();
+      refetch(); // actualiza lista desde servidor
     } else {
       throw new Error(data && data.error ? data.error : 'Respuesta inválida del servidor');
     }
@@ -465,16 +458,7 @@ async function saveFlower(){
 }
 if(plantFab){ plantFab.addEventListener('click', saveFlower); }
 
-/* === Marcadores (carga + polling) === */
-async function addMarkerWithCity(f){
-  const lat=+f.lat, lng=+f.lng;
-  let city = f.city || normalizeCityFromPlace(f.place||"") || "";
-  if(!city){ city = await reverseGeocodeCity(lat,lng); }
-  const dtStr = f.timestamp ? fmtDateTime(new Date(f.timestamp)) : "";
-  const html = popupHtml(city, f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
-  const mk=L.marker([lat,lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
-  mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
-}
+/* === CARGA/POLLING (JSONP) === */
 function processItems(items){
   let added = 0; const normalized = [];
   for(const f of (items||[])){
@@ -485,13 +469,19 @@ function processItems(items){
   }
   (async ()=>{ for(const f of normalized){ await addMarkerWithCity(f); added++; } if(added>0){ allFlowers.push(...normalized); updateCounterUI(); const last=[...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0]; if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); } } })();
 }
-async function refetch(){ try{ const r=await fetch(SCRIPT_URL + '?t=' + Date.now(), {headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); const txt=await r.text(); let data; try{ data=JSON.parse(txt); }catch(e){ console.warn('GET no JSON:', txt.slice(0,120)); return; } processItems(data.items||[]); }catch{} }
+async function refetch(){
+  try{
+    const data = await jsonp(SCRIPT_URL + '?action=list');
+    if(data && data.items) processItems(data.items);
+  }catch(e){ console.warn('JSONP list error', e); }
+}
 function startPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(refetch, 12000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); }); }
 
 /* === UI: contador === */
 function updateCounterUI(){ animateNumber(countNum, seen.size); }
 
 /* === Arranque === */
+document.getElementById('message').addEventListener('input', ()=>{ document.getElementById('chars').textContent='(' + document.getElementById('message').value.length + '/30)'; });
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
   (function waitLeaflet(attempts=12){
