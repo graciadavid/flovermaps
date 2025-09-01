@@ -9,7 +9,10 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<!-- Tipografía tipo Balgin -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -21,7 +24,7 @@
   *{box-sizing:border-box}
   /* Fondo elegante: gradiente suave + trama de puntos sutil */
   body{
-    margin:0; font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink);
+    margin:0; font-family:'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink);
     background:
       radial-gradient(circle at 12% 18%, var(--accent-weak) 1.2px, transparent 1.2px) 0 0/18px 18px,
       radial-gradient(circle at 70% 40%, rgba(1,192,100,.06) 1.4px, transparent 1.4px) 0 0/22px 22px,
@@ -103,7 +106,7 @@
   @keyframes bounceIn{0%{transform:translate(-50%,10px) scale(.9)}60%{transform:translate(-50%,0) scale(1.05)}100%{transform:translate(-50%,0) scale(1)}}
   .map-fab.pop{animation:bounceIn .28s ease}
 
-  /* Toast (para mensajes puntuales) */
+  /* Toast */
   .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:92px}
 </style>
@@ -200,6 +203,8 @@ let editMarker = null, usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let allFlowers = [];
 let currentCityName = "", pollTimer = null, consecutiveFails = 0;
+/* Cola de render por si el mapa aún no está listo */
+let renderQueue = [];
 
 const $ = s => document.querySelector(s);
 const slist = $("#slist"), place = $("#place");
@@ -236,7 +241,7 @@ async function reverseGeocodeAddress(lat,lng){
   }catch{ return { display:`${lat}, ${lng}`, city:"" }; }
 }
 
-/* === Popup === */
+/* === Popup (nombres en negrita) === */
 function popupHtml(from,to,msg,dtStr){
   const esc = s => String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
   return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`;
@@ -264,6 +269,9 @@ function initMap(){
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
   map.on('click', e=>{ usedMapClick=true; usedGPS=false; setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true); });
   map.on('move zoom zoomend', updateFabPosition);
+
+  /* Si había cosas en cola, dibújalas ahora */
+  flushRenderQueue();
 }
 
 async function setEditPoint(lat,lng,zoom=18,showHint=false){
@@ -285,7 +293,7 @@ async function setEditPoint(lat,lng,zoom=18,showHint=false){
       $("#lat").value=lat2; $("#lng").value=lng2;
       fixedBadge.style.display='inline';
       updateFabPosition();
-      // <<< ACTUALIZA DIRECCIÓN TRAS ARRASTRAR >>>
+      /* Actualiza la dirección tras arrastrar */
       const info = await reverseGeocodeAddress(lat2,lng2);
       if(info.display) place.value = info.display;
       if(info.city) currentCityName = info.city;
@@ -295,7 +303,6 @@ async function setEditPoint(lat,lng,zoom=18,showHint=false){
   }
   map.setView([lat,lng], zoom);
   showFab();
-  // No forzamos reverse aquí para no sobreescribir si el usuario tecleó; solo al arrastrar.
 }
 
 /* === FAB dentro del mapa === */
@@ -313,7 +320,7 @@ function updateFabPosition(){
 function showFab(){ if(!plantFab) return; updateFabPosition(); plantFab.style.display='inline-flex'; plantFab.classList.remove('pop'); void plantFab.offsetWidth; plantFab.classList.add('pop'); }
 function hideFab(){ if(!plantFab) return; plantFab.style.display='none'; }
 
-/* === AUTOCOMPLETE (con priorización de portal/numero) === */
+/* === AUTOCOMPLETE con prioridad a números === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
@@ -484,14 +491,18 @@ async function saveFlower(){
 }
 if(plantFab){ plantFab.addEventListener('click', saveFlower); }
 
-/* === Dibuja marcador con el formato nuevo === */
+/* === Dibuja marcador; si el mapa no está listo, encola === */
 async function addMarkerWithCity(f){
   const lat=+f.lat, lng=+f.lng;
   const dtStr = f.timestamp ? fmtDateTime(new Date(f.timestamp)) : "";
   const html = popupHtml(f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
-  const mk=L.marker([lat,lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
-  mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
+  const draw = ()=>{
+    const mk=L.marker([lat,lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
+    mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
+  };
+  if(!map){ renderQueue.push(draw); } else { draw(); }
 }
+function flushRenderQueue(){ if(renderQueue.length && map){ renderQueue.forEach(fn=>{ try{ fn(); }catch{} }); renderQueue=[]; } }
 
 /* === Procesa items (hoja o caché) === */
 function processItems(items){
@@ -540,18 +551,37 @@ function startPolling(){
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
 }
 
+/* === Caché local === */
+const CACHE_KEY = 'flovermaps_cache_v1';
+function loadCache(){ try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return []; const arr=JSON.parse(raw); return Array.isArray(arr)?arr:[]; }catch{return [];} }
+function saveCache(){
+  try{
+    const minimal = allFlowers.slice(-1000).map(f=>({
+      lat:f.lat, lng:f.lng, fromName:f.fromName, toName:f.toName,
+      message:f.message, place:f.place, timestamp:f.timestamp, type:f.type||'basic'
+    }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(minimal));
+  }catch{}
+}
+
 /* === UI: contador === */
 function animateNumber(el, to){ const from = Number(el.textContent.replace(/\D/g,'')) || 0; const start = performance.now(); const dur = 400; function step(t){ const k=Math.min(1,(t-start)/dur); el.textContent=Math.round(from+(to-from)*k); if(k<1) requestAnimationFrame(step); } requestAnimationFrame(step); }
 function updateCounterUI(){ animateNumber(countNum, seen.size); }
 
-/* === Arranque === */
+/* === Arranque: mapa primero, luego caché y servidor === */
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
-  const cached = (function(){ try{ return JSON.parse(localStorage.getItem('flovermaps_cache_v1')||'[]'); }catch{return [];} })();
-  if(cached.length){ processItems(cached); }
-  (function waitLeaflet(attempts=12){
-    if(window.L){ initMap(); refetch(); startPolling(); }
-    else { if(attempts<=0){ return; } setTimeout(()=>waitLeaflet(attempts-1), 250); }
+
+  (function waitLeaflet(attempts=20){
+    if(window.L){
+      initMap();                  // 1) mapa listo
+      processItems(loadCache());  // 2) pinta caché (si hay)
+      refetch();                  // 3) sincroniza servidor
+      startPolling();             // 4) polling
+    } else {
+      if(attempts<=0){ return; }
+      setTimeout(()=>waitLeaflet(attempts-1), 200);
+    }
   })();
 });
 </script>
