@@ -11,21 +11,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" id="leaflet-cdn"></script>
-<script>
-  (function ensureLeaflet(){
-    if(window.L) return;
-    var a=document.createElement('script');
-    a.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
-    a.onerror=function(){
-      var b=document.createElement('script');
-      b.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
-      document.head.appendChild(b);
-    };
-    document.head.appendChild(a);
-  })();
-</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
   :root{--ink:#111;--muted:#666; --bg:#01c064; --green:#22c55e}
@@ -182,26 +168,19 @@ function jsonp(url, timeoutMs=12000){
 
     window[cbName] = (data)=>{ cleanup(); done=true; resolve(data); };
     s.onerror = ()=>{ cleanup(); reject(new Error('JSONP load failed')); };
-    function cleanup(){
-      clearTimeout(to);
-      delete window[cbName];
-      if(s.parentNode) s.parentNode.removeChild(s);
-    }
+    function cleanup(){ clearTimeout(to); delete window[cbName]; if(s.parentNode) s.parentNode.removeChild(s); }
     to = setTimeout(()=>{ if(!done){ cleanup(); reject(new Error('JSONP timeout')); } }, timeoutMs);
     document.body.appendChild(s);
   });
 }
 
-/* === STATE === */
+/* === STATE / DOM === */
 const seen = new Set();
-let editMarker = null;
-let usedGPS = false, usedMapClick = false;
+let editMarker = null, usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let allFlowers = [];
-let currentCityName = "";
-let pollTimer = null;
+let currentCityName = "", pollTimer = null;
 
-/* === DOM === */
 const $ = s => document.querySelector(s);
 const slist = $("#slist"), place = $("#place");
 const plantFab = $("#plantFab"), shareBtn = $("#shareBtn"), fixedBadge = $("#fixed");
@@ -218,6 +197,22 @@ function animateNumber(el, to){ const from = Number(el.textContent.replace(/\D/g
 function norm(s){ return String(s||'').trim().toLowerCase(); }
 function makeKey(lat,lng,from,to,msg){ return `${(+lat).toFixed(5)},${(+lng).toFixed(5)}|${norm(from)}|${norm(to)}|${norm(msg)}`; }
 function setMarquee(text){ marquee.textContent = text || "Aún no hay flores plantadas. ¡Sé el primero! 🌸"; }
+
+/* === Caché local (para persistir entre refrescos) === */
+const CACHE_KEY = 'flovermaps_cache_v1';
+function loadCache(){
+  try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return []; const arr=JSON.parse(raw); return Array.isArray(arr)?arr:[]; }catch{return [];}
+}
+function saveCache(){
+  try{
+    const minimal = allFlowers.slice(-800).map(f=>({
+      lat:f.lat, lng:f.lng, fromName:f.fromName, toName:f.toName,
+      message:f.message, place:f.place, timestamp:f.timestamp,
+      city:f.city||'', type:f.type||'basic'
+    }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(minimal));
+  }catch{}
+}
 
 /* === Icono === */
 function emojiIcon(){ const html = '<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
@@ -400,7 +395,7 @@ const msgInput = document.getElementById('message');
 msgInput.addEventListener('input', ()=>{ msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* === PLANTAR (JSONP: sin CORS) === */
+/* === PLANTAR (JSONP) === */
 async function saveFlower(){
   const from=$("#fromName").value.trim(),
         to=$("#toName").value.trim(),
@@ -428,6 +423,7 @@ async function saveFlower(){
 
     const data = await jsonp(url);
     if(data && data.ok){
+      // pinta local
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const dtStr = fmtDateTime(new Date());
       const html  = popupHtml(currentCityName, from, to, msg, dtStr);
@@ -435,9 +431,11 @@ async function saveFlower(){
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
 
+      // actualiza estado + caché
       const item={lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now(), city: currentCityName, type, place:placeText};
       const key = makeKey(lat, lng, from, to, msg);
-      seen.add(key); allFlowers.push(item); updateCounterUI();
+      seen.add(key); allFlowers.push(item); updateCounterUI(); saveCache();
+
       setMarquee(popupLine(currentCityName, from, to, msg, dtStr));
       toast('Flor plantada 🌸');
 
@@ -446,7 +444,8 @@ async function saveFlower(){
       shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
       hideFab(); $("#lat").value=''; $("#lng").value=''; fixedBadge.style.display='none'; currentCityName = "";
-      refetch(); // actualiza lista desde servidor
+
+      refetch(); // confirma con servidor (y propaga a otros dispositivos)
     } else {
       throw new Error(data && data.error ? data.error : 'Respuesta inválida del servidor');
     }
@@ -458,22 +457,53 @@ async function saveFlower(){
 }
 if(plantFab){ plantFab.addEventListener('click', saveFlower); }
 
-/* === CARGA/POLLING (JSONP) === */
+/* === Dibuja marcador con ciudad calculada === */
+async function addMarkerWithCity(f){
+  const lat=+f.lat, lng=+f.lng;
+  let city = f.city || normalizeCityFromPlace(f.place||"") || "";
+  if(!city){ city = await reverseGeocodeCity(lat,lng); }
+  const dtStr = f.timestamp ? fmtDateTime(new Date(f.timestamp)) : "";
+  const html = popupHtml(city, f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
+  const mk=L.marker([lat,lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
+  mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
+}
+
+/* === Procesa items (hoja o caché) === */
 function processItems(items){
   let added = 0; const normalized = [];
   for(const f of (items||[])){
     if(!f.lat||!f.lng) continue;
     const key = makeKey(f.lat, f.lng, f.fromName||'', f.toName||'', (f.message||'').slice(0,30));
     if(seen.has(key)) continue; seen.add(key);
-    normalized.push({ lat:+f.lat, lng:+f.lng, fromName:f.fromName||'', toName:f.toName||'', message:(f.message||'').slice(0,30), place:f.place||'', timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(), city: f.city||'', type:f.flowerType||'basic' });
+    normalized.push({
+      lat:+f.lat, lng:+f.lng,
+      fromName:f.fromName||'', toName:f.toName||'',
+      message:(f.message||'').slice(0,30), place:f.place||'',
+      timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(),
+      city: f.city||'', type:f.flowerType||'basic'
+    });
   }
-  (async ()=>{ for(const f of normalized){ await addMarkerWithCity(f); added++; } if(added>0){ allFlowers.push(...normalized); updateCounterUI(); const last=[...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0]; if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); } } })();
+  (async ()=>{
+    for(const f of normalized){ await addMarkerWithCity(f); added++; }
+    if(added>0){
+      allFlowers.push(...normalized);
+      updateCounterUI();
+      saveCache();
+      const last = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0];
+      if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); }
+    }
+  })();
 }
+
+/* === Carga desde hoja (JSONP) === */
 async function refetch(){
   try{
     const data = await jsonp(SCRIPT_URL + '?action=list');
     if(data && data.items) processItems(data.items);
-  }catch(e){ console.warn('JSONP list error', e); }
+  }catch(e){
+    console.warn('JSONP list error', e);
+    toast('No se pudo sincronizar ahora (modo caché)', false);
+  }
 }
 function startPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(refetch, 12000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); }); }
 
@@ -481,12 +511,22 @@ function startPolling(){ if(pollTimer) clearInterval(pollTimer); pollTimer = set
 function updateCounterUI(){ animateNumber(countNum, seen.size); }
 
 /* === Arranque === */
-document.getElementById('message').addEventListener('input', ()=>{ document.getElementById('chars').textContent='(' + document.getElementById('message').value.length + '/30)'; });
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
+  // 1) Siempre pinta lo del caché primero (para que no “desaparezca” al refrescar)
+  const cached = loadCache();
+  if(cached.length){ processItems(cached); }
+
+  // 2) Arranca el mapa y sincroniza con la hoja
   (function waitLeaflet(attempts=12){
-    if(window.L){ initMap(); refetch(); startPolling(); }
-    else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); }
+    if(window.L){
+      initMap();
+      refetch();
+      startPolling();
+    } else {
+      if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; }
+      setTimeout(()=>waitLeaflet(attempts-1), 250);
+    }
   })();
 });
 </script>
