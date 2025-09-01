@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flovermaps</title>
 
-<!-- Favicon y meta -->
-<link rel="icon" href="https://drive.google.com/uc?export=view&id=1M6rOGfSV-YotIBXnYT_KCiXKSLmL5SzW" type="image/png">
+<!-- Favicon y meta -->\n<link rel="icon" href="https://drive.google.com/uc?export=view&id=1M6rOGfSV-YotIBXnYT_KCiXKSLmL5SzW" type="image/png">
 <meta name="theme-color" content="#ffffff" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 
@@ -37,15 +36,27 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--pink);color:var(--ink)}
 
-  /* Header */
+  /* Header simple y robusto (solo logo local) */
   .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; gap:10px; padding:16px 18px; background:#fff; border-bottom:1px solid #eee; min-height:88px}
   .logo-img{display:block; height:64px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
   .logo-fallback{font-weight:800;letter-spacing:1px; display:none}
 
-  /* Contador */
-  .counter{margin:8px 12px 0; padding:8px 12px; border-radius:12px; background:#fff}
-  .counter .top{font-weight:800}
+  /* Contador mejorado */
+  .counter{margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#fff; border:1px solid #eee; display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative}
+  .count-main{display:flex; align-items:baseline; gap:8px}
+  .count-num{font-weight:800; font-size:1.2rem}
+  .count-label{color:var(--muted); font-size:.9rem}
+  .live{display:flex; align-items:center; gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#bbb; position:relative}
+  .dot.active{background:#12b886}
+  .dot.active::after{content:""; position:absolute; inset:-6px; border:2px solid rgba(18,184,134,.5); border-radius:50%; animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{transform:scale(.6);opacity:.9}70%{transform:scale(1.2);opacity:.2}100%{transform:scale(1.4);opacity:0}}
+  .chip{background:#f1fff7; color:#0a7d25; border:1px solid #bff0cc; padding:4px 8px; border-radius:999px; font-size:.82rem; white-space:nowrap}
+  .ticker{flex:1; min-width:0; color:#555; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .spark{position:absolute; right:12px; top:-8px; font-size:16px; opacity:0; transform:translateY(-6px); pointer-events:none}
+  .spark.show{animation:sparkle .9s ease}
+  @keyframes sparkle{0%{opacity:0; transform:translateY(-6px) rotate(-10deg)}30%{opacity:1; transform:translateY(0) rotate(0)}100%{opacity:0; transform:translateY(-10px) rotate(10deg)}}
 
   /* Layout */
   .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
@@ -80,9 +91,8 @@
   #map{width:100%; height:520px}
   @media (max-width:1024px){ #map{height:50vh} .wrap{flex-direction:column;} .panel{width:100%; border-right:0;} }
 
-  /* Leaflet */
+  /* Pins */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
-  /* Nuevo pin accesible y con contraste */
   .flower-pin{width:36px;height:44px;display:flex;align-items:center;justify-content:center}
   .flower-pin svg{width:36px;height:44px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));transition:transform .15s ease, filter .2s}
   .flower-pin.is-selected svg, .flower-pin:hover svg{transform:translateY(-1px) scale(1.04)}
@@ -95,14 +105,25 @@
 </head>
 <body>
 
-<!-- Header con logo (cargador JS: repo → Drive → SVG) -->
+<!-- Header con logo (solo local para máxima fiabilidad) -->
 <header class="site-header">
-  <img id="logoImg" class="logo-img" alt="FLOVERMAPS" referrerpolicy="no-referrer" crossorigin="anonymous" />
+  <img src="logoflovermaps.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block'" />
   <span id="logoFallback" class="logo-fallback">FLOVERMAPS</span>
 </header>
 
-<!-- Contador -->
-<div class="counter"><div class="top" id="countTop">🌸 0 PLANTADAS</div></div>
+<!-- Contador mejorado -->
+<div class="counter" id="counter">
+  <div class="count-main">
+    <div class="count-num" id="countNum">0</div>
+    <div class="count-label">flores plantadas</div>
+  </div>
+  <div class="ticker" id="ticker">—</div>
+  <div class="live">
+    <div class="dot" id="liveDot" title="Actividad en vivo"></div>
+    <div class="chip" id="liveChip">Últimos 5 min: 0</div>
+  </div>
+  <div class="spark" id="spark">✨</div>
+</div>
 
 <div class="wrap">
   <!-- FORMULARIO -->
@@ -148,43 +169,66 @@
 <script>
 /* === CONFIG === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxKcq4xqM1PB_wfIXibeotizuxw0-UgrPJ0LN70U-bva2Isk8EMwdsWeOk8l2w1DvFmJQ/exec";
-const NOMINATIM_EMAIL = "gracia.david@gmail.com";
-const DRIVE_LOGO = "https://drive.google.com/uc?export=view&id=1M6rOGfSV-YotIBXnYT_KCiXKSLmL5SzW";
-
-/* === LOGO LOADER === */
-(function initLogo(){
-  const img=document.getElementById('logoImg');
-  const SVG_DATA = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="220"><rect width="100%" height="100%" fill="#ffffff"/><text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="72" fill="#111">FLOVERMAPS</text></svg>`);
-  const GH_LOGO = new URL('logo.png', location.href).toString();
-  const sources=[GH_LOGO, DRIVE_LOGO, SVG_DATA];
-  const fallbackText=document.getElementById('logoFallback');
-  (function tryNext(i){
-    if(i>=sources.length){ img.style.display='none'; fallbackText.style.display='inline-block'; return; }
-    const test=new Image();
-    test.referrerPolicy='no-referrer'; test.crossOrigin='anonymous';
-    test.onload = ()=>{ img.src=sources[i]; img.style.display='block'; fallbackText.style.display='none'; };
-    test.onerror= ()=> tryNext(i+1);
-    test.src = sources[i];
-  })(0);
-})();
 
 /* === STATE === */
 const seen = new Set();
 let editMarker = null; // única
 let usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
+let lastFetchTime = 0;
+let allFlowers = []; // cache de items para actividad
 
-/* === DOM === */
-const slist = document.getElementById("slist"), place = document.getElementById("place");
-const plantBtn = document.getElementById("plantBtn"), shareBtn = document.getElementById("shareBtn"), fixedBadge = document.getElementById("fixed");
-function $(s){ return document.querySelector(s); }
+/* === DOM helpers === */
+const $ = s => document.querySelector(s);
+const slist = $("#slist"), place = $("#place");
+const plantBtn = $("#plantBtn"), shareBtn = $("#shareBtn"), fixedBadge = $("#fixed");
+const countNum = $("#countNum"), liveDot = $("#liveDot"), liveChip = $("#liveChip"), ticker = $("#ticker"), spark = $("#spark");
 
-function toast(msg, ok=true){ const t=document.getElementById("toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
+/* === Utils === */
+function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
 function esc(s){ return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
 function popupHtml(from,to,msg,dateStr){ return `De ${esc(from)}<br>Para ${esc(to)}<br>🌸 ${esc(msg)}${dateStr?`<br><small>📅 ${dateStr}</small>`:""}`; }
 function fmtDate(d){ return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; }
-function updateCount(){ document.getElementById("countTop").textContent = `🌸 ${seen.size} PLANTADAS`; }
-function setLatLng(lat,lng){ document.getElementById("lat").value=lat; document.getElementById("lng").value=lng; plantBtn.style.display="inline-block"; }
+function animateNumber(el, to){
+  const from = Number(el.textContent.replace(/\D/g,'')) || 0;
+  const start = performance.now();
+  const dur = 400;
+  function step(t){
+    const k = Math.min(1, (t-start)/dur);
+    el.textContent = Math.round(from+(to-from)*k);
+    if(k<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function showSpark(){ spark.classList.remove('show'); void spark.offsetWidth; spark.classList.add('show'); }
+
+/* === Icono UX === */
+function flowerIcon(){
+  const svg = `
+  <svg viewBox="0 0 44 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ff7ab8"/>
+        <stop offset="100%" stop-color="#ff4da6"/>
+      </linearGradient>
+    </defs>
+    <path d="M22 2c-10 0-18 7.6-18 17 0 10.8 12.6 21.3 18 35 5.5-13.7 18-24.2 18-35 0-9.4-8-17-18-17z" fill="url(#g)"/>
+    <g transform="translate(22 20)">
+      <g fill="#ffd1e6">
+        <circle r="7" cx="0" cy="-9"/>
+        <circle r="7" cx="0" cy="9"/>
+        <circle r="7" cx="9" cy="0"/>
+        <circle r="7" cx="-9" cy="0"/>
+        <circle r="6.5" cx="6.5" cy="-6.5"/>
+        <circle r="6.5" cx="-6.5" cy="6.5"/>
+        <circle r="6.5" cx="6.5" cy="6.5"/>
+        <circle r="6.5" cx="-6.5" cy="-6.5"/>
+      </g>
+      <circle r="6.5" fill="#fff"/>
+    </g>
+  </svg>`;
+  return L.divIcon({className:'flower-pin', html: svg, iconSize:[36,44], iconAnchor:[18,38], popupAnchor:[0,-30]});
+}
 
 /* === MAPA (robusto) === */
 function initMap(){
@@ -205,57 +249,24 @@ function initMap(){
   setTimeout(()=>map.invalidateSize(), 150);
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
 
-  function flowerIcon(){
-  const svg = `
-  <svg viewBox="0 0 44 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#ff7ab8"/>
-        <stop offset="100%" stop-color="#ff4da6"/>
-      </linearGradient>
-    </defs>
-    <!-- Pin -->
-    <path d="M22 2c-10 0-18 7.6-18 17 0 10.8 12.6 21.3 18 35 5.5-13.7 18-24.2 18-35 0-9.4-8-17-18-17z" fill="url(#g)"/>
-    <!-- Flor estilizada -->
-    <g transform="translate(22 20)">
-      <g fill="#ffd1e6">
-        <circle r="7" cx="0" cy="-9"/>
-        <circle r="7" cx="0" cy="9"/>
-        <circle r="7" cx="9" cy="0"/>
-        <circle r="7" cx="-9" cy="0"/>
-        <circle r="6.5" cx="6.5" cy="-6.5"/>
-        <circle r="6.5" cx="-6.5" cy="6.5"/>
-        <circle r="6.5" cx="6.5" cy="6.5"/>
-        <circle r="6.5" cx="-6.5" cy="-6.5"/>
-      </g>
-      <circle r="6.5" fill="#fff"/>
-    </g>
-  </svg>`;
-  return L.divIcon({className:'flower-pin', html: svg, iconSize:[36,44], iconAnchor:[18,38], popupAnchor:[0,-30]});
-}
-  function setEditPoint(lat,lng,zoom=18,showHint=false){
-    setLatLng(lat,lng);
-    if(editMarker){ editMarker.setLatLng([lat,lng]); }
-    else{
-      editMarker = L.marker([lat,lng],{icon:flowerIcon(),draggable:true}).addTo(map);
-      if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
-      editMarker.on('dragend', e=>{
-        const p=e.target.getLatLng(); setLatLng(p.lat.toFixed(6), p.lng.toFixed(6)); fixedBadge.style.display='inline';
-      });
-    }
-    map.setView([lat,lng], zoom);
-  }
-  window.setEditPoint = setEditPoint;
-  map.on('click', e=>{ usedMapClick=true; usedGPS=false; setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true); });
-  // Accesibilidad y estados de selección
   map.on('popupopen', e=>{ const mk=e.popup && e.popup._source; if(mk && mk._icon) mk._icon.classList.add('is-selected'); });
   map.on('popupclose', e=>{ const mk=e.popup && e.popup._source; if(mk && mk._icon) mk._icon.classList.remove('is-selected'); });
-  map.on('layeradd', e=>{ if(e.layer && e.layer._icon){ e.layer._icon.setAttribute('tabindex','0'); e.layer._icon.setAttribute('role','button'); e.layer._icon.setAttribute('title','Flor plantada'); } }); });
-  plantBtn.onclick = saveFlower;
 }
-function waitLeafletAndInit(attempts=12){ if(window.L){ initMap(); return; } if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeafletAndInit(attempts-1), 250); }
 
-/* === AUTOCOMPLETE con número (Nominatim + estructurado + Photon) === */
+function setEditPoint(lat,lng,zoom=18,showHint=false){
+  $("#lat").value=lat; $("#lng").value=lng; plantBtn.style.display="inline-block";
+  if(editMarker){ editMarker.setLatLng([lat,lng]); }
+  else{
+    editMarker = L.marker([lat,lng],{icon:flowerIcon(),draggable:true}).addTo(map);
+    if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
+    editMarker.on('dragend', e=>{
+      const p=e.target.getLatLng(); $("#lat").value=p.lat.toFixed(6); $("#lng").value=p.lng.toFixed(6); fixedBadge.style.display='inline';
+    });
+  }
+  map.setView([lat,lng], zoom);
+}
+
+/* === SUGERENCIAS === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
@@ -263,10 +274,10 @@ function normalizeStreet(q){
   const hasType = /(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q);
   if(hasType) return [q];
   const base=q.replace(/\s+/g,' ').trim();
-  return ['Carrer de '+base,'Calle '+base,'Avinguda '+base,base];
+  return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base];
 }
 async function searchPlacesPlain(q, signal){
-  const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
+  const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q);
   const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('nominatim'); return r.json();
 }
 async function searchPlacesStructured(q, signal){
@@ -275,7 +286,7 @@ async function searchPlacesStructured(q, signal){
   const variants = normalizeStreet(raw);
   const all=[];
   for(const street of variants){
-    const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city)+'&email='+encodeURIComponent(NOMINATIM_EMAIL);
+    const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city);
     const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}).catch(()=>null);
     if(r && r.ok){ all.push(...(await r.json())); }
   }
@@ -344,7 +355,7 @@ async function selectSuggest(idx){
   place.value = it.display_name; slist.style.display='none';
   usedGPS=false; usedMapClick=false;
   const lat = Number(it.lat).toFixed(6), lng = Number(it.lon).toFixed(6);
-  window.setEditPoint(lat,lng,18,true);
+  setEditPoint(lat,lng,18,true);
   fixedBadge.style.display='inline';
 }
 place.addEventListener('input', e=>{
@@ -360,15 +371,15 @@ place.addEventListener('input', e=>{
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
 /* === CONFIRMAR / GPS === */
-document.getElementById('confirmBtn').onclick = async ()=>{
+$("#confirmBtn").onclick = async ()=>{
   const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
   try{
     const r=await searchPlaces(q);
-    if(r.length){ const f=r[0]; window.setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18, true); fixedBadge.style.display='inline'; }
+    if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 18, true); fixedBadge.style.display='inline'; }
     else toast('No encontrada', false);
   }catch{ toast('Error buscando dirección', false); }
 };
-const gpsBtn = document.getElementById('gpsBtn');
+const gpsBtn = $("#gpsBtn");
 if('geolocation' in navigator){
   if(navigator.permissions && navigator.permissions.query){
     navigator.permissions.query({name:'geolocation'}).then(st=>{ if(st.state !== 'denied'){ gpsBtn.style.display='inline-block'; } st.onchange = ()=>{ gpsBtn.style.display = (st.state !== 'denied') ? 'inline-block' : 'none'; }; }).catch(()=>{ gpsBtn.style.display='inline-block'; });
@@ -376,17 +387,17 @@ if('geolocation' in navigator){
 }
 gpsBtn.onclick = ()=> navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
   const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
-  usedGPS=true; usedMapClick=false; window.setEditPoint(lat,lng,18,true); fixedBadge.style.display='inline';
+  usedGPS=true; usedMapClick=false; setEditPoint(lat,lng,18,true); fixedBadge.style.display='inline';
 }, ()=>{ toast('Ubicación no disponible (activa permisos)', false); gpsBtn.remove(); });
 
 /* === PLANTAR === */
-document.getElementById('message').addEventListener('input', ()=>{
-  const m=document.getElementById('message'); if(m.value.length>90) m.value=m.value.slice(0,90);
-  document.getElementById('chars').textContent='('+m.value.length+'/90)';
+$("#message").addEventListener('input', ()=>{
+  const m=$("#message"); if(m.value.length>90) m.value=m.value.slice(0,90);
+  $("#chars").textContent='('+m.value.length+'/90)';
 });
 async function saveFlower(){
-  const from=document.getElementById('fromName').value.trim(), to=document.getElementById('toName').value.trim(), msg=document.getElementById('message').value.trim();
-  const lat=document.getElementById('lat').value.trim(), lng=document.getElementById('lng').value.trim();
+  const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
+  const lat=$("#lat").value.trim(), lng=$("#lng").value.trim();
   let placeText = place.value.trim();
   if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); return; }
   if(!placeText && usedGPS) placeText='Mi ubicación';
@@ -400,10 +411,12 @@ async function saveFlower(){
     if(data.ok){
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const html = popupHtml(from,to,msg,fmtDate(new Date()));
-      const m=L.marker([+lat,+lng],{icon: flowerIcon()}).addTo(map).bindPopup(html);
+      const m=L.marker([+lat,+lng],{icon:flowerIcon()}).addTo(map).bindPopup(html);
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
-      seen.add(`${lat},${lng}|${from}|${to}|${msg}`); updateCount();
+      const key=`${lat},${lng}|${from}|${to}|${msg}|${Date.now()}`;
+      seen.add(key); allFlowers.push({lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now()});
+      updateCounterUI();
       toast('Flor plantada 🌸');
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
@@ -411,50 +424,80 @@ async function saveFlower(){
         try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{}
       };
       plantBtn.style.display='none'; plantBtn.disabled=false; plantBtn.textContent='🌱 Plantar aquí';
-      fixedBadge.style.display='none'; document.getElementById('lat').value=''; document.getElementById('lng').value='';
+      fixedBadge.style.display='none'; $("#lat").value=''; $("#lng").value='';
     }else{ toast('No se pudo guardar', false); plantBtn.disabled=false; plantBtn.textContent='🌱 Plantar aquí'; }
   }catch{ toast('Error de red', false); plantBtn.disabled=false; plantBtn.textContent='🌱 Plantar aquí'; }
 }
+plantBtn.onclick = saveFlower;
 
-/* === Cargar flores existentes === */
+/* === Cargar flores existentes + actividad === */
 async function loadFlowersOnce(){
   try{
-    const r=await fetch(SCRIPT_URL, {headers:{'Accept':'application/json'}}); const data=await r.json();
-    (data.items||[]).forEach(f=>{
+    const r=await fetch(SCRIPT_URL, {headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); const data=await r.json();
+    const items=(data.items||[]);
+    items.forEach(f=>{
       if(!f.lat||!f.lng) return;
       const key=`${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
       if(seen.has(key)) return; seen.add(key);
       const dateStr = f.timestamp ? new Date(f.timestamp).toLocaleDateString('es-ES') : '';
-      const m=L.marker([+f.lat,+f.lng],{icon: flowerIcon()}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
+      const m=L.marker([+f.lat,+f.lng],{icon:flowerIcon()}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
       m.on('click',()=>{map.setView(m.getLatLng(),19); m.openPopup();});
     });
-    updateCount();
+    allFlowers = items.map(f=>({lat:+f.lat,lng:+f.lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now()}));
+    updateCounterUI(true);
+    lastFetchTime = Date.now();
   }catch{}
 }
 
-/* === Compartida por URL === */
-function initFromURL(){
-  const u=new URL(location.href);
-  const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
-  const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
-  if(lat && lng && window.L){
-    const m=L.marker([+lat,+lng],{icon: flowerIcon()}).addTo(map).bindPopup(popupHtml(from,to,msg));
-    map.setView([+lat,+lng], 17); m.openPopup();
-  }
+function updateCounterUI(initial=false){
+  const total = seen.size; animateNumber(countNum, total);
+  // actividad últimos 5 minutos
+  const now = Date.now();
+  const recent = allFlowers.filter(f=> now - f.timestamp <= 5*60*1000 );
+  liveChip.textContent = `Últimos 5 min: ${recent.length}`;
+  liveDot.classList.toggle('active', recent.length>0);
+  // ticker: últimos 3 nombres
+  const sorted = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp).slice(0,3);
+  const txt = sorted.length? sorted.map(f=> `${esc(f.fromName||'Alguien')} → ${esc(f.toName||'alguien')}`).join('  •  ') : '—';
+  ticker.textContent = txt;
+  if(!initial){ showSpark(); }
+}
+
+// Polling suave para actividad
+async function poll(){
+  try{
+    const r=await fetch(SCRIPT_URL, {headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); const data=await r.json();
+    const items=(data.items||[]);
+    let newOnes=0;
+    items.forEach(f=>{
+      if(!f.lat||!f.lng) return;
+      const key=`${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
+      if(seen.has(key)) return;
+      seen.add(key); newOnes++;
+      const dateStr = f.timestamp ? new Date(f.timestamp).toLocaleDateString('es-ES') : '';
+      const m=L.marker([+f.lat,+f.lng],{icon:flowerIcon()}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
+      m.on('click',()=>{map.setView(m.getLatLng(),19); m.openPopup();});
+    });
+    // actualiza cache de actividad
+    allFlowers = items.map(f=>({lat:+f.lat,lng:+f.lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now()}));
+    if(newOnes>0){ updateCounterUI(); }
+  }catch{}
 }
 
 /* === Arranque === */
 document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('chars').textContent='(0/90)';
-  // GPS botón
-  const gpsBtn = document.getElementById('gpsBtn');
-  if('geolocation' in navigator){
-    if(navigator.permissions && navigator.permissions.query){
-      navigator.permissions.query({name:'geolocation'}).then(st=>{ if(st.state !== 'denied'){ gpsBtn.style.display='inline-block'; } st.onchange = ()=>{ gpsBtn.style.display = (st.state !== 'denied') ? 'inline-block' : 'none'; }; }).catch(()=>{ gpsBtn.style.display='inline-block'; });
-    } else { gpsBtn.style.display='inline-block'; }
+  $("#chars").textContent='(0/90)';
+  (function waitLeaflet(attempts=12){ if(window.L){ initMap(); loadFlowersOnce(); setInterval(poll, 15000); } else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); } })();
+
+  // clicks mapa para fijar punto
+  document.addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
+
+  // click en mapa
+  if(window.L){
+    // se define en initMap el setEditPoint
+    const mapEl=document.getElementById('map');
+    if(!mapEl) toast('No se encontró el contenedor del mapa', false);
   }
-  // Mapa y datos
-  (function waitLeaflet(attempts=12){ if(window.L){ initMap(); loadFlowersOnce(); initFromURL(); } else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); } })();
 });
 </script>
 </body>
