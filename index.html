@@ -14,11 +14,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-<!-- Leaflet JS primario + fallbacks -->
+<!-- Leaflet JS (con fallbacks) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" id="leaflet-cdn"></script>
 <script>
   (function ensureLeaflet(){
-    if(window.L) return; // unpkg ok
+    if(window.L) return;
     var a=document.createElement('script');
     a.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
     a.onerror=function(){
@@ -42,11 +42,12 @@
   @media (min-width:900px){ .logo-img{height:96px} }
   .logo-fallback{font-weight:800;letter-spacing:1px; display:none; color:#111}
 
-  /* Contador (total + última) */
-  .counter{margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#fff; border:1px solid #eee; color:#111; display:flex; align-items:center; gap:12px}
-  .count-num{font-weight:800; font-size:1.2rem}
-  .count-label{color:#666}
-  .last-msg{margin-left:auto; color:#444; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60ch}
+  /* Contador + Carrusel */
+  .counter{margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#fff; border:1px solid #eee; color:#111; font-weight:700}
+  .carousel{margin:8px 12px 0; border-radius:14px; background:#fff; border:1px solid #eee; overflow:hidden}
+  .marquee{white-space:nowrap; will-change:transform; display:block; color:#111; padding:10px 12px; animation:marq 16s linear infinite}
+  .marquee:hover{animation-play-state:paused}
+  @keyframes marq{ 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
 
   /* Layout */
   .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
@@ -122,12 +123,11 @@
   </div>
 </header>
 
-<!-- Contador simple -->
-<div class="counter" id="counter">
-  <div class="count-num" id="countNum">0</div>
-  <div class="count-label">flores plantadas</div>
-  <div class="last-msg" id="lastMsg">Sé el primero en plantar hoy 💐</div>
-</div>
+<!-- Contador -->
+<div class="counter" id="counter">Flores Plantadas: <span id="countNum">0</span></div>
+
+<!-- Carrusel con la ÚLTIMA flor plantada -->
+<div class="carousel"><div class="marquee" id="marqueeText">Aún no hay flores plantadas. ¡Sé el primero! 🌸</div></div>
 
 <div class="wrap">
   <!-- FORMULARIO -->
@@ -195,12 +195,13 @@ let usedGPS = false, usedMapClick = false;
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let allFlowers = [];
 let currentCityName = ""; // ciudad detectada para el popup actual
+let pollTimer = null;
 
 /* === DOM helpers === */
 const $ = s => document.querySelector(s);
 const slist = $("#slist"), place = $("#place");
 const plantFab = $("#plantFab"), shareBtn = $("#shareBtn"), fixedBadge = $("#fixed");
-const countNum = $("#countNum"), lastMsg = $("#lastMsg");
+const countNum = $("#countNum"), marquee = $("#marqueeText");
 
 /* === Utils === */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
@@ -222,16 +223,18 @@ function normalizeCityFromPlace(txt){
 async function reverseGeocodeCity(lat,lng){
   try{
     const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
-    const r=await fetch(url,{headers:{'Accept':'application/json'}}); if(!r.ok) return "";
+    const r=await fetch(url,{headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) return "";
     const j=await r.json();
     const a=j.address||{};
     return a.city || a.town || a.village || a.municipality || a.state || "";
   }catch{ return ""; }
 }
-function popupHtml(city, from, to, msg, dtStr){
+function popupLine(city, from, to, msg, dtStr){
   const cityTxt = city ? city : "tu zona";
-  const line = `🌸 Flor Plantada en ${esc(cityTxt)} 🌸 ${esc(from)} a ${esc(to)}: ${esc(msg)} ${esc(dtStr)}.`;
-  return `<div>${line}</div>`;
+  return `🌸 Flor Plantada en ${cityTxt} 🌸 ${from} a ${to}: ${msg} ${dtStr}.`;
+}
+function popupHtml(city, from, to, msg, dtStr){
+  return `<div>${esc(popupLine(city,from,to,msg,dtStr))}</div>`;
 }
 function animateNumber(el, to){
   const from = Number(el.textContent.replace(/\D/g,'')) || 0;
@@ -246,6 +249,9 @@ function animateNumber(el, to){
 }
 function norm(s){ return String(s||'').trim().toLowerCase(); }
 function makeKey(lat,lng,from,to,msg){ return `${(+lat).toFixed(5)},${(+lng).toFixed(5)}|${norm(from)}|${norm(to)}|${norm(msg)}`; }
+function setMarquee(text){
+  marquee.textContent = text || "Aún no hay flores plantadas. ¡Sé el primero! 🌸";
+}
 
 /* === Icono === */
 function emojiIcon(){
@@ -274,13 +280,11 @@ function initMap(){
   setTimeout(()=>map.invalidateSize(), 150);
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
 
-  // Crear/editar punto al hacer click
   map.on('click', e=>{
     usedMapClick=true; usedGPS=false;
     setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true);
   });
 
-  // Reposicionar el botón bajo el pin cuando el mapa se mueve/zoomea
   map.on('move zoom zoomend', updateFabPosition);
 }
 
@@ -359,7 +363,7 @@ function normalizeStreet(q){
 }
 async function searchPlacesPlain(q, signal){
   const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q);
-  const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('nominatim'); return r.json();
+  const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}); if(!r.ok) throw new Error('nominatim'); return r.json();
 }
 async function searchPlacesStructured(q, signal){
   let raw=q, city='';
@@ -368,14 +372,14 @@ async function searchPlacesStructured(q, signal){
   const all=[];
   for(const street of variants){
     const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city);
-    const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}).catch(()=>null);
+    const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}).catch(()=>null);
     if(r && r.ok){ all.push(...(await r.json())); }
   }
   return all;
 }
 async function searchPhoton(q, signal){
   const url='https://photon.komoot.io/api/?lang=es&limit=7&q='+encodeURIComponent(q);
-  const r=await fetch(url,{signal, headers:{'Accept':'application/json'}}).catch(()=>null);
+  const r=await fetch(url,{signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}}).catch(()=>null);
   if(!r || !r.ok) return [];
   const j=await r.json();
   return (j.features||[]).map(f=>({
@@ -508,11 +512,14 @@ async function saveFlower(){
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
 
-      const item={lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now(), city: currentCityName, type};
+      const item={lat:+lat,lng:+lng,fromName:from,toName:to,message:msg,timestamp:Date.now(), city: currentCityName, type, place:placeText};
       const key = makeKey(lat, lng, from, to, msg);
       seen.add(key);
       allFlowers.push(item);
       updateCounterUI();
+
+      // Carrusel con la ÚLTIMA flor
+      setMarquee(popupLine(currentCityName, from, to, msg, dtStr));
 
       toast('Flor plantada 🌸');
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
@@ -529,6 +536,9 @@ async function saveFlower(){
       document.getElementById('lng').value='';
       fixedBadge.style.display='none';
       currentCityName = "";
+
+      // Refresca desde servidor para que se vea en otros dispositivos
+      refetch();
     }else{
       toast('No se pudo guardar', false);
     }
@@ -539,43 +549,63 @@ async function saveFlower(){
 }
 if(plantFab){ plantFab.addEventListener('click', saveFlower); }
 
-/* === Cargar flores existentes === */
-function guessCityFromPlace(place){
-  return normalizeCityFromPlace(place||"");
-}
+/* === Marcadores persistentes (carga + polling) === */
 async function addMarkerWithCity(f){
   const lat=+f.lat, lng=+f.lng;
-  let city = f.city || guessCityFromPlace(f.place) || "";
+  let city = f.city || normalizeCityFromPlace(f.place||"") || "";
   if(!city){ city = await reverseGeocodeCity(lat,lng); }
   const dtStr = f.timestamp ? fmtDateTime(new Date(f.timestamp)) : "";
   const html = popupHtml(city, f.fromName||'', f.toName||'', f.message||'', dtStr);
   const mk=L.marker([lat,lng],{icon:emojiIcon()}).addTo(map).bindPopup(html);
   mk.on('click',()=>{map.setView(mk.getLatLng(),19); mk.openPopup();});
 }
-async function loadFlowersOnce(){
-  try{
-    const r=await fetch(SCRIPT_URL, {headers:{'Accept':'application/json','Cache-Control':'no-cache'}});
-    const data=await r.json();
-    const items=(data.items||[]);
-    for(const f of items){
-      if(!f.lat||!f.lng) continue;
-      const key = makeKey(f.lat, f.lng, f.fromName||'', f.toName||'', f.message||'');
-      if(seen.has(key)) continue;
-      seen.add(key);
-      await addMarkerWithCity(f);
+function processItems(items){
+  let added = 0;
+  const normalized = [];
+  for(const f of (items||[])){
+    if(!f.lat||!f.lng) continue;
+    const key = makeKey(f.lat, f.lng, f.fromName||'', f.toName||'', f.message||'');
+    if(seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      lat:+f.lat, lng:+f.lng,
+      fromName:f.fromName||'', toName:f.toName||'',
+      message:f.message||'', place:f.place||'',
+      timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(),
+      city: f.city||'', type:f.flowerType||'basic'
+    });
+  }
+  // Pintar (secuencial para no bloquear)
+  (async ()=>{
+    for(const f of normalized){ await addMarkerWithCity(f); added++; }
+    if(added>0){
+      allFlowers.push(...normalized);
+      updateCounterUI();
+      // carrusel con la última
+      const last = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0];
+      if(last){ setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp)))); }
     }
-    allFlowers = items.map(f=>({lat:+f.lat,lng:+f.lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp: f.timestamp ? +new Date(f.timestamp) : Date.now(), place:f.place||'', type:f.flowerType||'basic'}));
-    updateCounterUI(true);
+  })();
+}
+async function refetch(){
+  try{
+    const r=await fetch(SCRIPT_URL + '?t=' + Date.now(), {headers:{'Accept':'application/json','Cache-Control':'no-cache'}});
+    const data=await r.json();
+    processItems(data.items||[]);
   }catch{}
 }
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refetch, 12000); // cada 12 s
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
+}
 
-function updateCounterUI(initial=false){
-  const total = seen.size;
-  animateNumber(countNum, total);
+/* === UI: contador y carrusel === */
+function updateCounterUI(){
+  animateNumber(countNum, seen.size);
   const last = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0];
   if(last){
-    const msg = (last.message||'').slice(0,90);
-    lastMsg.textContent = `${last.fromName||'Alguien'} plantó una flor para ${last.toName||'alguien'}: ${msg}`;
+    setMarquee(popupLine(last.city||normalizeCityFromPlace(last.place)||"", last.fromName, last.toName, last.message, fmtDateTime(new Date(last.timestamp))));
   }
 }
 
@@ -583,8 +613,14 @@ function updateCounterUI(initial=false){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/90)';
   (function waitLeaflet(attempts=12){
-    if(window.L){ initMap(); loadFlowersOnce(); }
-    else { if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeaflet(attempts-1), 250); }
+    if(window.L){ 
+      initMap(); 
+      refetch();      // primera carga desde servidor
+      startPolling(); // y polling continuo
+    } else { 
+      if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } 
+      setTimeout(()=>waitLeaflet(attempts-1), 250); 
+    }
   })();
 });
 </script>
