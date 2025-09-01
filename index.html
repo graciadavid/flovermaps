@@ -37,10 +37,11 @@
   body{margin:0;font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--pink);color:var(--ink)}
 
   /* Header simple y robusto (solo logo local) */
-  .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; gap:10px; padding:16px 18px; background:#fff; border-bottom:1px solid #eee; min-height:88px}
+  .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:12px; background:var(--bg);} 
+.header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px;}
   .logo-img{display:block; height:64px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
-  .logo-fallback{font-weight:800;letter-spacing:1px; display:none}
+  .logo-fallback{font-weight:800;letter-spacing:1px; display:none; color:#111}
 
   /* Contador mejorado */
   .counter{margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#fff; border:1px solid #eee; display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative}
@@ -105,11 +106,31 @@
 </style>
 </head>
 <body>
+<script>
+// Limpia cualquier texto literal "
+" que haya quedado antes del header
+(function(){
+  function clean() {
+    try {
+      const nodes = Array.from(document.body.childNodes);
+      for (const n of nodes) {
+        if (n.nodeType === 3 && n.nodeValue && n.nodeValue.trim() === '\n') {
+          n.remove();
+        }
+      }
+    } catch(e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', clean);
+  else clean();
+})();
+</script>
 
 <!-- Header con logo (solo local para máxima fiabilidad) -->
 <header class="site-header">
-  <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block'" />
-  <span id="logoFallback" class="logo-fallback">FLOVERMAPS</span>
+  <div class="header-card">
+    <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block'" />
+    <span id="logoFallback" class="logo-fallback">FLOVERMAPS</span>
+  </div>
 </header>
 
 <!-- Contador mejorado -->
