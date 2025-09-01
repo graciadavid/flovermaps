@@ -116,7 +116,7 @@
 
       <label for="place" style="margin-top:8px">Ubicación</label>
       <div class="sbox">
-        <input id="place" placeholder="Ej. Viladomat 214, Barcelona" autocomplete="off" />
+        <input id="place" placeholder="Ej. Puerta del Sol, Madrid" autocomplete="off" />
         <div id="slist" class="slist"></div>
       </div>
       <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa.</div>
@@ -197,7 +197,7 @@ function initMap(){
     }
   });
   map = L.map('map',{layers:[baseTiles],zoomControl:true});
-  map.setView([41.387, 2.17], 13); // Barcelona
+  map.setView([40.41694, -3.70361], 13); // Puerta del Sol, Madrid
   setTimeout(()=>map.invalidateSize(), 150);
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
 
