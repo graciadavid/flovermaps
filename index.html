@@ -82,7 +82,11 @@
 
   /* Leaflet */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
-  .emoji-marker{background:transparent; border:none; font-size:28px; line-height:28px; transform:translate(-14px,-28px); pointer-events:none}
+  /* Nuevo pin accesible y con contraste */
+  .flower-pin{width:36px;height:44px;display:flex;align-items:center;justify-content:center}
+  .flower-pin svg{width:36px;height:44px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));transition:transform .15s ease, filter .2s}
+  .flower-pin.is-selected svg, .flower-pin:hover svg{transform:translateY(-1px) scale(1.04)}
+  @media (pointer:coarse){ .flower-pin svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18))} }
 
   /* Toast */
   .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
@@ -201,12 +205,15 @@ function initMap(){
   setTimeout(()=>map.invalidateSize(), 150);
   addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
 
-  const flowerIcon = L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]});
+  function flowerIcon(){
+  const svg = `\n  <svg viewBox="0 0 44 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">\n    <defs>\n      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">\n        <stop offset="0%" stop-color="#ff7ab8"/>\n        <stop offset="100%" stop-color="#ff4da6"/>\n      </linearGradient>\n    </defs>\n    <!-- Pin -->\n    <path d="M22 2c-10 0-18 7.6-18 17 0 10.8 12.6 21.3 18 35 5.5-13.7 18-24.2 18-35 0-9.4-8-17-18-17z" fill="url(#g)"/>\n    <!-- Flor estilizada -->\n    <g transform="translate(22 20)">\n      <g fill="#ffd1e6">\n        <circle r="7" cx="0" cy="-9"/>\n        <circle r="7" cx="0" cy="9"/>\n        <circle r="7" cx="9" cy="0"/>\n        <circle r="7" cx="-9" cy="0"/>\n        <circle r="6.5" cx="6.5" cy="-6.5"/>\n        <circle r="6.5" cx="-6.5" cy="6.5"/>\n        <circle r="6.5" cx="6.5" cy="6.5"/>\n        <circle r="6.5" cx="-6.5" cy="-6.5"/>\n      </g>\n      <circle r="6.5" fill="#fff"/>\n    </g>\n  </svg>`;
+  return L.divIcon({className:'flower-pin', html: svg, iconSize:[36,44], iconAnchor:[18,38], popupAnchor:[0,-30]});
+}
   function setEditPoint(lat,lng,zoom=18,showHint=false){
     setLatLng(lat,lng);
     if(editMarker){ editMarker.setLatLng([lat,lng]); }
     else{
-      editMarker = L.marker([lat,lng],{icon:flowerIcon,draggable:true}).addTo(map);
+      editMarker = L.marker([lat,lng],{icon:flowerIcon(),draggable:true}).addTo(map);
       if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
       editMarker.on('dragend', e=>{
         const p=e.target.getLatLng(); setLatLng(p.lat.toFixed(6), p.lng.toFixed(6)); fixedBadge.style.display='inline';
@@ -216,6 +223,10 @@ function initMap(){
   }
   window.setEditPoint = setEditPoint;
   map.on('click', e=>{ usedMapClick=true; usedGPS=false; setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 18, true); });
+  // Accesibilidad y estados de selección
+  map.on('popupopen', e=>{ const mk=e.popup && e.popup._source; if(mk && mk._icon) mk._icon.classList.add('is-selected'); });
+  map.on('popupclose', e=>{ const mk=e.popup && e.popup._source; if(mk && mk._icon) mk._icon.classList.remove('is-selected'); });
+  map.on('layeradd', e=>{ if(e.layer && e.layer._icon){ e.layer._icon.setAttribute('tabindex','0'); e.layer._icon.setAttribute('role','button'); e.layer._icon.setAttribute('title','Flor plantada'); } }); });
   plantBtn.onclick = saveFlower;
 }
 function waitLeafletAndInit(attempts=12){ if(window.L){ initMap(); return; } if(attempts<=0){ toast('No se pudo inicializar el mapa', false); return; } setTimeout(()=>waitLeafletAndInit(attempts-1), 250); }
@@ -365,7 +376,7 @@ async function saveFlower(){
     if(data.ok){
       if(editMarker){ map.removeLayer(editMarker); editMarker=null; }
       const html = popupHtml(from,to,msg,fmtDate(new Date()));
-      const m=L.marker([+lat,+lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(html);
+      const m=L.marker([+lat,+lng],{icon: flowerIcon()}).addTo(map).bindPopup(html);
       m.on('click',()=>{ map.setView(m.getLatLng(),19); m.openPopup(); });
       map.setView([+lat,+lng],19); m.openPopup();
       seen.add(`${lat},${lng}|${from}|${to}|${msg}`); updateCount();
@@ -390,7 +401,7 @@ async function loadFlowersOnce(){
       const key=`${+f.lat},${+f.lng}|${f.fromName||''}|${f.toName||''}|${f.message||''}|${f.timestamp||''}`;
       if(seen.has(key)) return; seen.add(key);
       const dateStr = f.timestamp ? new Date(f.timestamp).toLocaleDateString('es-ES') : '';
-      const m=L.marker([+f.lat,+f.lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
+      const m=L.marker([+f.lat,+f.lng],{icon: flowerIcon()}).addTo(map).bindPopup(popupHtml(f.fromName||'', f.toName||'', f.message||'', dateStr));
       m.on('click',()=>{map.setView(m.getLatLng(),19); m.openPopup();});
     });
     updateCount();
@@ -403,7 +414,7 @@ function initFromURL(){
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng && window.L){
-    const m=L.marker([+lat,+lng],{icon:L.divIcon({html:'🌸',className:'emoji-marker',iconSize:[28,28],iconAnchor:[14,28]})}).addTo(map).bindPopup(popupHtml(from,to,msg));
+    const m=L.marker([+lat,+lng],{icon: flowerIcon()}).addTo(map).bindPopup(popupHtml(from,to,msg));
     map.setView([+lat,+lng], 17); m.openPopup();
   }
 }
