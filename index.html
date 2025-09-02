@@ -14,10 +14,9 @@
 <!-- Tipografía (similar a Balgin) -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet + Heatmap -->
+<!-- Leaflet (sin heatmap) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --accent:#01c064; --accent-weak: rgba(1,192,100,.08); }
@@ -53,7 +52,7 @@
   .muted{color:var(--muted); font-size:.85rem}
   label{display:block; margin:6px 0 4px; font-size:.92rem}
 
-  /* Inputs & botones básicos (los .btn sí ocupan 100%) */
+  /* Inputs y botones */
   input,.btn{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
@@ -88,11 +87,6 @@
   .emoji-marker{background:transparent; transform:translate(-14px,-28px)}
   .emoji-marker .e{font-size:30px; line-height:30px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
   @media (min-width:900px){ .emoji-marker .e{font-size:34px; line-height:34px} }
-
-  /* Heat + twinkles */
-  .spark-wrap{pointer-events:none}
-  .spark{display:block; border-radius:50%; background:radial-gradient(closest-side, rgba(255,105,180,.95), rgba(255,105,180,.35)); box-shadow:0 0 12px rgba(255,105,180,.6), 0 0 28px rgba(255,105,180,.35); animation:pulse 2.2s ease-in-out infinite}
-  @keyframes pulse{0%{transform:scale(.85)}50%{transform:scale(1.1)}100%{transform:scale(.85)}}
 
   /* Toast */
   .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
@@ -166,12 +160,11 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHi
 /* === JSONP helper === */
 function jsonp(url, timeoutMs=12000){
   return new Promise((resolve, reject)=>{
-    const cbName='__fp_cb_'+Math.random().toString(36).slice(2);
+    const cb='__fp_cb_'+Math.random().toString(36).slice(2);
     const s=document.createElement('script'); const sep=url.includes('?')?'&':'?';
-    s.src=url+sep+'callback='+cbName+'&_ts='+Date.now(); s.id=cbName; s.async=true;
-    let to;
-    function cleanup(){ clearTimeout(to); delete window[cbName]; s.remove(); }
-    window[cbName]=(data)=>{ cleanup(); resolve(data); };
+    s.src=url+sep+'callback='+cb+'&_ts='+Date.now(); s.id=cb; s.async=true;
+    let to; function cleanup(){ clearTimeout(to); try{ delete window[cb]; }catch{}; s.remove(); }
+    window[cb]=(data)=>{ cleanup(); resolve(data); };
     s.onerror=()=>{ cleanup(); reject(new Error('JSONP load failed')); };
     document.head.appendChild(s);
     to=setTimeout(()=>{ cleanup(); reject(new Error('JSONP timeout')); }, timeoutMs);
@@ -180,12 +173,10 @@ function jsonp(url, timeoutMs=12000){
 
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null, heatLayer=null, twinkleMarkers=[];
+let flowersLayer=null;
 let editMarker=null;
-let serverSnapshot=[];       // lista completa del servidor
-let pendingSnapshot=null;    // para pintar cuando inicie el mapa
-let didFitBounds=false;      // hacemos fitBounds sólo una vez
 let pollTimer=null;
+let didFitBounds=false;
 let serverCount=0, heroTimer=null;
 
 /* === DOM === */
@@ -196,31 +187,25 @@ const heroCountEl=$("#heroCount"), msgInput=$("#message");
 
 /* === Utils === */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1400); }
-function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"); const mm=String(d.getMonth()+1).padStart(2,"0"); const yy=d.getFullYear(); const hh=String(d.getHours()).padStart(2,"0"); const mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
+function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
 function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
 function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 
 /* === Mapa === */
 function initMap(){
-  if(map) return;
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
   map.setView([20,0],2);
 
   flowersLayer=L.layerGroup().addTo(map);
-  try{ heatLayer=L.heatLayer([], {radius:22, blur:28, minOpacity:0.18}).addTo(map);}catch{}
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
-
-  if(pendingSnapshot){ serverSnapshot=pendingSnapshot; pendingSnapshot=null; renderAllMarkers(serverSnapshot); }
 }
-
-/* Altura mapa = altura formulario (en desktop) */
 function syncMapHeight(){
   const mq=window.matchMedia('(min-width:1025px)');
   const mapEl=$("#map"), formCard=$("#formCard");
@@ -252,7 +237,7 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
   showFab();
 }
 
-/* Botón flotante pequeño bajo la flor */
+/* Botón flotante bajo la flor */
 function updateFabPosition(){
   if(!plantFab || !editMarker || !map) return;
   const mapEl=map.getContainer(), frameEl=mapEl.parentElement;
@@ -266,7 +251,7 @@ function updateFabPosition(){
 function showFab(){ updateFabPosition(); plantFab.style.display='inline-flex'; plantFab.classList.remove('pop'); void plantFab.offsetWidth; plantFab.classList.add('pop'); }
 function hideFab(){ plantFab.style.display='none'; }
 
-/* Autocomplete básico (con números) */
+/* Autocomplete con números */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
@@ -374,8 +359,7 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      // Volvemos a pintar desde servidor (fuente de verdad)
-      await refetch(true);
+      await refetch(); // pinta lo del servidor
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).addTo(flowersLayer).bindPopup(html);
@@ -390,31 +374,32 @@ async function saveFlower(){
 }
 plantFab.addEventListener('click', saveFlower);
 
-/* Render completo (todas las flores) */
+/* Render completo SIEMPRE con lo que devuelve el servidor */
 function renderAllMarkers(list){
-  if(!map || !flowersLayer){ pendingSnapshot=list; return; }
+  if(!map || !flowersLayer) return;
   try{ flowersLayer.clearLayers(); }catch{}
-  if(heatLayer){ const pts=list.slice(-10000).map(f=>[f.lat,f.lng,0.6]); heatLayer.setLatLngs(pts); }
   const bounds=L.latLngBounds();
   let i=0, n=list.length;
   (function chunk(){
     const t0=performance.now();
     while(i<n && (performance.now()-t0)<16){
-      const f=list[i++]; const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
+      const f=list[i++]; const lat=parseFloat(f.lat), lng=parseFloat(f.lng);
+      if(!isFinite(lat)||!isFinite(lng)) continue;
+      const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
-      const mk=L.marker([+f.lat,+f.lng],{icon:emojiIcon(), zIndexOffset:1200}).addTo(flowersLayer).bindPopup(html);
+      const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).addTo(flowersLayer).bindPopup(html);
       mk.on('click',function(){ map.setView(this.getLatLng(),19); this.openPopup(); });
-      bounds.extend([+f.lat,+f.lng]);
+      bounds.extend([lat,lng]);
     }
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ flowersLayer.bringToFront(); }catch{}
-      if(!didFitBounds && list.length){ didFitBounds=true; map.fitBounds(bounds.pad(0.15), {maxZoom: 7}); }
+      if(!didFitBounds && list.length){ didFitBounds=true; map.fitBounds(bounds.pad(0.15), {maxZoom:7}); }
     }
   })();
 }
 
-/* Normaliza items devueltos por el WebApp */
+/* Normaliza items del WebApp */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -431,25 +416,22 @@ function normalizeItems(items){
   return out;
 }
 
-/* Trae del servidor y repinta TODO (si cambia o si es forzado) */
-async function refetch(force=false){
+/* Trae del servidor y repinta TODO (sin condiciones) */
+async function refetch(){
   try{
     const data=await jsonp(SCRIPT_URL+'?action=list', 12000);
     if(data && Array.isArray(data.items)){
-      serverCount=data.items.length; updateHeroNow();
-      const normalized=normalizeItems(data.items);
-      const changed = force || normalized.length!==serverSnapshot.length;
-      if(changed){ serverSnapshot=normalized; renderAllMarkers(serverSnapshot); }
+      serverCount=data.items.length; heroCountEl.textContent=formatES(serverCount);
+      renderAllMarkers(normalizeItems(data.items));
     }
-  }catch(e){ /* reintento automático en el poll */ }
+  }catch(e){ /* silencioso; se reintenta en el polling */ }
 }
 
-/* Contador vivo */
-function updateHeroNow(){ heroCountEl.textContent=formatES(serverCount); }
+/* Polling + contador */
 function startPolling(){
   if(pollTimer) clearInterval(pollTimer);
-  pollTimer=setInterval(()=>refetch(false), 10000);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(false); });
+  pollTimer=setInterval(refetch, 10000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
 }
 function startHeroTimer(){
   if(heroTimer) clearInterval(heroTimer);
@@ -459,12 +441,10 @@ function startHeroTimer(){
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
-  if(window.L){ initMap(); } else {
-    (function waitLeaflet(n=20){ if(window.L){ initMap(); } else { if(n<=0) return; setTimeout(()=>waitLeaflet(n-1),200); } })();
-  }
-  refetch(true);     // trae y pinta todas las flores
-  startPolling();    // sigue sincronizando
-  startHeroTimer();  // contador
+  initMap();
+  refetch();        // pinta todas las flores del Sheet
+  startPolling();   // sigue sincronizando
+  startHeroTimer(); // contador
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
 });
 </script>
