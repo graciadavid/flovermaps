@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-mode="explore">
+<html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -40,14 +40,6 @@
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
-  /* Tabs */
-  .tabs{display:flex; justify-content:center; gap:8px; padding:6px 8px}
-  .tab-btn{
-    border:1px solid #e6e6e6; background:#fff; color:#0f172a; border-radius:999px; padding:8px 14px; cursor:pointer; font-weight:700;
-    box-shadow:0 4px 10px rgba(2,6,12,.04);
-  }
-  .tab-btn.active{ background:#0f172a; color:#fff; border-color:#0f172a; }
-
   /* Contador */
   .counter-wrap{display:flex; justify-content:center}
   .counter-mini{
@@ -57,21 +49,15 @@
   }
   .counter-mini .unit{font-weight:600; color:var(--muted)}
 
-  /* Grid layout (desktop) */
-  .wrap{
-    display:grid; gap:0; min-height:calc(100vh - 52px - 56px);
-    grid-template-columns: 420px 1fr 360px;
-    grid-template-areas: "panel map feed";
-    align-items:start;
-  }
-  .panel{grid-area:panel; max-width:100%; padding:14px}
-  .mapArea{grid-area:map; padding:14px}
-  .feedCol{grid-area:feed; padding:14px}
+  /* Contenedores */
+  .container{max-width:1200px; margin:0 auto; padding:0 14px}
+  .section{padding:8px 0}
 
-  .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
-  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
-  .muted{color:var(--muted); font-size:.85rem}
+  .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
+  .muted{color:var(--muted); font-size:.95rem}
   label{display:block; margin:6px 0 4px; font-size:.92rem}
+  .row2{display:grid; grid-template-columns:1fr; gap:8px}
+  @media (min-width:640px){ .row2{grid-template-columns:1fr 1fr} }
 
   /* Inputs y botones */
   input,.btn{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
@@ -80,6 +66,13 @@
   .btn-dark{background:#444;color:#fff}
   .btn-share{background:#0066cc;color:#fff}
   .btn-muted{background:#e9ecef;color:#556; cursor:not-allowed}
+  .btn-outline{background:#fff; color:#0f172a; border:1px solid #e6e6e6}
+  .btn-green{background:#22c55e; color:#fff}
+
+  /* Ticker */
+  .ticker{display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:6px 0; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:1rem}
+  .dot{width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.4s infinite}
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 
   /* Autocomplete */
   .sbox{position:relative}
@@ -89,19 +82,9 @@
   .hl{font-weight:700}
 
   /* Mapa */
-  .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
+  .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   #map{width:100%; height:560px}
-  @media (max-width:1200px){ #map{height:50vh} }
-  @media (max-width:1024px){
-    .wrap{grid-template-columns:1fr; grid-template-areas: "map" "panel" "feed";}
-    .panel,.feedCol{padding-top:0}
-    #map{height:44vh}
-  }
-
-  /* Ticker */
-  .ticker{display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:4px 4px 10px; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:.95rem}
-  .dot{width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.4s infinite}
-  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+  @media (max-width:1024px){ #map{height:46vh} }
 
   /* Botón flotante pequeño pegado a la flor */
   .map-fab{
@@ -131,34 +114,18 @@
     font-weight:700;
   }
 
-  /* Modal éxito */
-  .modal{position:fixed; inset:0; background:rgba(0,0,0,.28); display:none; align-items:center; justify-content:center; z-index:12000}
-  .modal .box{background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)}
-  .modal h3{margin:4px 0 10px}
-  .actions-row{display:flex; gap:8px; flex-wrap:wrap}
-  .btn-outline{background:#fff; color:#0f172a; border:1px solid #e6e6e6}
-  .btn-green{background:#22c55e; color:#fff}
-
-  /* Visibilidad por modo */
-  body[data-mode="explore"] .panel{display:none}
-  body[data-mode="explore"] .feedCol{display:block}
-  body[data-mode="plant"] .panel{display:block}
-  body[data-mode="plant"] .feedCol{display:none}
+  /* Explore grid (debajo del mapa) */
+  .explore-grid{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .explore-grid{grid-template-columns:2fr 1fr} }
 </style>
 </head>
-<body data-mode="explore">
+<body>
 
 <header class="site-header">
   <div class="header-card">
     <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'">
   </div>
 </header>
-
-<!-- Tabs -->
-<nav class="tabs" role="tablist" aria-label="Cambiar vista">
-  <button id="tabExplore" class="tab-btn active" role="tab" aria-selected="true">🗺️ Explorar</button>
-  <button id="tabPlant" class="tab-btn" role="tab" aria-selected="false">🌸 Plantar</button>
-</nav>
 
 <!-- Contador pequeño -->
 <div class="counter-wrap">
@@ -167,9 +134,15 @@
   </div>
 </div>
 
-<div class="wrap">
-  <!-- Panel (Plantar) -->
-  <section class="panel" aria-labelledby="tabPlant">
+<div class="container">
+
+  <!-- Ticker actividad -->
+  <section class="section" aria-label="Actividad reciente">
+    <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
+  </section>
+
+  <!-- PLANTAR (siempre visible) -->
+  <section class="section" aria-label="Plantar una flor">
     <div class="card" id="formCard">
       <h1>Planta una flor</h1>
       <div class="row2">
@@ -182,7 +155,7 @@
 
       <label for="place" style="margin-top:8px">Ubicación</label>
       <div class="sbox" role="combobox" aria-expanded="false" aria-owns="slist" aria-haspopup="listbox">
-        <input id="place" placeholder="Ej. Puerta del Sol, Madrid" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
+        <input id="place" placeholder="Ej. Times Square, Nueva York" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
         <div id="slist" class="slist" role="listbox"></div>
       </div>
       <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
@@ -204,9 +177,8 @@
     </div>
   </section>
 
-  <!-- Mapa + Ticker -->
-  <section class="mapArea" aria-labelledby="tabExplore">
-    <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
+  <!-- MAPA -->
+  <section class="section" aria-label="Mapa">
     <div class="frame" id="mapFrame">
       <div id="map"></div>
       <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅ Plantar aquí</button>
@@ -216,28 +188,30 @@
     </div>
   </section>
 
-  <!-- Feed lateral (Explorar) -->
-  <aside class="feedCol">
-    <div class="card">
-      <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
-      <div id="recentList" class="muted">Cargando…</div>
+  <!-- EXPLORAR (debajo del mapa) -->
+  <section class="section" aria-label="Explorar">
+    <div class="explore-grid">
+      <div class="card">
+        <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
+        <div id="recentList" class="muted">Cargando…</div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
+        <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
+      </div>
     </div>
-    <div class="card">
-      <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
-      <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
-    </div>
-  </aside>
+  </section>
 </div>
 
 <!-- Toast + Sticky pill + Modal -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <button id="globalPill" class="global-pill">🌍 Ver mapa global</button>
 
-<div id="successModal" class="modal" aria-modal="true" role="dialog">
-  <div class="box">
-    <h3>🎉 ¡Tu flor ya florece en el mapa!</h3>
+<div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; background:rgba(0,0,0,.28); z-index:12000">
+  <div class="box" style="background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <h3 style="margin:4px 0 10px">🎉 ¡Tu flor ya florece en el mapa!</h3>
     <p class="muted" id="successText">Comparte el enlace o explora el mapa global.</p>
-    <div class="actions-row" style="margin-top:10px">
+    <div class="actions-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
       <button id="mShare" class="btn btn-outline">🔗 Compartir</button>
       <button id="mGlobal" class="btn btn-outline">🌍 Ver mapa global</button>
       <button id="mAnother" class="btn btn-green">➕ Plantar otra</button>
@@ -283,20 +257,6 @@ const ticker=$("#liveTicker"), tickerText=$("#tickerText");
 const globalPill=$("#globalPill");
 const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mAnother=$("#mAnother");
 
-/* === Tabs === */
-const tabExplore=$("#tabExplore"), tabPlant=$("#tabPlant");
-function setMode(mode){
-  document.body.setAttribute('data-mode', mode);
-  tabExplore.classList.toggle('active', mode==='explore');
-  tabPlant.classList.toggle('active', mode==='plant');
-  tabExplore.setAttribute('aria-selected', mode==='explore');
-  tabPlant.setAttribute('aria-selected', mode==='plant');
-  // Ajustar altura del mapa al cambiar layout
-  setTimeout(()=>{ syncMapHeight(); map && map.invalidateSize(); }, 120);
-}
-tabExplore.addEventListener('click', ()=> setMode('explore'));
-tabPlant.addEventListener('click', ()=> setMode('plant'));
-
 /* === Utils === */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
@@ -320,15 +280,15 @@ function initMap(){
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
-  map.on('click', e=>{ setMode('plant'); setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
+  map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
 }
 function syncMapHeight(){
-  const mq=window.matchMedia('(min-width:1025px)');
   const mapEl=$("#map"), formCard=$("#formCard");
   if(!mapEl||!formCard) return;
+  const mq=window.matchMedia('(min-width:1025px)');
   if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
-  else{ mapEl.style.height='44vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
+  else{ mapEl.style.height='46vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
 }
 
 /* Editar / arrastrar la flor */
@@ -346,7 +306,7 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
       const p=e.target.getLatLng(); const lat2=p.lat.toFixed(6), lng2=p.lng.toFixed(6);
       $("#lat").value=lat2; $("#lng").value=lng2; fixedBadge.style.display='inline'; updateFabPosition();
       try{
-        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&lat=${lat2}&lon=${lng2}&addressdetails=1`);
+        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat2}&lon=${lng2}&addressdetails=1`);
         if(r.ok){ const j=await r.json(); const a=j.address||{};
           const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||"";
           const hn=a.house_number||a.housenumber||"";
@@ -377,59 +337,91 @@ function updateFabPosition(){
 function showFab(){ updateFabPosition(); plantFab.style.display='inline-flex'; plantFab.classList.remove('pop'); void plantFab.offsetWidth; plantFab.classList.add('pop'); }
 function hideFab(){ plantFab.style.display='none'; }
 
-/* Autocomplete con números */
+/* === Autocomplete global (POIs/ciudades/direcciones) === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
+
+// Idiomas preferidos para Nominatim (es + en + navegador)
+const ACCEPT_LANG = (()=>{ 
+  try{
+    const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'es'];
+    const set = Array.from(new Set([...langs.map(l=>String(l||'').split('-')[0]), 'es','en']));
+    return set.join(',');
+  }catch{ return 'es,en'; }
+})();
+
 function hasNumber(s){ return /[0-9]/.test(s); }
-function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
+function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
+function containsStreetType(q){
+  return /(calle|carrer|avenida|av\.?|avinguda|paseo|ps\.?|plaça|plaza|street|st\.?|road|rd\.?|avenue|ave\.?|blvd\.?|boulevard|place|square|piazza|rua|rue|straße|strasse|ulica|via|cours|allee)/i.test(q);
+}
 function normalizeStreet(q){
-  const hasType=/(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q);
-  if(hasType) return [q];
   const base=q.replace(/\s+/g,' ').trim();
-  return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base];
+  if(!base) return [];
+  if(containsStreetType(base)) return [base];
+  return [ base, `Calle ${base}`, `Avenida ${base}`, `Carrer de ${base}`, `Street ${base}`, `Avenue ${base}`, `Road ${base}`, `Boulevard ${base}`, `Rue ${base}`, `Rua ${base}`, `Via ${base}` ];
 }
 async function searchPlacesPlain(q, sig){
-  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&accept-language=es&q='+encodeURIComponent(q),{signal:sig});
-  if(!r.ok) throw new Error('nominatim'); return r.json();
+  const url = 'https://nominatim.openstreetmap.org/search'
+    + '?format=json&addressdetails=1&limit=10'
+    + '&accept-language=' + encodeURIComponent(ACCEPT_LANG)
+    + '&q=' + encodeURIComponent(q);
+  const r = await fetch(url, {signal:sig});
+  if(!r.ok) throw new Error('nominatim');
+  return r.json();
 }
 async function searchPlacesStructured(q, sig){
-  let raw=q, city=''; if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); city=parts.slice(1).join(',').trim(); }
+  let raw=q, tail='';
+  if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); tail=parts.slice(1).join(',').trim(); }
   const variants=normalizeStreet(raw);
-  const results = await Promise.allSettled(
-    variants.map(street =>
-      fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&accept-language=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city),{signal:sig})
-        .then(r=>r.ok?r.json():[])
-        .catch(()=>[])
-    )
-  );
+  const tasks = variants.map(street => {
+    const url = 'https://nominatim.openstreetmap.org/search'
+      + '?format=json&addressdetails=1&limit=7'
+      + '&accept-language=' + encodeURIComponent(ACCEPT_LANG)
+      + '&street=' + encodeURIComponent(street)
+      + (tail ? ('&city=' + encodeURIComponent(tail)) : '');
+    return fetch(url, {signal:sig})
+      .then(r=>r.ok?r.json():[])
+      .catch(()=>[]);
+  });
+  const results = await Promise.allSettled(tasks);
   return results.flatMap(r => r.status==='fulfilled' ? r.value : []);
 }
 async function searchPlaces(q){
   if(abortCtrl) abortCtrl.abort();
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
   try{
-    const hasNum=hasNumber(q);
+    const withNum=hasNumber(q);
     const [A,B] = await Promise.all([
       searchPlacesPlain(q,sig).catch(()=>[]),
-      hasNum? searchPlacesStructured(q,sig).catch(()=>[]) : Promise.resolve([])
+      withNum? searchPlacesStructured(q,sig).catch(()=>[]) : Promise.resolve([])
     ]);
-    const list=[...A,...B]; const seenIds=new Set(); const merged=[];
-    for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seenIds.has(id)){ seenIds.add(id); merged.push(it); } }
-    if(hasNum){ const num=extractNumber(q); merged.sort((x,y)=>{ const xn=(x.address&&(x.address.house_number||x.address.housenumber))||''; const yn=(y.address&&(y.address.house_number||y.address.housenumber))||''; return (String(yn)===String(num)) - (String(xn)===String(num)); }); }
+    const list=[...A,...B]; const seen=new Set(); const merged=[];
+    for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seen.has(id)){ seen.add(id); merged.push(it); } }
+    if(withNum){ 
+      const num=extractNumber(q);
+      merged.sort((x,y)=>{
+        const xn=(x.address&&(x.address.house_number||x.address.housenumber))||'';
+        const yn=(y.address&&(y.address.house_number||y.address.housenumber))||'';
+        return (String(yn)===String(num)) - (String(xn)===String(num));
+      }); 
+    }
     return merged.slice(0,10);
   }catch{ return []; }
 }
 function renderSuggest(list){
   const q=place.value.trim(); const num=extractNumber(q);
-  slist.innerHTML=""; list.forEach((it,idx)=>{
+  slist.innerHTML="";
+  list.forEach((it,idx)=>{
     const row=document.createElement('div'); row.className='sitem'; row.setAttribute('role','option');
-    const road=it.address?.road || it.address?.pedestrian || it.address?.footway || it.address?.residential || it.address?.path || it.address?.neighbourhood || '';
-    const hn=it.address?.house_number || it.address?.housenumber || '';
-    let primary=(road||hn) ? (road+(hn?' '+hn:'')) : (it.display_name||'').split(',')[0];
-    const city=it.address?.city || it.address?.town || it.address?.village || it.address?.municipality || '';
-    const state=it.address?.state || it.address?.province || it.address?.state_district || '';
-    const meta=[city,state].filter(Boolean).join(', ');
-    if(num){ primary=primary.replace(new RegExp('('+num+')'),' <span class="hl">$1</span> '); }
-    row.innerHTML=primary+(meta?' <small>'+meta+'</small>':'');
+    const dn = (it.display_name||'').split(',').map(s=>s.trim());
+    const primary = dn[0] || '';
+    const city = it.address?.city || it.address?.town || it.address?.village || it.address?.municipality || '';
+    const state = it.address?.state || it.address?.province || it.address?.state_district || '';
+    const country = it.address?.country || (dn[dn.length-1]||'');
+    const meta = [city || dn[1] || '', state || dn[2] || ''].filter(Boolean).join(', ') || country;
+    const safe=(s)=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+    const hlNum = num ? safe(primary).replace(new RegExp('('+num+')'),' <span class="hl">$1</span> ') : safe(primary);
+    row.innerHTML = hlNum + (meta?` <small>${safe(meta)}</small>`:'');
     row.onclick=()=>selectSuggest(idx);
     slist.appendChild(row);
   });
@@ -452,18 +444,18 @@ place.addEventListener('input', e=>{
 place.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ slist.style.display='none'; document.querySelector('.sbox').setAttribute('aria-expanded','false'); }
 });
-$("#confirmBtn").addEventListener('click', async ()=>{
-  const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
+document.getElementById('confirmBtn').addEventListener('click', async ()=>{
+  const q=place.value.trim(); if(!q){ toast('Escribe una dirección o lugar', false); return; }
   try{
     const r=await searchPlaces(q);
     if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 14, true); fixedBadge.style.display='inline'; }
-    else toast('No encontrada', false);
+    else toast('No encontrado', false);
   }catch{}
 });
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
 /* Mensaje 1 línea / 30 chars */
-msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); $("#chars").textContent='(' + msgInput.value.length + '/30)'; });
+msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* GPS */
@@ -479,10 +471,9 @@ function setupGpsBtn(){
   } else { show(); }
   gpsBtn.onclick=()=> navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
-    setMode('plant');
     setEditPoint(lat,lng,14,true); fixedBadge.style.display='inline';
     try{
-      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&lat=${lat}&lon=${lng}&addressdetails=1`);
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat}&lon=${lng}&addressdetails=1`);
       if(r.ok){ const j=await r.json(); const a=j.address||{};
         const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||"";
         const hn=a.house_number||a.housenumber||"";
@@ -513,20 +504,20 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch(); // pinta lo del servidor (y actualiza feed/ticker)
+      await refetch(); // pinta y actualiza feed/ticker
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).addTo(flowersLayer).bindPopup(html);
       mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); }); 
-      map.setView([+lat,+lng],17); // vista un poco más lejana que 19
+      map.setView([+lat,+lng],17);
       mk.openPopup();
 
       lastShareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
       shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
-      // Mostrar modal éxito + pill global
-      $("#successText").textContent = `De ${from} para ${to}.`;
+      // Éxito: modal y pill
+      document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
       showGlobalPillTemporarily();
 
@@ -549,7 +540,7 @@ mShare.onclick = async ()=>{
   }catch{}
 };
 mGlobal.onclick = ()=>{ closeModal(); viewGlobal(); };
-mAnother.onclick = ()=>{ closeModal(); setMode('plant'); toast('Vamos a plantar otra 🌸'); };
+mAnother.onclick = ()=>{ closeModal(); toast('Vamos a plantar otra 🌸'); };
 
 /* Sticky pill */
 function showGlobalPillTemporarily(){
@@ -557,7 +548,7 @@ function showGlobalPillTemporarily(){
   setTimeout(()=>{ globalPill.style.display='none'; }, 12000);
 }
 globalPill.onclick = ()=>{ viewGlobal(); globalPill.style.display='none'; };
-function viewGlobal(){ map.setView([40.2, -3.7], 5); setMode('explore'); }
+function viewGlobal(){ map.setView([40.2, -3.7], 5); }
 
 /* Render completo SIEMPRE con lo que devuelve el servidor */
 function renderAllMarkers(list){
@@ -584,7 +575,7 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Normaliza items del WebApp (acepta múltiples nombres de columnas) */
+/* Normaliza items (múltiples nombres de columnas) */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -646,7 +637,6 @@ function updateFeedAndMeta(items){
 }
 window.prefillCity = function(cityEnc){
   const city=decodeURIComponent(cityEnc||'');
-  setMode('plant');
   if(city){ place.value=city; fixedBadge.style.display='none'; toast(`Ciudad preseleccionada: ${city}`); }
   document.getElementById('fromName').focus();
 };
@@ -694,7 +684,6 @@ function tryOpenShared(){
         .addTo(flowersLayer)
         .bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())))
         .openPopup();
-      setMode('explore');
     };
     if(flowersLayer){ go(); } else { setTimeout(go, 400); }
   }
@@ -702,7 +691,7 @@ function tryOpenShared(){
 
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
-  $("#chars").textContent='(0/30)';
+  document.getElementById('chars').textContent='(0/30)';
   initMap();
   refetch();        // pinta / feed / ticker
   startPolling();   // sigue sincronizando
