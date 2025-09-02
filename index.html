@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-mode="explore">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,7 +24,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-  :root{ --ink:#0f172a; --muted:#64748b; --accent:#01c064; --accent-weak: rgba(1,192,100,.08); }
+  :root{ --ink:#0f172a; --muted:#64748b; --accent:#01c064; --accent-weak: rgba(1,192,100,.08); --bg:#f6fff9; }
   *{box-sizing:border-box}
   body{
     margin:0; font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink);
@@ -40,6 +40,14 @@
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
+  /* Tabs */
+  .tabs{display:flex; justify-content:center; gap:8px; padding:6px 8px}
+  .tab-btn{
+    border:1px solid #e6e6e6; background:#fff; color:#0f172a; border-radius:999px; padding:8px 14px; cursor:pointer; font-weight:700;
+    box-shadow:0 4px 10px rgba(2,6,12,.04);
+  }
+  .tab-btn.active{ background:#0f172a; color:#fff; border-color:#0f172a; }
+
   /* Contador */
   .counter-wrap{display:flex; justify-content:center}
   .counter-mini{
@@ -49,9 +57,17 @@
   }
   .counter-mini .unit{font-weight:600; color:var(--muted)}
 
-  /* Layout */
-  .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
-  .panel{width:420px; max-width:100%; padding:14px}
+  /* Grid layout (desktop) */
+  .wrap{
+    display:grid; gap:0; min-height:calc(100vh - 52px - 56px);
+    grid-template-columns: 420px 1fr 360px;
+    grid-template-areas: "panel map feed";
+    align-items:start;
+  }
+  .panel{grid-area:panel; max-width:100%; padding:14px}
+  .mapArea{grid-area:map; padding:14px}
+  .feedCol{grid-area:feed; padding:14px}
+
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
   .muted{color:var(--muted); font-size:.85rem}
@@ -63,6 +79,7 @@
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
   .btn-share{background:#0066cc;color:#fff}
+  .btn-muted{background:#e9ecef;color:#556; cursor:not-allowed}
 
   /* Autocomplete */
   .sbox{position:relative}
@@ -72,10 +89,19 @@
   .hl{font-weight:700}
 
   /* Mapa */
-  .mapArea{flex:1; padding:14px}
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   #map{width:100%; height:560px}
-  @media (max-width:1024px){ #map{height:44vh} .wrap{flex-direction:column;} .panel{width:100%} }
+  @media (max-width:1200px){ #map{height:50vh} }
+  @media (max-width:1024px){
+    .wrap{grid-template-columns:1fr; grid-template-areas: "map" "panel" "feed";}
+    .panel,.feedCol{padding-top:0}
+    #map{height:44vh}
+  }
+
+  /* Ticker */
+  .ticker{display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:4px 4px 10px; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:.95rem}
+  .dot{width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.4s infinite}
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 
   /* Botón flotante pequeño pegado a la flor */
   .map-fab{
@@ -95,17 +121,44 @@
   @media (min-width:900px){ .emoji-marker .e{font-size:34px; line-height:34px} }
 
   /* Toast */
-  .toast{position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
-  .toast.show{opacity:1; bottom:92px}
+  .toast{position:fixed; left:50%; bottom:88px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
+  .toast.show{opacity:1; bottom:98px}
+
+  /* Sticky pill (ver mapa global) */
+  .global-pill{
+    position:fixed; right:14px; bottom:14px; z-index:10000; display:none;
+    background:#0f172a; color:#fff; border:0; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(0,0,0,.18); cursor:pointer;
+    font-weight:700;
+  }
+
+  /* Modal éxito */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.28); display:none; align-items:center; justify-content:center; z-index:12000}
+  .modal .box{background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h3{margin:4px 0 10px}
+  .actions-row{display:flex; gap:8px; flex-wrap:wrap}
+  .btn-outline{background:#fff; color:#0f172a; border:1px solid #e6e6e6}
+  .btn-green{background:#22c55e; color:#fff}
+
+  /* Visibilidad por modo */
+  body[data-mode="explore"] .panel{display:none}
+  body[data-mode="explore"] .feedCol{display:block}
+  body[data-mode="plant"] .panel{display:block}
+  body[data-mode="plant"] .feedCol{display:none}
 </style>
 </head>
-<body>
+<body data-mode="explore">
 
 <header class="site-header">
   <div class="header-card">
     <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'">
   </div>
 </header>
+
+<!-- Tabs -->
+<nav class="tabs" role="tablist" aria-label="Cambiar vista">
+  <button id="tabExplore" class="tab-btn active" role="tab" aria-selected="true">🗺️ Explorar</button>
+  <button id="tabPlant" class="tab-btn" role="tab" aria-selected="false">🌸 Plantar</button>
+</nav>
 
 <!-- Contador pequeño -->
 <div class="counter-wrap">
@@ -115,8 +168,8 @@
 </div>
 
 <div class="wrap">
-  <!-- Panel -->
-  <section class="panel">
+  <!-- Panel (Plantar) -->
+  <section class="panel" aria-labelledby="tabPlant">
     <div class="card" id="formCard">
       <h1>Planta una flor</h1>
       <div class="row2">
@@ -125,7 +178,7 @@
       </div>
 
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
-      <input id="message" maxlength="30" placeholder="Escribe algo bonito…" inputmode="text" autocomplete="off" required />
+      <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
 
       <label for="place" style="margin-top:8px">Ubicación</label>
       <div class="sbox" role="combobox" aria-expanded="false" aria-owns="slist" aria-haspopup="listbox">
@@ -135,29 +188,62 @@
       <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
       <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
 
-      <div class="actions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
-        <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 200px">✅ Confirmar dirección</button>
-        <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 200px; display:none">📍 Usar mi ubicación</button>
+      <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+        <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 160px">✅ Confirmar dirección</button>
+        <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
+      </div>
+
+      <!-- Placeholder Flor Premium (desactivada) -->
+      <div class="card" style="margin-top:12px; background:#f7f9fb">
+        <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
+        <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
+        <button class="btn btn-muted" title="Próximamente" disabled>Desbloquear Premium</button>
       </div>
 
       <input type="hidden" id="lat"><input type="hidden" id="lng">
     </div>
   </section>
 
-  <!-- Mapa -->
-  <section class="mapArea">
+  <!-- Mapa + Ticker -->
+  <section class="mapArea" aria-labelledby="tabExplore">
+    <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
     <div class="frame" id="mapFrame">
       <div id="map"></div>
       <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅ Plantar aquí</button>
     </div>
-
     <div style="display:flex;justify-content:center;padding:10px 0">
       <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
     </div>
   </section>
+
+  <!-- Feed lateral (Explorar) -->
+  <aside class="feedCol">
+    <div class="card">
+      <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
+      <div id="recentList" class="muted">Cargando…</div>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
+      <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
+    </div>
+  </aside>
 </div>
 
+<!-- Toast + Sticky pill + Modal -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<button id="globalPill" class="global-pill">🌍 Ver mapa global</button>
+
+<div id="successModal" class="modal" aria-modal="true" role="dialog">
+  <div class="box">
+    <h3>🎉 ¡Tu flor ya florece en el mapa!</h3>
+    <p class="muted" id="successText">Comparte el enlace o explora el mapa global.</p>
+    <div class="actions-row" style="margin-top:10px">
+      <button id="mShare" class="btn btn-outline">🔗 Compartir</button>
+      <button id="mGlobal" class="btn btn-outline">🌍 Ver mapa global</button>
+      <button id="mAnother" class="btn btn-green">➕ Plantar otra</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* === CONFIG === */
@@ -185,32 +271,56 @@ let pollTimer=null;
 let didFitBounds=false;
 let serverCount=0, heroTimer=null;
 let saving=false; // guardia anti doble envío
+let lastShareUrl='';
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
 const place=$("#place"), slist=$("#slist"), fixedBadge=$("#fixed");
 const plantFab=$("#plantFab"), shareBtn=$("#shareBtn"), gpsBtn=$("#gpsBtn");
 const heroCountEl=$("#heroCount"), msgInput=$("#message");
+const recentList=$("#recentList"), topCitiesEl=$("#topCities");
+const ticker=$("#liveTicker"), tickerText=$("#tickerText");
+const globalPill=$("#globalPill");
+const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mAnother=$("#mAnother");
+
+/* === Tabs === */
+const tabExplore=$("#tabExplore"), tabPlant=$("#tabPlant");
+function setMode(mode){
+  document.body.setAttribute('data-mode', mode);
+  tabExplore.classList.toggle('active', mode==='explore');
+  tabPlant.classList.toggle('active', mode==='plant');
+  tabExplore.setAttribute('aria-selected', mode==='explore');
+  tabPlant.setAttribute('aria-selected', mode==='plant');
+  // Ajustar altura del mapa al cambiar layout
+  setTimeout(()=>{ syncMapHeight(); map && map.invalidateSize(); }, 120);
+}
+tabExplore.addEventListener('click', ()=> setMode('explore'));
+tabPlant.addEventListener('click', ()=> setMode('plant'));
 
 /* === Utils === */
-function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1400); }
+function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
 function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
 function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
+function toNum(v){ if(v===null||v===undefined) return NaN; if(typeof v==='number') return v; const s=String(v).trim().replace(/\s+/g,'').replace(',', '.'); const n=Number(s); return isFinite(n)? n : NaN; }
+function extractCityFromPlace(place){ if(!place) return ''; const parts=String(place).split(',').map(s=>s.trim()).filter(Boolean); if(parts.length>=2) return parts[parts.length-1]; return parts[0]||''; }
+function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Math.max(1, Math.floor((Date.now()-t)/1000)); if(s<60) return `hace ${s} s`; const m=Math.floor(s/60); if(m<60) return `hace ${m} min`; const h=Math.floor(m/60); if(h<24) return `hace ${h} h`; const d=Math.floor(h/24); return `hace ${d} d`; }
 
 /* === Mapa === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([20,0],2);
+
+  /* HOME: España (zoom 5) */
+  map.setView([40.2, -3.7], 5);
 
   flowersLayer=L.layerGroup().addTo(map);
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
-  map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
+  map.on('click', e=>{ setMode('plant'); setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
 }
 function syncMapHeight(){
@@ -342,7 +452,7 @@ place.addEventListener('input', e=>{
 place.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ slist.style.display='none'; document.querySelector('.sbox').setAttribute('aria-expanded','false'); }
 });
-document.getElementById('confirmBtn').addEventListener('click', async ()=>{
+$("#confirmBtn").addEventListener('click', async ()=>{
   const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
   try{
     const r=await searchPlaces(q);
@@ -353,7 +463,7 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
 /* Mensaje 1 línea / 30 chars */
-msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
+msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); $("#chars").textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* GPS */
@@ -369,6 +479,7 @@ function setupGpsBtn(){
   } else { show(); }
   gpsBtn.onclick=()=> navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
+    setMode('plant');
     setEditPoint(lat,lng,14,true); fixedBadge.style.display='inline';
     try{
       const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&lat=${lat}&lon=${lng}&addressdetails=1`);
@@ -384,7 +495,7 @@ function setupGpsBtn(){
 }
 setupGpsBtn();
 
-/* Guardar flor → re-listar y repintar TODO (siempre coherente con el Sheet) */
+/* Guardar flor → re-listar y repintar TODO */
 async function saveFlower(){
   if(saving) return; saving=true;
   const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
@@ -402,14 +513,23 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch(); // pinta lo del servidor
+      await refetch(); // pinta lo del servidor (y actualiza feed/ticker)
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).addTo(flowersLayer).bindPopup(html);
-      mk.on('click',()=>{ map.setView(mk.getLatLng(),19); mk.openPopup(); }); map.setView([+lat,+lng],19); mk.openPopup();
-      const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); }); 
+      map.setView([+lat,+lng],17); // vista un poco más lejana que 19
+      mk.openPopup();
+
+      lastShareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
-      shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
+      shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
+
+      // Mostrar modal éxito + pill global
+      $("#successText").textContent = `De ${from} para ${to}.`;
+      successModal.style.display='flex';
+      showGlobalPillTemporarily();
+
       hideFab(); $("#lat").value=''; $("#lng").value='';
     } else { toast('No se pudo guardar', false); }
   }catch(e){ toast('Error al plantar', false); }
@@ -417,6 +537,27 @@ async function saveFlower(){
   saving=false;
 }
 plantFab.addEventListener('click', saveFlower);
+
+/* Modal acciones */
+function closeModal(){ successModal.style.display='none'; }
+mShare.onclick = async ()=>{
+  try{
+    if(lastShareUrl){
+      if(navigator.share){ await navigator.share({title:'Flovermaps', text:'Mira esta flor 🌸', url:lastShareUrl}); }
+      else{ await navigator.clipboard.writeText(lastShareUrl); toast('Enlace copiado'); }
+    }
+  }catch{}
+};
+mGlobal.onclick = ()=>{ closeModal(); viewGlobal(); };
+mAnother.onclick = ()=>{ closeModal(); setMode('plant'); toast('Vamos a plantar otra 🌸'); };
+
+/* Sticky pill */
+function showGlobalPillTemporarily(){
+  globalPill.style.display='inline-flex';
+  setTimeout(()=>{ globalPill.style.display='none'; }, 12000);
+}
+globalPill.onclick = ()=>{ viewGlobal(); globalPill.style.display='none'; };
+function viewGlobal(){ map.setView([40.2, -3.7], 5); setMode('explore'); }
 
 /* Render completo SIEMPRE con lo que devuelve el servidor */
 function renderAllMarkers(list){
@@ -426,13 +567,13 @@ function renderAllMarkers(list){
   let i=0, n=list.length;
   (function chunk(){
     const t0=performance.now();
-    while(i<n && (performance.now()-t0)<24){ // presupuesto por frame ligeramente mayor
+    while(i<n && (performance.now()-t0)<24){
       const f=list[i++]; const lat=parseFloat(f.lat), lng=parseFloat(f.lng);
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).addTo(flowersLayer).bindPopup(html);
-      mk.on('click',function(){ map.setView(this.getLatLng(),19); this.openPopup(); });
+      mk.on('click',function(){ map.setView(this.getLatLng(),17); this.openPopup(); });
       bounds.extend([lat,lng]);
     }
     if(i<n){ requestAnimationFrame(chunk); }
@@ -443,40 +584,91 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Normaliza items del WebApp */
+/* Normaliza items del WebApp (acepta múltiples nombres de columnas) */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
-    const lat=parseFloat(f.lat), lng=parseFloat(f.lng);
+    const lat = toNum(f.lat ?? f.latitude ?? f.Latitude ?? f.LAT ?? f.latitud ?? f.y ?? f.Y ?? f.Lat);
+    const lng = toNum(f.lng ?? f.lon ?? f.long ?? f.longitude ?? f.Longitude ?? f.LON ?? f.longitud ?? f.x ?? f.X ?? f.Lng);
     if(!isFinite(lat)||!isFinite(lng)) continue;
-    out.push({
-      lat, lng,
-      fromName: f.fromName||'', toName: f.toName||'',
-      message: (f.message||'').slice(0,30),
-      place: f.place||'',
-      timestamp: (f.timestamp!==undefined) ? (Number(f.timestamp)||Date.parse(f.timestamp)||Date.now()) : Date.now()
-    });
+    const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
+    const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
+    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '').slice(0,30);
+    const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
+    const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
+    out.push({ lat, lng, fromName, toName, message, place, timestamp });
   }
   return out;
 }
 
-/* Trae del servidor y repinta TODO (sin condiciones) con caché local */
+/* Feed (10 últimas) + Top ciudades + Ticker */
+function updateFeedAndMeta(items){
+  const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
+  // Ticker
+  if(sorted.length){
+    const it=sorted[0];
+    const city=extractCityFromPlace(it.place);
+    tickerText.textContent = `${it.fromName||'Alguien'} plantó una flor ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
+    ticker.style.display='flex';
+  } else {
+    ticker.style.display='none';
+  }
+  // Recent 10
+  const ten=sorted.slice(0,10);
+  if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
+  else{
+    recentList.innerHTML = ten.map(it=>{
+      const city=extractCityFromPlace(it.place);
+      const when=relTime(it.timestamp);
+      const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+      return `
+        <div class="card" style="margin:8px 0; padding:10px">
+          <div><strong>${esc(it.fromName)}</strong> → <strong>${esc(it.toName)}</strong></div>
+          <div class="muted" style="margin:2px 0">${esc(it.message)}</div>
+          <div class="muted">${city?esc(city):'—'} · ${when}</div>
+          <div style="margin-top:6px"><button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||'')}')">Plantar en esta ciudad</button></div>
+        </div>`;
+    }).join('');
+  }
+  // Top ciudades (últimos 7 días)
+  const weekAgo=Date.now()-7*24*3600*1000;
+  const counts={};
+  for(const it of items){
+    const t=Number(it.timestamp)||Date.parse(it.timestamp)||0;
+    if(!t || t<weekAgo) continue;
+    const city=(extractCityFromPlace(it.place)||'—');
+    counts[city]=(counts[city]||0)+1;
+  }
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Aún sin actividad reciente.</li>';
+  // Contador global
+  serverCount=items.length; heroCountEl.textContent=formatES(serverCount);
+}
+window.prefillCity = function(cityEnc){
+  const city=decodeURIComponent(cityEnc||'');
+  setMode('plant');
+  if(city){ place.value=city; fixedBadge.style.display='none'; toast(`Ciudad preseleccionada: ${city}`); }
+  document.getElementById('fromName').focus();
+};
+
+/* Trae del servidor y repinta TODO (con caché local) */
 async function refetch(){
   try{
     const data=await jsonp(SCRIPT_URL+'?action=list', 12000);
     if(data && Array.isArray(data.items)){
       localStorage.setItem('flowers_cache', JSON.stringify(data.items));
-      serverCount=data.items.length; heroCountEl.textContent=formatES(serverCount);
-      renderAllMarkers(normalizeItems(data.items));
+      const norm=normalizeItems(data.items);
+      renderAllMarkers(norm);
+      updateFeedAndMeta(norm);
       return;
     }
   }catch(e){}
   // fallback a cache si hay
   const cached=localStorage.getItem('flowers_cache');
   if(cached){
-    const items=JSON.parse(cached);
-    serverCount=items.length; heroCountEl.textContent=formatES(serverCount);
-    renderAllMarkers(normalizeItems(items));
+    const items=normalizeItems(JSON.parse(cached));
+    renderAllMarkers(items);
+    updateFeedAndMeta(items);
   }
 }
 
@@ -491,17 +683,18 @@ function startHeroTimer(){
   heroTimer=setInterval(()=>{ heroCountEl.textContent=formatES(serverCount); }, 5000);
 }
 
-/* Abrir flor compartida si viene en la URL */
+/* Abrir flor compartida si viene en la URL (zoom 17) */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
-    const go=()=>{ map.setView([+lat,+lng], 19);
+    const go=()=>{ map.setView([+lat,+lng], 17);
       L.marker([+lat,+lng],{icon:emojiIcon(),zIndexOffset:1600})
         .addTo(flowersLayer)
         .bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())))
         .openPopup();
+      setMode('explore');
     };
     if(flowersLayer){ go(); } else { setTimeout(go, 400); }
   }
@@ -509,9 +702,9 @@ function tryOpenShared(){
 
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('chars').textContent='(0/30)';
+  $("#chars").textContent='(0/30)';
   initMap();
-  refetch();        // pinta todas las flores del Sheet
+  refetch();        // pinta / feed / ticker
   startPolling();   // sigue sincronizando
   startHeroTimer(); // contador
   tryOpenShared();  // abre flor compartida si aplica
