@@ -67,17 +67,17 @@
   /* Mapa */
   .mapArea{flex:1; padding:14px}
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
-  #map{width:100%; height:560px}
+  #map{width:100%; height:560px} /* En desktop lo sincronizamos por JS con la altura del formulario */
   @media (max-width:1024px){ #map{height:44vh} .wrap{flex-direction:column;} .panel{width:100%} }
 
-  /* FAB pequeño y circular dentro del mapa */
+  /* FAB pequeño con texto, justo bajo la flor */
   .map-fab{
     position:absolute; z-index:902; display:none;
-    width:36px; height:36px; border-radius:999px; border:0; cursor:pointer;
-    background:#22c55e; color:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18);
-    transform:translate(-50%, 0); pointer-events:auto; transition:transform .15s ease, opacity .15s ease;
-    font-size:18px; line-height:36px; text-align:center;
+    border:0; cursor:pointer; background:#22c55e; color:#fff;
+    box-shadow:0 6px 16px rgba(0,0,0,.18); transform:translate(-50%,0);
+    font-size:.86rem; line-height:1; padding:7px 10px; border-radius:10px; white-space:nowrap;
   }
+  .map-fab .txt{display:inline-block}
   @keyframes bounceIn{0%{transform:translate(-50%,10px) scale(.9)}60%{transform:translate(-50%,0) scale(1.05)}100%{transform:translate(-50%,0) scale(1)}}
   .map-fab.pop{animation:bounceIn .28s ease}
 
@@ -115,7 +115,7 @@
 <div class="wrap">
   <!-- Panel -->
   <section class="panel">
-    <div class="card">
+    <div class="card" id="formCard">
       <h1>Planta una flor</h1>
       <div class="row2">
         <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre"></div>
@@ -133,8 +133,9 @@
       <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
       <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
 
-      <div class="actions" style="margin-top:8px">
-        <button id="confirmBtn" class="btn btn-dark">✅ Confirmar dirección</button>
+      <div class="actions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+        <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 200px">✅ Confirmar dirección</button>
+        <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 200px; display:none">📍 Usar mi ubicación</button>
       </div>
 
       <input type="hidden" id="lat"><input type="hidden" id="lng">
@@ -143,9 +144,10 @@
 
   <!-- Mapa -->
   <section class="mapArea">
-    <div class="frame">
+    <div class="frame" id="mapFrame">
       <div id="map"></div>
-      <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅</button>
+      <!-- Botón pequeño con texto justo bajo la flor -->
+      <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí"><span class="txt">✅ Plantar aquí</span></button>
     </div>
 
     <div style="display:flex;justify-content:center;padding:10px 0">
@@ -196,6 +198,7 @@ const plantFab = $("#plantFab"), shareBtn=$("#shareBtn");
 const heroCountEl = $("#heroCount");
 const place = $("#place"), slist = $("#slist"), fixedBadge=$("#fixed");
 const msgInput = $("#message");
+const gpsBtn = $("#gpsBtn");
 
 /* === Utils === */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1400); }
@@ -250,13 +253,29 @@ function initMap(){
   });
   map = L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
   map.setView([20,0], 2);
-  setTimeout(()=>map.invalidateSize(), 150);
-  addEventListener('resize', ()=> setTimeout(()=>map.invalidateSize(), 120));
+  setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); }, 150);
+  addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); }, 120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
 
   try{ heatLayer = L.heatLayer([], {radius: 22, blur: 28, minOpacity: 0.18}); heatLayer.addTo(map); }catch{}
   flushRenderQueue();
+}
+
+/* === Igualar altura mapa = altura formulario (desktop) === */
+function syncMapHeight(){
+  const mq = window.matchMedia('(min-width:1025px)');
+  const mapEl = document.getElementById('map');
+  const formCard = document.getElementById('formCard');
+  if(!mapEl || !formCard) return;
+  if(mq.matches){
+    const h = Math.max(420, formCard.offsetHeight);
+    mapEl.style.height = h + 'px';
+    if(map) setTimeout(()=> map.invalidateSize(), 50);
+  } else {
+    mapEl.style.height = '44vh'; // móvil / tablet, responsive
+    if(map) setTimeout(()=> map.invalidateSize(), 50);
+  }
 }
 
 /* === Edición/arrastre de la flor === */
@@ -289,14 +308,14 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
   showFab();
 }
 
-/* === FAB pequeño dentro del mapa === */
+/* === FAB pequeño debajo de la flor (con texto) === */
 function updateFabPosition(){
   if(!plantFab || !editMarker || !map) return;
   const mapEl = map.getContainer(), frameEl = mapEl.parentElement;
   const p = map.latLngToContainerPoint(editMarker.getLatLng());
   const mapRect = mapEl.getBoundingClientRect(), frameRect = frameEl.getBoundingClientRect();
   const left = p.x + (mapRect.left - frameRect.left);
-  const top  = p.y + (mapRect.top  - frameRect.top) + 34;
+  const top  = p.y + (mapRect.top  - frameRect.top) + 34; // justo debajo del emoji
   const pad = 8, maxX = frameRect.width - pad, maxY = frameRect.height - pad;
   plantFab.style.left = Math.max(pad, Math.min(left, maxX)) + 'px';
   plantFab.style.top  = Math.max(pad, Math.min(top,  maxY)) + 'px';
@@ -404,6 +423,25 @@ addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box
 /* === Mensaje: 1 línea / 30 chars === */
 msgInput.addEventListener('input', ()=>{ msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
+
+/* === “Usar mi ubicación” (detecta permisos) === */
+function setupGpsBtn(){
+  if(!('geolocation' in navigator)) return;
+  const show = ()=>{ gpsBtn.style.display = 'inline-block'; };
+  const hide = ()=>{ gpsBtn.style.display = 'none'; };
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:'geolocation'}).then(st=>{
+      if(st.state !== 'denied') show(); else hide();
+      st.onchange = ()=>{ if(st.state !== 'denied') show(); else hide(); };
+    }).catch(show);
+  } else { show(); }
+
+  gpsBtn.onclick = ()=> navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
+    setEditPoint(lat,lng,14,true); fixedBadge.style.display='inline';
+    const info = await reverseGeocodeAddress(lat,lng); if(info.display) place.value = info.display;
+  }, ()=>toast('Ubicación no disponible (activa permisos)', false), {enableHighAccuracy:false, timeout:8000});
+}
 
 /* === Guardar flor (JSONP) === */
 async function saveFlower(){
@@ -540,8 +578,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(window.L){ initMap(); } else {
     (function waitLeaflet(attempts=20){ if(window.L){ initMap(); } else { if(attempts<=0) return; setTimeout(()=>waitLeaflet(attempts-1), 200);} })();
   }
+  setupGpsBtn();
   refetch();        // trae items y total
   startHeroTimer(); // contador cada 5 s
+  // iguala altura en desktop una vez que las fuentes cargan
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
 });
 </script>
 </body>
