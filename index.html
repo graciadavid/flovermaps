@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 
-<!-- OG / Twitter card con emoji 🌸 como imagen -->
+<!-- OG básica con emoji -->
 <meta property="og:title" content="Flovermaps">
 <meta property="og:description" content="Planta flores en el mapa y dedica mensajes bonitos.">
 <meta property="og:type" content="website">
@@ -18,7 +18,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet core -->
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -38,18 +38,13 @@
       linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
   }
 
-  /* Header + Nav */
+  /* Header */
   .site-header{display:flex; align-items:center; justify-content:center; padding:12px;}
   .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px; box-shadow:0 6px 18px rgba(2,6,12,.06); margin:2px; cursor:pointer}
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
-  .nav{max-width:1300px; margin:0 auto; padding:0 14px 8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .nav a.btn{width:auto}
-  .nav input{width:auto; min-width:240px}
-  .nav small{color:var(--muted)}
-
-  /* Contenedor y grid 3 columnas (desktop) */
+  /* Layout */
   .container{max-width:1300px; margin:0 auto; padding:0 14px}
   .grid3{display:block; gap:12px}
   @media (min-width:1100px){
@@ -88,13 +83,13 @@
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
 
-  /* MarkerCluster tono */
+  /* MarkerCluster tonos */
   .marker-cluster-small{background: rgba(34,197,94,.6);}
   .marker-cluster-medium{background: rgba(34,197,94,.7);}
   .marker-cluster-large{background: rgba(34,197,94,.8);}
   .marker-cluster div{color:#fff; font-weight:700}
 
-  /* Botón flotante pequeño pegado a la flor */
+  /* Botón flotante de plantar */
   .map-fab{
     position:absolute; z-index:902; display:none;
     border:0; cursor:pointer; background:#22c55e; color:#fff;
@@ -115,17 +110,11 @@
   .toast{position:fixed; left:50%; bottom:88px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:98px}
 
-  /* Sticky pill (ver mapa global) */
-  .global-pill{
-    position:fixed; right:14px; bottom:14px; z-index:10000; display:none;
-    background:#0f172a; color:#fff; border:0; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(0,0,0,.18); cursor:pointer;
-    font-weight:700;
-  }
-
-  /* Explore col */
+  /* Explorar: Top ciudades + Últimas (scroll) */
   .explore-col .card + .card{margin-top:12px}
+  .scroll-list{overflow:auto; max-height:560px} /* se ajusta con JS para no superar el mapa */
 
-  /* Tarjeta “últimas dedicatorias” en fila con botón a la derecha */
+  /* Fila de “últimas” con botón a la derecha */
   .recent-row{display:flex; align-items:center; gap:10px; justify-content:space-between}
   .recent-text{min-width:0}
 </style>
@@ -138,16 +127,6 @@
   </div>
 </header>
 
-<!-- NAV con hash routing -->
-<nav class="nav" aria-label="Navegación">
-  <a href="#/" class="btn btn-outline">🏠 Inicio</a>
-  <input id="citySearch" placeholder="Ir a ciudad… ej. Barcelona">
-  <button id="goCity" class="btn btn-dark" style="width:auto">Ver ciudad</button>
-  <input id="gardenEmail" placeholder="Tu email para Mi jardín">
-  <button id="goGarden" class="btn btn-dark" style="width:auto">Mi jardín</button>
-  <small id="routeHint"></small>
-</nav>
-
 <div class="container">
 
   <!-- Ticker actividad -->
@@ -155,13 +134,13 @@
     <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
   </section>
 
-  <!-- GRID 3 columnas: Form (izq) — Mapa (centro) — Explorar (dcha) -->
+  <!-- GRID 3 columnas: Form — Mapa — Explorar -->
   <div class="grid3">
 
     <!-- 1) FORMULARIO -->
     <section class="form-col">
       <div class="card" id="formCard">
-        <h1 style="margin-top:0" id="pageTitle">Planta una flor</h1>
+        <h1 style="margin-top:0">Planta una flor</h1>
 
         <div class="row2">
           <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
@@ -179,17 +158,12 @@
         <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
         <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
 
-        <div class="row2" style="margin-top:8px">
-          <div><label for="email">Tu email (opcional, para “Mi jardín”)</label><input id="email" placeholder="tucorreo@ejemplo.com" inputmode="email" autocomplete="email"></div>
-          <div><label>&nbsp;</label><div class="muted">Si lo rellenas, tus flores aparecerán en <strong>Mi jardín</strong>.</div></div>
-        </div>
-
         <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
           <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 160px">✅ Confirmar dirección</button>
           <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
         </div>
 
-        <!-- Placeholder Flor Premium (desactivada) -->
+        <!-- Flor Premium (placeholder) -->
         <div class="card" style="margin-top:12px; background:#f7f9fb">
           <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
           <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
@@ -214,12 +188,12 @@
     <!-- 3) EXPLORAR -->
     <aside class="explore-col" aria-label="Explorar">
       <div class="card">
-        <h3 style="margin:0 0 8px" id="recentTitle">🌸 Últimas dedicatorias</h3>
-        <div id="recentList" class="muted">Cargando…</div>
-      </div>
-      <div class="card">
         <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
         <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
+        <div id="recentList" class="muted scroll-list">Cargando…</div>
       </div>
     </aside>
 
@@ -228,9 +202,8 @@
 
 <!-- Toast + Sticky pill + Modal -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<button id="globalPill" class="global-pill">🌍 Ver mapa global</button>
+<button id="globalPill" class="global-pill" style="display:none">🌍 Ver mapa global</button>
 
-<!-- Modal éxito: SOLO dos opciones (Compartir / Ver mapa global) -->
 <div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; position:fixed; background:rgba(0,0,0,.28); z-index:12000">
   <div class="box" style="background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <h3 style="margin:4px 0 10px">🎉 ¡Tu flor ya florece en el mapa!</h3>
@@ -260,20 +233,16 @@ function jsonp(url, timeoutMs=12000){
   });
 }
 
-/* === STATE / ROUTER === */
+/* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null; // cluster o no, según nº de flores
-let useCluster=null;   // true/false según lista
+let flowersLayer=null; // cluster o no
+let useCluster=null;
 let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
 let serverCount=0, heroTimer=null;
 let saving=false;
 let lastShareUrl='';
-
-let ROUTE = {name:'home', param:''}; // home | ciudad | jardin
-let ALL_ITEMS = []; // normalizados
-let GEO_READY = false;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -284,12 +253,6 @@ const recentList=$("#recentList"), topCitiesEl=$("#topCities");
 const ticker=$("#liveTicker"), tickerText=$("#tickerText");
 const globalPill=$("#globalPill");
 const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal");
-const pageTitle=$("#pageTitle"), recentTitle=$("#recentTitle");
-const routeHint=$("#routeHint");
-
-/* NAV inputs */
-const citySearch=$("#citySearch"), goCity=$("#goCity");
-const gardenEmail=$("#gardenEmail"), goGarden=$("#goGarden");
 
 /* === Utils === */
 const ACCEPT_LANG = (()=>{ 
@@ -307,9 +270,8 @@ function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function toNum(v){ if(v===null||v===undefined) return NaN; if(typeof v==='number') return v; const s=String(v).trim().replace(/\s+/g,'').replace(',', '.'); const n=Number(s); return isFinite(n)? n : NaN; }
 function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Math.max(1, Math.floor((Date.now()-t)/1000)); if(s<60) return `hace ${s} s`; const m=Math.floor(s/60); if(m<60) return `hace ${m} min`; const h=Math.floor(m/60); if(h<24) return `hace ${h} h`; const d=Math.floor(h/24); return `hace ${d} d`; }
-
-function slugify(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
-function sameCity(a,b){ return slugify(a)===slugify(b); }
+function escapeAttr(s){ return encodeURIComponent(String(s||'')); }
+function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 
 /* ==== Reverse geocoding con caché ==== */
 const GEO_CACHE_KEY='fm_geo_cache_v1';
@@ -318,7 +280,7 @@ try{ geoCache=JSON.parse(localStorage.getItem(GEO_CACHE_KEY)||'{}'); }catch{ geo
 const geoQueue=[], geoPending=new Set();
 let geoTimer=null;
 
-function geoKey(lat,lng){ return (Number(lat).toFixed(3)+','+Number(lng).toFixed(3)); } // ~100–120m
+function geoKey(lat,lng){ return (Number(lat).toFixed(3)+','+Number(lng).toFixed(3)); }
 function saveGeoCache(){ try{ localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); }catch{} }
 
 async function fetchGeo(lat,lng){
@@ -336,14 +298,14 @@ function scheduleGeo(lat,lng){
   geoPending.add(k); geoQueue.push({lat,lng,k});
   if(!geoTimer){
     geoTimer=setInterval(async ()=>{
-      if(!geoQueue.length){ clearInterval(geoTimer); geoTimer=null; GEO_READY=true; return; }
+      if(!geoQueue.length){ clearInterval(geoTimer); geoTimer=null; return; }
       const job=geoQueue.shift();
       try{
         const data=await fetchGeo(job.lat, job.lng);
         geoCache[job.k]=data; saveGeoCache();
       }catch(e){ /* silencio */ }
       geoPending.delete(job.k);
-      if(ALL_ITEMS.length) updateFeedAndMeta(ALL_ITEMS, true);
+      if(window._lastItems) updateFeedAndMeta(window._lastItems, true);
     }, 700);
   }
 }
@@ -365,12 +327,11 @@ function initMap(){
 
   map.setView([40.2, -3.7], 5);
 
-  /* Capa base vacía */
   flowersLayer = L.layerGroup().addTo(map);
   useCluster = false;
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
-  addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
+  addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); syncListHeight(); },120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
 }
@@ -389,6 +350,14 @@ function syncMapHeight(){
   const mq=window.matchMedia('(min-width:1025px)');
   if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
   else{ mapEl.style.height='46vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
+}
+
+/* Ajusta altura de lista “Últimas” para no superar el mapa */
+function syncListHeight(){
+  try{
+    const mapH = document.getElementById('map').offsetHeight || 560;
+    recentList.style.maxHeight = mapH + 'px';
+  }catch{}
 }
 
 /* Editar / arrastrar la flor */
@@ -437,7 +406,7 @@ function updateFabPosition(){
 function showFab(){ updateFabPosition(); plantFab.style.display='inline-flex'; plantFab.classList.remove('pop'); void plantFab.offsetWidth; plantFab.classList.add('pop'); }
 function hideFab(){ plantFab.style.display='none'; }
 
-/* === Autocomplete global (POIs/ciudades/direcciones) === */
+/* Autocomplete global */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
@@ -576,13 +545,12 @@ function setupGpsBtn(){
 }
 setupGpsBtn();
 
-/* Guardar flor → re-listar y repintar TODO */
+/* Guardar flor */
 let shareHandler = null;
 async function saveFlower(){
   if(saving) return; saving=true;
   const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
   const lat=$("#lat").value.trim(), lng=$("#lng").value.trim(), placeText=place.value.trim();
-  const email=($("#email").value||"").trim();
   if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); saving=false; return; }
   if(msg.length>30){ toast('Máximo 30 caracteres', false); saving=false; return; }
   plantFab.disabled=true; const prev=plantFab.textContent; plantFab.textContent='⏳';
@@ -593,17 +561,16 @@ async function saveFlower(){
       + '&message=' +encodeURIComponent(msg)
       + '&place='   +encodeURIComponent(placeText)
       + '&lat='     +encodeURIComponent(lat)
-      + '&lng='     +encodeURIComponent(lng)
-      + (email?('&email='+encodeURIComponent(email)):'');
+      + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch(); // actualiza markers + feed + top
+      await refetch();
 
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).bindPopup(html);
       if(flowersLayer){ flowersLayer.addLayer(mk); } else { mk.addTo(map); }
-      mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); }); 
+      mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); });
       map.setView([+lat,+lng],17);
       mk.openPopup();
 
@@ -613,11 +580,8 @@ async function saveFlower(){
       shareHandler = async ()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
       shareBtn.addEventListener('click', shareHandler);
 
-      // Éxito: abrir modal SOLO con dos opciones
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
-      showGlobalPillTemporarily();
-
       hideFab(); $("#lat").value=''; $("#lng").value='';
     } else { toast('No se pudo guardar', false); }
   }catch(e){ toast('Error al plantar', false); }
@@ -626,7 +590,7 @@ async function saveFlower(){
 }
 plantFab.addEventListener('click', saveFlower);
 
-/* Modal acciones (solo 2) */
+/* Modal acciones */
 mShare.onclick = async ()=>{
   try{
     if(lastShareUrl){
@@ -636,18 +600,10 @@ mShare.onclick = async ()=>{
   }catch{}
   successModal.style.display='none';
 };
-mGlobal.onclick = ()=>{ successModal.style.display='none'; viewGlobal(); };
-
-/* Sticky pill */
-function showGlobalPillTemporarily(){
-  globalPill.style.display='inline-flex';
-  setTimeout(()=>{ globalPill.style.display='none'; }, 12000);
-}
-globalPill.onclick = ()=>{ viewGlobal(); globalPill.style.display='none'; };
-function viewGlobal(){ map.setView([40.2, -3.7], 5); }
+mGlobal.onclick = ()=>{ successModal.style.display='none'; map.setView([40.2, -3.7], 5); };
 
 /* Logo → refrescar */
-document.getElementById('logoBtn').addEventListener('click', ()=>{ location.hash='#/'; location.reload(); });
+document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
 
 /* Render con capa condicional (cluster si >=10) */
 function renderAllMarkers(list){
@@ -683,7 +639,7 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Normaliza items (incluye email si existe) */
+/* Normaliza items */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -695,48 +651,18 @@ function normalizeItems(items){
     const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '').slice(0,30);
     const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
     const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
-    const email    = f.email    ?? f.userEmail ?? '';
-    out.push({ lat, lng, fromName, toName, message, place, timestamp, email });
+    out.push({ lat, lng, fromName, toName, message, place, timestamp });
   }
   return out;
 }
 
-/* Feed (10 últimas) + Top ciudades (7 días, reverse real) + Ticker con número en negrita con filtro por ruta */
+/* Feed + Top ciudades + Ticker */
 function updateFeedAndMeta(items, soft=false){
-  ALL_ITEMS = items;
-
-  // Filtro según ruta
-  let filtered = items;
-  if(ROUTE.name==='ciudad' && ROUTE.param){
-    filtered = items.filter(it=>{
-      const city=geoLabel(it.lat,it.lng,it.place);
-      return sameCity(city, ROUTE.param);
-    });
-  } else if(ROUTE.name==='jardin' && ROUTE.param){
-    const target = ROUTE.param.toLowerCase();
-    filtered = items.filter(it => (it.email||'').toLowerCase()===target);
-  }
-
-  // Contador global
-  serverCount=items.length;
-
-  // Títulos según ruta
-  if(ROUTE.name==='ciudad' && ROUTE.param){
-    pageTitle.textContent = `Flores en ${ROUTE.param}`;
-    recentTitle.textContent = `🌸 Últimas en ${ROUTE.param}`;
-    routeHint.textContent = `Vista de ciudad`;
-  }else if(ROUTE.name==='jardin' && ROUTE.param){
-    pageTitle.textContent = `Mi jardín de ${ROUTE.param}`;
-    recentTitle.textContent = `🌸 Tus últimas dedicatorias`;
-    routeHint.textContent = `Vista “Mi jardín”`;
-  }else{
-    pageTitle.textContent = `Planta una flor`;
-    recentTitle.textContent = `🌸 Últimas dedicatorias`;
-    routeHint.textContent = ``;
-  }
-
-  // Ticker (usa total global para ordinal)
+  window._lastItems = items;
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
+
+  // Ticker con ordinal global
+  serverCount=items.length;
   if(sorted.length){
     const it=sorted[0];
     const city = geoLabel(it.lat, it.lng, it.place);
@@ -746,29 +672,32 @@ function updateFeedAndMeta(items, soft=false){
     ticker.style.display='none';
   }
 
-  // Últimas 10 (filtradas por ruta) con botón a la derecha (texto)
-  const recent=[...filtered].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0)).slice(0,10);
-  if(!recent.length){ recentList.innerHTML='<span class="muted">No hay flores aún para esta vista.</span>'; }
+  // Últimas 10 con botón “Ver flor”
+  const ten=sorted.slice(0,10);
+  if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
-    recentList.innerHTML = recent.map(it=>{
+    recentList.innerHTML = ten.map(it=>{
       const city=geoLabel(it.lat,it.lng,it.place);
       const when=relTime(it.timestamp);
-      const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
+      const escHtml=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
+      const escAttrVal=s=>escapeAttr(String(s||''));
       return `
         <div class="card recent-row">
           <div class="recent-text">
-            <div><strong>${esc(it.fromName)}</strong> → <strong>${esc(it.toName)}</strong></div>
-            <div class="muted" style="margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(it.message)}</div>
-            <div class="muted" style="font-size:.9rem">${city?esc(city):'—'} · ${when}</div>
+            <div><strong>${escHtml(it.fromName)}</strong> → <strong>${escHtml(it.toName)}</strong></div>
+            <div class="muted" style="margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escHtml(it.message)}</div>
+            <div class="muted" style="font-size:.9rem">${city?escHtml(city):'—'} · ${when}</div>
           </div>
           <div style="flex:0 0 auto; margin-left:8px">
-            <button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||"")}')" title="Plantar en esta ciudad">Plantar en esta ciudad</button>
+            <button class="btn btn-outline"
+              onclick="viewFlower('${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}','${escAttrVal(it.timestamp)}')"
+              title="Ver flor en el mapa">Ver flor</button>
           </div>
         </div>`;
     }).join('');
   }
 
-  // Top ciudades últimos 7 días (globales)
+  // Top ciudades últimos 7 días (reverse real)
   const weekAgo=Date.now()-7*24*3600*1000;
   const counts={};
   for(const it of items){
@@ -785,27 +714,32 @@ function updateFeedAndMeta(items, soft=false){
   }
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
+
+  // Ajusta altura de la lista respecto al mapa
+  syncListHeight();
 }
 
-/* Botón feed “Plantar en esta ciudad” */
-window.prefillCity = function(cityEnc){
-  const city=decodeURIComponent(cityEnc||'');
-  if(city){ place.value=city; fixedBadge.style.display='none'; toast(`Ciudad preseleccionada: ${city}`); }
-  document.getElementById('fromName').focus();
+/* Ver flor desde “Últimas” */
+window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
+  const from=unescAttr(fromEnc), to=unescAttr(toEnc), msg=unescAttr(msgEnc);
+  const dtStr = fmtDateTime(new Date(Number(tsEnc)||Date.parse(tsEnc)||Date.now()));
+  const html = popupHtml(from,to,msg,dtStr);
+  const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
+  map.setView([+lat,+lng], 17);
+  mk.openPopup();
+  // opcional: quitar el marcador temporal cuando cierres el popup
+  mk.on('popupclose', ()=>{ try{ map.removeLayer(mk); }catch{} });
 };
 
-/* Trae del servidor y repinta TODO (con caché local) */
+/* Refetch */
 async function refetch(){
   try{
     const data=await jsonp(SCRIPT_URL+'?action=list', 12000);
     if(data && Array.isArray(data.items)){
       localStorage.setItem('flowers_cache', JSON.stringify(data.items));
       const norm=normalizeItems(data.items);
-      didFitBounds=false;
-      // Si estamos en /ciudad/:slug y hay coords de esa ciudad, centramos luego
       renderAllMarkers(norm);
       updateFeedAndMeta(norm);
-      applyRouteFocus(); // centra según ruta si procede
       return;
     }
   }catch(e){}
@@ -814,18 +748,17 @@ async function refetch(){
     const items=normalizeItems(JSON.parse(cached));
     renderAllMarkers(items);
     updateFeedAndMeta(items);
-    applyRouteFocus();
   }
 }
 
-/* Polling + “contador” (sólo para refresh de ticker) */
+/* Polling */
 function startPolling(){
   if(pollTimer) clearInterval(pollTimer);
   pollTimer=setInterval(refetch, 10000);
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
 }
 
-/* Abrir flor compartida si viene en la URL (zoom 17) */
+/* Compartido por URL (abrir flor concreta) */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
@@ -840,48 +773,6 @@ function tryOpenShared(){
   }
 }
 
-/* ======= ROUTER HASH ======= */
-function parseHash(){
-  const h=(location.hash||'').replace(/^#\/?/, ''); // quita #/
-  if(!h){ ROUTE={name:'home', param:''}; return; }
-  const parts=h.split('/').map(decodeURIComponent);
-  if(parts[0]==='ciudad' && parts[1]){
-    ROUTE={name:'ciudad', param:parts[1]};
-  } else if(parts[0]==='jardin' && parts[1]){
-    ROUTE={name:'jardin', param:parts[1]};
-  } else {
-    ROUTE={name:'home', param:''};
-  }
-}
-async function applyRoute(){
-  parseHash();
-  updateFeedAndMeta(ALL_ITEMS);
-  applyRouteFocus();
-}
-async function applyRouteFocus(){
-  if(ROUTE.name==='ciudad' && ROUTE.param){
-    // Intenta centrar al primer ítem de esa ciudad (según reverse). Si no hay, usa Nominatim.
-    const match=ALL_ITEMS.find(it=> sameCity(geoLabel(it.lat,it.lng,it.place), ROUTE.param));
-    if(match){ map.setView([match.lat, match.lng], 10); return; }
-    // buscar coords de la ciudad por nombre
-    try{
-      const q=ROUTE.param.replace(/-/g,' ');
-      const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language='+encodeURIComponent(ACCEPT_LANG)+'&q='+encodeURIComponent(q));
-      if(r.ok){ const j=await r.json(); if(j[0]){ map.setView([+j[0].lat, +j[0].lon], 10); } }
-    }catch{}
-  } else if(ROUTE.name==='jardin' && ROUTE.param){
-    // Si hay al menos una flor del email, centra a la más reciente
-    const mine=[...ALL_ITEMS].filter(it=>(it.email||'').toLowerCase()===ROUTE.param.toLowerCase()).sort((a,b)=>(Number(b.timestamp)||0)-(Number(a.timestamp)||0));
-    if(mine[0]) map.setView([mine[0].lat, mine[0].lng], 10);
-  } else {
-    viewGlobal();
-  }
-}
-
-/* NAV handlers */
-goCity.onclick = ()=>{ const c=(citySearch.value||'').trim(); if(c){ location.hash='#/ciudad/'+encodeURIComponent(c); } };
-goGarden.onclick = ()=>{ const e=(gardenEmail.value||'').trim(); if(e){ location.hash='#/jardin/'+encodeURIComponent(e); } };
-
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
@@ -889,19 +780,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
   refetch();
   startPolling();
   tryOpenShared();
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ syncMapHeight(); syncListHeight(); }); } else { syncMapHeight(); syncListHeight(); }
 
   // Cerrar modal al clicar fuera
   document.addEventListener('click', e=>{
     if(e.target===successModal) successModal.style.display='none';
   });
 
-  // Logo → Home
-  document.getElementById('logoBtn').addEventListener('click', ()=>{ location.hash='#/'; location.reload(); });
-
-  // Router listeners
-  window.addEventListener('hashchange', applyRoute);
-  applyRoute();
+  // Logo → refrescar
+  document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
 });
 </script>
 </body>
