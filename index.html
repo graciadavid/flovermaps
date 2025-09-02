@@ -30,21 +30,20 @@
       linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
   }
 
-  /* Header con marco blanco */
-  .site-header{position:sticky; top:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:12px;}
-  .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px; box-shadow:0 6px 18px rgba(2,6,12,.06)}
+  /* Header (NO sticky) */
+  .site-header{display:flex; align-items:center; justify-content:center; padding:12px;}
+  .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px; box-shadow:0 6px 18px rgba(2,6,12,.06); margin:2px}
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
-  /* HERO: contador (número primero + 🌸) */
-  .hero{margin:14px 12px 0; padding:18px 14px; border-radius:16px; background:#fff; border:1px solid #eee; display:flex; justify-content:center; box-shadow:0 6px 18px rgba(2,6,12,.05)}
-  .hero-line{font-weight:800; font-size:clamp(22px, 4.2vw, 40px)}
-
-  /* Última flor (marquee) */
-  .carousel{margin:8px 12px 0; border-radius:14px; background:#fff; border:1px solid #eee; overflow:hidden; box-shadow:0 6px 18px rgba(2,6,12,.05)}
-  .marquee{white-space:nowrap; will-change:transform; display:block; color:var(--ink); padding:10px 12px; animation:marq 16s linear infinite}
-  .marquee:hover{animation-play-state:paused}
-  @keyframes marq{ 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+  /* Contador pequeño y elegante */
+  .counter-wrap{display:flex; justify-content:center}
+  .counter-mini{
+    margin:8px 12px 6px; padding:6px 10px; border-radius:999px; background:#fff; border:1px solid #eee;
+    display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.92rem; color:#0f172a;
+    box-shadow:0 4px 10px rgba(2,6,12,.04); letter-spacing:.2px; font-variant-numeric: tabular-nums;
+  }
+  .counter-mini .unit{font-weight:600; color:var(--muted)}
 
   /* Layout */
   .wrap{display:flex; gap:0; min-height:calc(100vh - 52px - 56px)}
@@ -52,6 +51,7 @@
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
   .muted{color:var(--muted); font-size:.85rem}
+  label{display:block; margin:6px 0 4px; font-size:.92rem}
   input,button{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
@@ -62,27 +62,32 @@
   .slist{position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid #e6e6e6; border-radius:10px; max-height:260px; overflow:auto; display:none; z-index:20}
   .sitem{padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem}
   .sitem:last-child{border-bottom:0}
+  .hl{font-weight:700}
 
-  /* Mapa mundo */
+  /* Mapa */
   .mapArea{flex:1; padding:14px}
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:4px; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:44vh} .wrap{flex-direction:column;} .panel{width:100%} }
 
-  /* Botones y buscador sobre el mapa */
-  .map-fab{position:absolute; z-index:902; display:none; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:0; cursor:pointer; background:#22c55e; color:#fff; box-shadow:0 6px 20px rgba(0,0,0,.18); transform:translate(-50%,0); font-size:.88rem}
-  .map-fab::after{content:"Plantar aquí"}
-  .city-zoom{position:absolute; z-index:903; top:10px; left:10px; background:#111; color:#fff; border:0; border-radius:10px; padding:8px 10px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.18); font-size:.9rem}
-  .map-search{position:absolute; z-index:904; top:10px; right:10px; width:min(320px,84vw)}
-  .map-search .box{background:#fff; border:1px solid #e6e6e6; border-radius:10px; padding:6px 8px; box-shadow:0 6px 18px rgba(0,0,0,.08)}
-  .map-search input{width:100%; border:0; outline:0; font-size:.95rem}
+  /* FAB pequeño y circular dentro del mapa */
+  .map-fab{
+    position:absolute; z-index:902; display:none;
+    width:36px; height:36px; border-radius:999px; border:0; cursor:pointer;
+    background:#22c55e; color:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18);
+    transform:translate(-50%, 0); pointer-events:auto; transition:transform .15s ease, opacity .15s ease;
+    font-size:18px; line-height:36px; text-align:center;
+  }
+  @keyframes bounceIn{0%{transform:translate(-50%,10px) scale(.9)}60%{transform:translate(-50%,0) scale(1.05)}100%{transform:translate(-50%,0) scale(1)}}
+  .map-fab.pop{animation:bounceIn .28s ease}
 
   /* Marcador emoji */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
   .emoji-marker{background:transparent; transform:translate(-14px,-28px)}
   .emoji-marker .e{font-size:30px; line-height:30px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
+  @media (min-width:900px){ .emoji-marker .e{font-size:34px; line-height:34px} }
 
-  /* Twinkles */
+  /* Twinkles / Heat */
   .spark-wrap{pointer-events:none}
   .spark{display:block; border-radius:50%; background:radial-gradient(closest-side, rgba(255,105,180,.95), rgba(255,105,180,.35)); box-shadow:0 0 12px rgba(255,105,180,.6), 0 0 28px rgba(255,105,180,.35); animation:pulse 2.2s ease-in-out infinite}
   @keyframes pulse{0%{transform:scale(.85)}50%{transform:scale(1.1)}100%{transform:scale(.85)}}
@@ -100,13 +105,12 @@
   </div>
 </header>
 
-<!-- HERO: contador vivo (cada 5 s, empieza en total real) -->
-<div class="hero">
-  <div class="hero-line"><span id="heroCount">0</span> 🌸 <span class="unit">flores plantadas en el mundo</span></div>
+<!-- Contador pequeño -->
+<div class="counter-wrap">
+  <div class="counter-mini" aria-live="polite">
+    <span id="heroCount">0</span> 🌸 <span class="unit">flores plantadas en el mundo</span>
+  </div>
 </div>
-
-<!-- Última flor -->
-<div class="carousel"><div class="marquee" id="marqueeText">Aún no hay flores plantadas. ¡Sé el primero! 🌸</div></div>
 
 <div class="wrap">
   <!-- Panel -->
@@ -117,6 +121,7 @@
         <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre"></div>
         <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario"></div>
       </div>
+
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
       <input id="message" maxlength="30" placeholder="Escribe algo bonito…" inputmode="text" autocomplete="off" />
 
@@ -140,16 +145,7 @@
   <section class="mapArea">
     <div class="frame">
       <div id="map"></div>
-      <button id="plantFab" class="map-fab" type="button">✅</button>
-      <button id="cityZoomBtn" class="city-zoom">Ver flores en tu ciudad</button>
-
-      <!-- Buscar ciudad -->
-      <div class="map-search">
-        <div class="box sbox">
-          <input id="citySearch" placeholder="Buscar ciudad (Madrid, Buenos Aires…)" autocomplete="off">
-          <div id="cityList" class="slist"></div>
-        </div>
-      </div>
+      <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅</button>
     </div>
 
     <div style="display:flex;justify-content:center;padding:10px 0">
@@ -197,8 +193,9 @@ let heroTimer = null;   // refresco cada 5s
 /* === DOM === */
 const $ = s => document.querySelector(s);
 const plantFab = $("#plantFab"), shareBtn=$("#shareBtn");
-const heroCountEl = $("#heroCount"), marquee = $("#marqueeText");
+const heroCountEl = $("#heroCount");
 const place = $("#place"), slist = $("#slist"), fixedBadge=$("#fixed");
+const msgInput = $("#message");
 
 /* === Utils === */
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1400); }
@@ -214,7 +211,6 @@ function fmtDateTime(d){
 function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
 function norm(s){ return String(s||'').trim().toLowerCase(); }
 function makeKey(lat,lng,from,to,msg){ return `${(+lat).toFixed(5)},${(+lng).toFixed(5)}|${norm(from)}|${norm(to)}|${norm(msg)}`; }
-function setMarquee(text){ marquee.textContent = text || "Aún no hay flores plantadas. ¡Sé el primero! 🌸"; }
 
 /* === Reverse geocoding al arrastrar === */
 async function reverseGeocodeAddress(lat,lng){
@@ -263,54 +259,6 @@ function initMap(){
   flushRenderQueue();
 }
 
-/* === Zoom a mi ciudad === */
-function zoomToMyCity(){
-  if(!navigator.geolocation){ toast('Activa la geolocalización', false); return; }
-  navigator.geolocation.getCurrentPosition(
-    pos=>{ map && map.flyTo([pos.coords.latitude, pos.coords.longitude], 12, {duration:.8}); },
-    ()=>toast('Permiso de ubicación denegado', false),
-    {enableHighAccuracy:false, maximumAge:60000, timeout:6000}
-  );
-}
-document.getElementById('cityZoomBtn').onclick = zoomToMyCity;
-
-/* === Buscar ciudad === */
-const cityInput = document.getElementById('citySearch');
-const cityList  = document.getElementById('cityList');
-let cityTimer=null, cityAbort=null, cityResults=[];
-function isCityLike(it){ const cls=(it.class||''); const typ=(it.type||''); return cls==='place' && /^(city|town|village|suburb|hamlet|municipality)$/.test(typ); }
-async function searchCities(q){
-  if(cityAbort) cityAbort.abort();
-  cityAbort = new AbortController();
-  const url='https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&q='+encodeURIComponent(q);
-  const r=await fetch(url,{signal:cityAbort.signal, headers:{'Accept':'application/json','Cache-Control':'no-cache'}});
-  const j=await r.json();
-  return (j||[]).filter(isCityLike);
-}
-function renderCitySuggest(list){
-  cityList.innerHTML=''; list.forEach((it,idx)=>{
-    const name = (it.display_name||'').split(',').slice(0,2).join(', ');
-    const row=document.createElement('div'); row.className='sitem'; row.textContent=name;
-    row.onclick=()=>selectCity(idx);
-    cityList.appendChild(row);
-  });
-  cityList.style.display = list.length ? 'block' : 'none';
-}
-async function selectCity(idx){
-  const it=cityResults[idx]; if(!it) return;
-  cityList.style.display='none';
-  cityInput.value = (it.display_name||'').split(',').slice(0,2).join(', ');
-  const lat = Number(it.lat), lng = Number(it.lon);
-  map && map.flyTo([lat,lng], 12, {duration:.8});
-}
-cityInput.addEventListener('input', e=>{
-  const q=e.target.value.trim();
-  clearTimeout(cityTimer);
-  if(!q){ cityList.style.display='none'; return; }
-  cityTimer=setTimeout(async()=>{ try{ cityResults = await searchCities(q); renderCitySuggest(cityResults); }catch{} }, 260);
-});
-addEventListener('click', e=>{ const box=document.querySelector('.map-search .sbox'); if(box && !box.contains(e.target)) cityList.style.display='none'; });
-
 /* === Edición/arrastre de la flor === */
 async function setEditPoint(lat,lng,zoom=14,showHint=false){
   $("#lat").value=lat; $("#lng").value=lng;
@@ -341,7 +289,7 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
   showFab();
 }
 
-/* === FAB dentro del mapa === */
+/* === FAB pequeño dentro del mapa === */
 function updateFabPosition(){
   if(!plantFab || !editMarker || !map) return;
   const mapEl = map.getContainer(), frameEl = mapEl.parentElement;
@@ -443,18 +391,17 @@ place.addEventListener('input', e=>{
     catch{}
   }, 250);
 });
-document.getElementById('confirmBtn').onclick = async ()=>{
+document.getElementById('confirmBtn').addEventListener('click', async ()=>{
   const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
   try{
     const r=await searchPlaces(q);
     if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 14, true); fixedBadge.style.display='inline'; }
     else toast('No encontrada', false);
   }catch{}
-};
+});
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
 /* === Mensaje: 1 línea / 30 chars === */
-const msgInput = document.getElementById('message');
 msgInput.addEventListener('input', ()=>{ msgInput.value = msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
@@ -492,15 +439,15 @@ async function saveFlower(){
       const key = makeKey(lat, lng, from, to, msg);
       seen.add(key); allFlowers.push(item);
       updateVisualizations();
-      setMarquee(`${dtStr} ${from} para ${to}: ${msg}.`);
-      serverCount += 1; updateHeroNow();
 
       const shareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
       shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:shareUrl}); } else { await navigator.clipboard.writeText(shareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
+      // Actualiza contador local y re-sincroniza desde servidor
+      serverCount += 1; updateHeroNow();
       hideFab(); $("#lat").value=''; $("#lng").value='';
-      setTimeout(refetch, 500); // confirma desde servidor
+      setTimeout(refetch, 500);
     }
   }catch(err){ /* silencioso */ }
   plantFab.disabled=false; plantFab.textContent=prevTxt;
@@ -560,8 +507,6 @@ function processItems(items){
   if(added>0){
     allFlowers.push(...normalized);
     updateVisualizations();
-    const last = [...allFlowers].sort((a,b)=>b.timestamp-a.timestamp)[0];
-    if(last){ setMarquee(`${fmtDateTime(new Date(last.timestamp))} ${last.fromName} para ${last.toName}: ${last.message}.`); }
   }
 }
 
@@ -581,11 +526,6 @@ async function refetch(){
     setTimeout(refetch, retry);
   }
 }
-function startPolling(){
-  if(pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(refetch, 12000);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
-}
 
 /* === Contador vivo (cada 5 s, arranca desde servidor) === */
 function updateHeroNow(){ heroCountEl.textContent = formatES(serverCount); }
@@ -600,21 +540,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(window.L){ initMap(); } else {
     (function waitLeaflet(attempts=20){ if(window.L){ initMap(); } else { if(attempts<=0) return; setTimeout(()=>waitLeaflet(attempts-1), 200);} })();
   }
-  refetch();        // trae items y total (serverCount)
-  startPolling();   // sincronización continua
+  refetch();        // trae items y total
   startHeroTimer(); // contador cada 5 s
 });
-
-/* === Botón confirmar y FAB === */
-document.getElementById('confirmBtn').addEventListener('click', async ()=>{
-  const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
-  try{
-    const r=await searchPlaces(q);
-    if(r.length){ const f=r[0]; setEditPoint(Number(f.lat).toFixed(6), Number(f.lon).toFixed(6), 14, true); fixedBadge.style.display='inline'; }
-    else toast('No encontrada', false);
-  }catch{}
-});
-plantFab.addEventListener('click', saveFlower);
 </script>
 </body>
 </html>
