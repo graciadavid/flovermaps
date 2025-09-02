@@ -10,11 +10,16 @@
 
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
+<meta property="og:title" content="Flovermaps">
+<meta property="og:description" content="Planta flores en el mapa y dedica mensajes bonitos.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="logo.png">
+<meta name="twitter:card" content="summary_large_image">
 
-<!-- Tipografía (similar a Balgin) -->
+<!-- Tipografía -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet (sin heatmap) -->
+<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -35,7 +40,7 @@
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
-  /* Contador pequeño */
+  /* Contador */
   .counter-wrap{display:flex; justify-content:center}
   .counter-mini{
     margin:8px 12px 6px; padding:6px 10px; border-radius:999px; background:#fff; border:1px solid #eee;
@@ -54,6 +59,7 @@
 
   /* Inputs y botones */
   input,.btn{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
+  input:required:invalid{outline:0}
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
   .btn-share{background:#0066cc;color:#fff}
@@ -114,17 +120,17 @@
     <div class="card" id="formCard">
       <h1>Planta una flor</h1>
       <div class="row2">
-        <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre"></div>
-        <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario"></div>
+        <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
+        <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" required></div>
       </div>
 
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
-      <input id="message" maxlength="30" placeholder="Escribe algo bonito…" inputmode="text" autocomplete="off" />
+      <input id="message" maxlength="30" placeholder="Escribe algo bonito…" inputmode="text" autocomplete="off" required />
 
       <label for="place" style="margin-top:8px">Ubicación</label>
-      <div class="sbox">
-        <input id="place" placeholder="Ej. Puerta del Sol, Madrid" autocomplete="off">
-        <div id="slist" class="slist"></div>
+      <div class="sbox" role="combobox" aria-expanded="false" aria-owns="slist" aria-haspopup="listbox">
+        <input id="place" placeholder="Ej. Puerta del Sol, Madrid" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
+        <div id="slist" class="slist" role="listbox"></div>
       </div>
       <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
       <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
@@ -178,6 +184,7 @@ let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
 let serverCount=0, heroTimer=null;
+let saving=false; // guardia anti doble envío
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -228,7 +235,16 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
       unlock();
       const p=e.target.getLatLng(); const lat2=p.lat.toFixed(6), lng2=p.lng.toFixed(6);
       $("#lat").value=lat2; $("#lng").value=lng2; fixedBadge.style.display='inline'; updateFabPosition();
-      try{ const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat2}&lon=${lng2}&addressdetails=1`); if(r.ok){ const j=await r.json(); const a=j.address||{}; const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||""; const hn=a.house_number||a.housenumber||""; const city=a.city||a.town||a.village||a.municipality||a.state||""; const display=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", "); if(display) place.value=display; } }catch{}
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&lat=${lat2}&lon=${lng2}&addressdetails=1`);
+        if(r.ok){ const j=await r.json(); const a=j.address||{};
+          const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||"";
+          const hn=a.house_number||a.housenumber||"";
+          const city=a.city||a.town||a.village||a.municipality||a.state||"";
+          const display=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", ");
+          if(display) place.value=display;
+        }
+      }catch{}
     });
     if(showHint){ editMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-24]}).openTooltip(); }
     editMarker.on('drag', updateFabPosition);
@@ -255,24 +271,37 @@ function hideFab(){ plantFab.style.display='none'; }
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,5})/); return m? m[1]:null; }
-function normalizeStreet(q){ const hasType=/(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q); if(hasType) return [q]; const base=q.replace(/\s+/g,' ').trim(); return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base]; }
-async function searchPlacesPlain(q, sig){ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&q='+encodeURIComponent(q),{signal:sig}); if(!r.ok) throw new Error('nominatim'); return r.json(); }
+function normalizeStreet(q){
+  const hasType=/(carrer|calle|avinguda|av\.|avenida|paseo|ps\.|plaça|plaza)/i.test(q);
+  if(hasType) return [q];
+  const base=q.replace(/\s+/g,' ').trim();
+  return ['Calle '+base,'Carrer de '+base,'Avinguda '+base,base];
+}
+async function searchPlacesPlain(q, sig){
+  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&accept-language=es&q='+encodeURIComponent(q),{signal:sig});
+  if(!r.ok) throw new Error('nominatim'); return r.json();
+}
 async function searchPlacesStructured(q, sig){
   let raw=q, city=''; if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); city=parts.slice(1).join(',').trim(); }
-  const variants=normalizeStreet(raw); const all=[];
-  for(const street of variants){
-    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city),{signal:sig}).catch(()=>null);
-    if(r && r.ok){ all.push(...(await r.json())); }
-  }
-  return all;
+  const variants=normalizeStreet(raw);
+  const results = await Promise.allSettled(
+    variants.map(street =>
+      fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&countrycodes=es&accept-language=es&street='+encodeURIComponent(street)+'&city='+encodeURIComponent(city),{signal:sig})
+        .then(r=>r.ok?r.json():[])
+        .catch(()=>[])
+    )
+  );
+  return results.flatMap(r => r.status==='fulfilled' ? r.value : []);
 }
 async function searchPlaces(q){
   if(abortCtrl) abortCtrl.abort();
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
   try{
     const hasNum=hasNumber(q);
-    const A=await searchPlacesPlain(q,sig).catch(()=>[]);
-    const B=hasNum? await searchPlacesStructured(q,sig).catch(()=>[]) : [];
+    const [A,B] = await Promise.all([
+      searchPlacesPlain(q,sig).catch(()=>[]),
+      hasNum? searchPlacesStructured(q,sig).catch(()=>[]) : Promise.resolve([])
+    ]);
     const list=[...A,...B]; const seenIds=new Set(); const merged=[];
     for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seenIds.has(id)){ seenIds.add(id); merged.push(it); } }
     if(hasNum){ const num=extractNumber(q); merged.sort((x,y)=>{ const xn=(x.address&&(x.address.house_number||x.address.housenumber))||''; const yn=(y.address&&(y.address.house_number||y.address.housenumber))||''; return (String(yn)===String(num)) - (String(xn)===String(num)); }); }
@@ -282,7 +311,7 @@ async function searchPlaces(q){
 function renderSuggest(list){
   const q=place.value.trim(); const num=extractNumber(q);
   slist.innerHTML=""; list.forEach((it,idx)=>{
-    const row=document.createElement('div'); row.className='sitem';
+    const row=document.createElement('div'); row.className='sitem'; row.setAttribute('role','option');
     const road=it.address?.road || it.address?.pedestrian || it.address?.footway || it.address?.residential || it.address?.path || it.address?.neighbourhood || '';
     const hn=it.address?.house_number || it.address?.housenumber || '';
     let primary=(road||hn) ? (road+(hn?' '+hn:'')) : (it.display_name||'').split(',')[0];
@@ -295,6 +324,7 @@ function renderSuggest(list){
     slist.appendChild(row);
   });
   slist.style.display = list.length ? 'block' : 'none';
+  document.querySelector('.sbox').setAttribute('aria-expanded', list.length ? 'true' : 'false');
 }
 async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
@@ -306,8 +336,11 @@ place.addEventListener('input', e=>{
   fixedBadge.style.display='none';
   const q=e.target.value.trim();
   clearTimeout(suggestTimer);
-  if(!q){ slist.style.display='none'; return; }
+  if(!q){ slist.style.display='none'; document.querySelector('.sbox').setAttribute('aria-expanded','false'); return; }
   suggestTimer=setTimeout(async()=>{ try{ currentSuggest=await searchPlaces(q); renderSuggest(currentSuggest);}catch{} }, 250);
+});
+place.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ slist.style.display='none'; document.querySelector('.sbox').setAttribute('aria-expanded','false'); }
 });
 document.getElementById('confirmBtn').addEventListener('click', async ()=>{
   const q=place.value.trim(); if(!q){ toast('Escribe una dirección', false); return; }
@@ -337,17 +370,27 @@ function setupGpsBtn(){
   gpsBtn.onclick=()=> navigator.geolocation.getCurrentPosition(async pos=>{
     const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
     setEditPoint(lat,lng,14,true); fixedBadge.style.display='inline';
-    try{ const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`); if(r.ok){ const j=await r.json(); const a=j.address||{}; const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||""; const hn=a.house_number||a.housenumber||""; const city=a.city||a.town||a.village||a.municipality||a.state||""; const display=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", "); if(display) place.value=display; } }catch{}
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&lat=${lat}&lon=${lng}&addressdetails=1`);
+      if(r.ok){ const j=await r.json(); const a=j.address||{};
+        const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||"";
+        const hn=a.house_number||a.housenumber||"";
+        const city=a.city||a.town||a.village||a.municipality||a.state||"";
+        const display=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", ");
+        if(display) place.value=display;
+      }
+    }catch{}
   }, ()=>toast('Ubicación no disponible (activa permisos)', false), {timeout:8000});
 }
 setupGpsBtn();
 
 /* Guardar flor → re-listar y repintar TODO (siempre coherente con el Sheet) */
 async function saveFlower(){
+  if(saving) return; saving=true;
   const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
   const lat=$("#lat").value.trim(), lng=$("#lng").value.trim(), placeText=place.value.trim();
-  if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); return; }
-  if(msg.length>30){ toast('Máximo 30 caracteres', false); return; }
+  if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); saving=false; return; }
+  if(msg.length>30){ toast('Máximo 30 caracteres', false); saving=false; return; }
   plantFab.disabled=true; const prev=plantFab.textContent; plantFab.textContent='⏳';
   try{
     const url = SCRIPT_URL + '?action=add'
@@ -371,6 +414,7 @@ async function saveFlower(){
     } else { toast('No se pudo guardar', false); }
   }catch(e){ toast('Error al plantar', false); }
   plantFab.disabled=false; plantFab.textContent=prev;
+  saving=false;
 }
 plantFab.addEventListener('click', saveFlower);
 
@@ -382,7 +426,7 @@ function renderAllMarkers(list){
   let i=0, n=list.length;
   (function chunk(){
     const t0=performance.now();
-    while(i<n && (performance.now()-t0)<16){
+    while(i<n && (performance.now()-t0)<24){ // presupuesto por frame ligeramente mayor
       const f=list[i++]; const lat=parseFloat(f.lat), lng=parseFloat(f.lng);
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
@@ -416,15 +460,24 @@ function normalizeItems(items){
   return out;
 }
 
-/* Trae del servidor y repinta TODO (sin condiciones) */
+/* Trae del servidor y repinta TODO (sin condiciones) con caché local */
 async function refetch(){
   try{
     const data=await jsonp(SCRIPT_URL+'?action=list', 12000);
     if(data && Array.isArray(data.items)){
+      localStorage.setItem('flowers_cache', JSON.stringify(data.items));
       serverCount=data.items.length; heroCountEl.textContent=formatES(serverCount);
       renderAllMarkers(normalizeItems(data.items));
+      return;
     }
-  }catch(e){ /* silencioso; se reintenta en el polling */ }
+  }catch(e){}
+  // fallback a cache si hay
+  const cached=localStorage.getItem('flowers_cache');
+  if(cached){
+    const items=JSON.parse(cached);
+    serverCount=items.length; heroCountEl.textContent=formatES(serverCount);
+    renderAllMarkers(normalizeItems(items));
+  }
 }
 
 /* Polling + contador */
@@ -438,6 +491,22 @@ function startHeroTimer(){
   heroTimer=setInterval(()=>{ heroCountEl.textContent=formatES(serverCount); }, 5000);
 }
 
+/* Abrir flor compartida si viene en la URL */
+function tryOpenShared(){
+  const u=new URL(location.href);
+  const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
+  const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
+  if(lat && lng){
+    const go=()=>{ map.setView([+lat,+lng], 19);
+      L.marker([+lat,+lng],{icon:emojiIcon(),zIndexOffset:1600})
+        .addTo(flowersLayer)
+        .bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())))
+        .openPopup();
+    };
+    if(flowersLayer){ go(); } else { setTimeout(go, 400); }
+  }
+}
+
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
@@ -445,6 +514,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   refetch();        // pinta todas las flores del Sheet
   startPolling();   // sigue sincronizando
   startHeroTimer(); // contador
+  tryOpenShared();  // abre flor compartida si aplica
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
 });
 </script>
