@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flovermaps</title>
 
-<!-- Favicon 🌸 -->
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
-
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 <meta property="og:title" content="Flovermaps">
@@ -16,12 +14,16 @@
 <meta property="og:image" content="logo.png">
 <meta name="twitter:card" content="summary_large_image">
 
-<!-- Tipografía -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet -->
+<!-- Leaflet core -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- MarkerCluster -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --accent:#01c064; --accent-weak: rgba(1,192,100,.08); --bg:#f6fff9; }
@@ -40,18 +42,12 @@
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
-  /* Contador */
-  .counter-wrap{display:flex; justify-content:center}
-  .counter-mini{
-    margin:8px 12px 6px; padding:6px 10px; border-radius:999px; background:#fff; border:1px solid #eee;
-    display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.92rem; color:#0f172a;
-    box-shadow:0 4px 10px rgba(2,6,12,.04); letter-spacing:.2px; font-variant-numeric: tabular-nums;
+  /* Contenedor y grid 3 columnas (desktop) */
+  .container{max-width:1300px; margin:0 auto; padding:0 14px}
+  .grid3{display:block; gap:12px}
+  @media (min-width:1100px){
+    .grid3{display:grid; grid-template-columns: 360px 1fr 420px; align-items:start; gap:12px}
   }
-  .counter-mini .unit{font-weight:600; color:var(--muted)}
-
-  /* Contenedores */
-  .container{max-width:1200px; margin:0 auto; padding:0 14px}
-  .section{padding:8px 0}
 
   .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   .muted{color:var(--muted); font-size:.95rem}
@@ -60,8 +56,7 @@
   @media (min-width:640px){ .row2{grid-template-columns:1fr 1fr} }
 
   /* Inputs y botones */
-  input,.btn{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
-  input:required:invalid{outline:0}
+  input,.btn,select{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
   .btn-share{background:#0066cc;color:#fff}
@@ -70,7 +65,7 @@
   .btn-green{background:#22c55e; color:#fff}
 
   /* Ticker */
-  .ticker{display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:6px 0; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:1rem}
+  .ticker{display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:8px 0; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:1rem}
   .dot{width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.4s infinite}
   @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 
@@ -85,6 +80,12 @@
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
+
+  /* MarkerCluster estilo básico (usar el default de la lib) */
+  .marker-cluster-small{background: rgba(34,197,94,.6);}
+  .marker-cluster-medium{background: rgba(34,197,94,.7);}
+  .marker-cluster-large{background: rgba(34,197,94,.8);}
+  .marker-cluster div{color:#fff; font-weight:700}
 
   /* Botón flotante pequeño pegado a la flor */
   .map-fab{
@@ -114,9 +115,8 @@
     font-weight:700;
   }
 
-  /* Explore grid (debajo del mapa) */
-  .explore-grid{display:grid; gap:12px; grid-template-columns:1fr}
-  @media (min-width:900px){ .explore-grid{grid-template-columns:2fr 1fr} }
+  /* Explore grid (columna 3) */
+  .explore-col .card + .card{margin-top:12px}
 </style>
 </head>
 <body>
@@ -127,70 +127,69 @@
   </div>
 </header>
 
-<!-- Contador pequeño -->
-<div class="counter-wrap">
-  <div class="counter-mini" aria-live="polite">
-    <span id="heroCount">0</span> 🌸 <span class="unit">flores plantadas en el mundo</span>
-  </div>
-</div>
-
 <div class="container">
 
   <!-- Ticker actividad -->
-  <section class="section" aria-label="Actividad reciente">
+  <section aria-label="Actividad reciente">
     <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
   </section>
 
-  <!-- PLANTAR (siempre visible) -->
-  <section class="section" aria-label="Plantar una flor">
-    <div class="card" id="formCard">
-      <h1>Planta una flor</h1>
-      <div class="row2">
-        <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
-        <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" required></div>
+  <!-- GRID 3 columnas: Form (izq) — Mapa (centro) — Explorar (dcha) -->
+  <div class="grid3">
+
+    <!-- 1) FORMULARIO -->
+    <section class="form-col">
+      <div class="card" id="formCard">
+        <h1 style="margin-top:0">Planta una flor</h1>
+        <div class="muted" style="margin:-2px 0 10px">
+          Ya hay <strong id="heroCount">0</strong> plantadas en el mundo.
+        </div>
+
+        <div class="row2">
+          <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
+          <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" required></div>
+        </div>
+
+        <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
+        <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
+
+        <label for="place" style="margin-top:8px">Ubicación</label>
+        <div class="sbox" role="combobox" aria-expanded="false" aria-owns="slist" aria-haspopup="listbox">
+          <input id="place" placeholder="Ej. Times Square, New York" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
+          <div id="slist" class="slist" role="listbox"></div>
+        </div>
+        <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
+        <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
+
+        <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+          <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 160px">✅ Confirmar dirección</button>
+          <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
+        </div>
+
+        <!-- Placeholder Flor Premium (desactivada) -->
+        <div class="card" style="margin-top:12px; background:#f7f9fb">
+          <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
+          <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
+          <button class="btn btn-muted" title="Próximamente" disabled>Desbloquear Premium</button>
+        </div>
+
+        <input type="hidden" id="lat"><input type="hidden" id="lng">
       </div>
+    </section>
 
-      <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
-      <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
-
-      <label for="place" style="margin-top:8px">Ubicación</label>
-      <div class="sbox" role="combobox" aria-expanded="false" aria-owns="slist" aria-haspopup="listbox">
-        <input id="place" placeholder="Ej. Times Square, Nueva York" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
-        <div id="slist" class="slist" role="listbox"></div>
+    <!-- 2) MAPA -->
+    <section class="map-col" aria-label="Mapa">
+      <div class="frame" id="mapFrame">
+        <div id="map"></div>
+        <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅ Plantar aquí</button>
       </div>
-      <div class="muted" id="help">Escribe y elige una sugerencia, o haz clic en el mapa. Al arrastrar, actualizamos la dirección.</div>
-      <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
-
-      <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
-        <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 160px">✅ Confirmar dirección</button>
-        <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
+      <div style="display:flex;justify-content:center;padding:10px 0">
+        <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
       </div>
+    </section>
 
-      <!-- Placeholder Flor Premium (desactivada) -->
-      <div class="card" style="margin-top:12px; background:#f7f9fb">
-        <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
-        <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
-        <button class="btn btn-muted" title="Próximamente" disabled>Desbloquear Premium</button>
-      </div>
-
-      <input type="hidden" id="lat"><input type="hidden" id="lng">
-    </div>
-  </section>
-
-  <!-- MAPA -->
-  <section class="section" aria-label="Mapa">
-    <div class="frame" id="mapFrame">
-      <div id="map"></div>
-      <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅ Plantar aquí</button>
-    </div>
-    <div style="display:flex;justify-content:center;padding:10px 0">
-      <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
-    </div>
-  </section>
-
-  <!-- EXPLORAR (debajo del mapa) -->
-  <section class="section" aria-label="Explorar">
-    <div class="explore-grid">
+    <!-- 3) EXPLORAR -->
+    <aside class="explore-col" aria-label="Explorar">
       <div class="card">
         <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
         <div id="recentList" class="muted">Cargando…</div>
@@ -199,8 +198,9 @@
         <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
         <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
       </div>
-    </div>
-  </section>
+    </aside>
+
+  </div>
 </div>
 
 <!-- Toast + Sticky pill + Modal -->
@@ -239,12 +239,12 @@ function jsonp(url, timeoutMs=12000){
 
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null;
+let flowersLayer=null; // ahora cluster
 let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
 let serverCount=0, heroTimer=null;
-let saving=false; // guardia anti doble envío
+let saving=false;
 let lastShareUrl='';
 
 /* === DOM === */
@@ -258,16 +258,72 @@ const globalPill=$("#globalPill");
 const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mAnother=$("#mAnother");
 
 /* === Utils === */
+// Idiomas preferidos para Nominatim (es + en + navegador)
+const ACCEPT_LANG = (()=>{ 
+  try{
+    const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'es'];
+    const set = Array.from(new Set([...langs.map(l=>String(l||'').split('-')[0]), 'es','en']));
+    return set.join(',');
+  }catch{ return 'es,en'; }
+})();
+
 function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
 function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
-function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
+function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function toNum(v){ if(v===null||v===undefined) return NaN; if(typeof v==='number') return v; const s=String(v).trim().replace(/\s+/g,'').replace(',', '.'); const n=Number(s); return isFinite(n)? n : NaN; }
-function extractCityFromPlace(place){ if(!place) return ''; const parts=String(place).split(',').map(s=>s.trim()).filter(Boolean); if(parts.length>=2) return parts[parts.length-1]; return parts[0]||''; }
 function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Math.max(1, Math.floor((Date.now()-t)/1000)); if(s<60) return `hace ${s} s`; const m=Math.floor(s/60); if(m<60) return `hace ${m} min`; const h=Math.floor(m/60); if(h<24) return `hace ${h} h`; const d=Math.floor(h/24); return `hace ${d} d`; }
 
-/* === Mapa === */
+/* ==== Reverse geocoding con caché (para “Top ciudades” real) ==== */
+const GEO_CACHE_KEY='fm_geo_cache_v1';
+let geoCache={};
+try{ geoCache=JSON.parse(localStorage.getItem(GEO_CACHE_KEY)||'{}'); }catch{ geoCache={}; }
+const geoQueue=[], geoPending=new Set();
+let geoTimer=null;
+
+function geoKey(lat,lng){ return (Number(lat).toFixed(3)+','+Number(lng).toFixed(3)); } // ~100–120m
+function saveGeoCache(){ try{ localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); }catch{} }
+
+async function fetchGeo(lat,lng){
+  const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat}&lon=${lng}&addressdetails=1`;
+  const r=await fetch(url); if(!r.ok) throw new Error('revgeo');
+  const j=await r.json(); const a=j.address||{};
+  const city=a.city||a.town||a.village||a.municipality||a.county||'';
+  const state=a.state||a.province||'';
+  const country=a.country||'';
+  return {city,state,country};
+}
+function scheduleGeo(lat,lng){
+  const k=geoKey(lat,lng);
+  if(geoCache[k] || geoPending.has(k)) return;
+  geoPending.add(k); geoQueue.push({lat,lng,k});
+  if(!geoTimer){
+    geoTimer=setInterval(async ()=>{
+      if(!geoQueue.length){ clearInterval(geoTimer); geoTimer=null; return; }
+      const job=geoQueue.shift();
+      try{
+        const data=await fetchGeo(job.lat, job.lng);
+        geoCache[job.k]=data; saveGeoCache();
+      }catch(e){ /* silencio */ }
+      geoPending.delete(job.k);
+      // cuando hay nuevos datos, refrescamos feed/top parcialmente
+      if(window._lastItems) updateFeedAndMeta(window._lastItems, true);
+    }, 700); // ~1.4 req/seg (seguro para Nominatim)
+  }
+}
+function geoLabel(lat,lng,place){
+  const k=geoKey(lat,lng);
+  if(geoCache[k]){
+    const g=geoCache[k];
+    return g.city || g.state || g.country || (place||'');
+  }
+  // programar fetch y dar fallback
+  scheduleGeo(lat,lng);
+  return (place||'');
+}
+
+/* === Mapa + Cluster === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
@@ -276,7 +332,13 @@ function initMap(){
   /* HOME: España (zoom 5) */
   map.setView([40.2, -3.7], 5);
 
-  flowersLayer=L.layerGroup().addTo(map);
+  // Cluster en lugar de layerGroup
+  flowersLayer = L.markerClusterGroup({
+    showCoverageOnHover:false,
+    spiderfyOnEveryZoom:false,
+    disableClusteringAtZoom:16,
+    maxClusterRadius: 60
+  }).addTo(map);
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
@@ -339,16 +401,6 @@ function hideFab(){ plantFab.style.display='none'; }
 
 /* === Autocomplete global (POIs/ciudades/direcciones) === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
-
-// Idiomas preferidos para Nominatim (es + en + navegador)
-const ACCEPT_LANG = (()=>{ 
-  try{
-    const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'es'];
-    const set = Array.from(new Set([...langs.map(l=>String(l||'').split('-')[0]), 'es','en']));
-    return set.join(',');
-  }catch{ return 'es,en'; }
-})();
-
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
 function containsStreetType(q){
@@ -419,7 +471,7 @@ function renderSuggest(list){
     const state = it.address?.state || it.address?.province || it.address?.state_district || '';
     const country = it.address?.country || (dn[dn.length-1]||'');
     const meta = [city || dn[1] || '', state || dn[2] || ''].filter(Boolean).join(', ') || country;
-    const safe=(s)=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+    const safe=(s)=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
     const hlNum = num ? safe(primary).replace(new RegExp('('+num+')'),' <span class="hl">$1</span> ') : safe(primary);
     row.innerHTML = hlNum + (meta?` <small>${safe(meta)}</small>`:'');
     row.onclick=()=>selectSuggest(idx);
@@ -504,10 +556,12 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch(); // pinta y actualiza feed/ticker
+      await refetch(); // pinta y actualiza feed/top
+
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
-      const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).addTo(flowersLayer).bindPopup(html);
+      const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).bindPopup(html);
+      flowersLayer.addLayer(mk);
       mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); }); 
       map.setView([+lat,+lng],17);
       mk.openPopup();
@@ -516,7 +570,7 @@ async function saveFlower(){
       shareBtn.style.display='inline-block';
       shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
 
-      // Éxito: modal y pill
+      // Éxito: modal y pill (restaurado)
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
       showGlobalPillTemporarily();
@@ -550,26 +604,29 @@ function showGlobalPillTemporarily(){
 globalPill.onclick = ()=>{ viewGlobal(); globalPill.style.display='none'; };
 function viewGlobal(){ map.setView([40.2, -3.7], 5); }
 
-/* Render completo SIEMPRE con lo que devuelve el servidor */
+/* Render con cluster */
 function renderAllMarkers(list){
   if(!map || !flowersLayer) return;
   try{ flowersLayer.clearLayers(); }catch{}
   const bounds=L.latLngBounds();
   let i=0, n=list.length;
+
   (function chunk(){
     const t0=performance.now();
+    const batch=[];
     while(i<n && (performance.now()-t0)<24){
       const f=list[i++]; const lat=parseFloat(f.lat), lng=parseFloat(f.lng);
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||'').slice(0,30), dtStr);
-      const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).addTo(flowersLayer).bindPopup(html);
-      mk.on('click',function(){ map.setView(this.getLatLng(),17); this.openPopup(); });
+      const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
+      batch.push(mk);
       bounds.extend([lat,lng]);
     }
+    if(batch.length) flowersLayer.addLayers(batch);
     if(i<n){ requestAnimationFrame(chunk); }
     else{
-      try{ flowersLayer.bringToFront(); }catch{}
+      try{ flowersLayer.refreshClusters(); }catch{}
       if(!didFitBounds && list.length){ didFitBounds=true; map.fitBounds(bounds.pad(0.15), {maxZoom:7}); }
     }
   })();
@@ -592,49 +649,63 @@ function normalizeItems(items){
   return out;
 }
 
-/* Feed (10 últimas) + Top ciudades + Ticker */
-function updateFeedAndMeta(items){
+/* Feed (10 últimas) + Top ciudades (7 días, con reverse real) + Ticker */
+function updateFeedAndMeta(items, soft=false){
+  // Guardamos último set para refrescos cuando llegue geoCache
+  window._lastItems = items;
+
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
-  // Ticker
+
+  // Ticker (usa reverse cuando esté, si no fallback)
   if(sorted.length){
     const it=sorted[0];
-    const city=extractCityFromPlace(it.place);
-    tickerText.textContent = `${it.fromName||'Alguien'} plantó una flor ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
+    const city = geoLabel(it.lat, it.lng, it.place);
+    tickerText.textContent = `${(it.fromName||'Alguien')} plantó una flor ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
     ticker.style.display='flex';
   } else {
     ticker.style.display='none';
   }
-  // Recent 10
+
+  // Recent 10 (preferir label real)
   const ten=sorted.slice(0,10);
   if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
     recentList.innerHTML = ten.map(it=>{
-      const city=extractCityFromPlace(it.place);
+      const city=geoLabel(it.lat,it.lng,it.place);
       const when=relTime(it.timestamp);
-      const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+      const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
       return `
         <div class="card" style="margin:8px 0; padding:10px">
           <div><strong>${esc(it.fromName)}</strong> → <strong>${esc(it.toName)}</strong></div>
           <div class="muted" style="margin:2px 0">${esc(it.message)}</div>
           <div class="muted">${city?esc(city):'—'} · ${when}</div>
-          <div style="margin-top:6px"><button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||'')}')">Plantar en esta ciudad</button></div>
+          <div style="margin-top:6px"><button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||"")}')">Plantar en esta ciudad</button></div>
         </div>`;
     }).join('');
   }
-  // Top ciudades (últimos 7 días)
+
+  // Top ciudades últimos 7 días (por reverse real)
   const weekAgo=Date.now()-7*24*3600*1000;
   const counts={};
+  const needGeos = new Set();
   for(const it of items){
     const t=Number(it.timestamp)||Date.parse(it.timestamp)||0;
     if(!t || t<weekAgo) continue;
-    const city=(extractCityFromPlace(it.place)||'—');
-    counts[city]=(counts[city]||0)+1;
+    const k=geoKey(it.lat,it.lng);
+    const g=geoCache[k];
+    if(g){ const name = g.city || g.state || g.country || '—'; counts[name]=(counts[name]||0)+1; }
+    else{ needGeos.add(k); scheduleGeo(it.lat,it.lng); }
   }
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Aún sin actividad reciente.</li>';
-  // Contador global
+  topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
+
+  // Contador global en el formulario
   serverCount=items.length; heroCountEl.textContent=formatES(serverCount);
+
+  // En “soft refresh” (post-geo), no hace falta más
 }
+
+/* Botón feed “Plantar en esta ciudad” */
 window.prefillCity = function(cityEnc){
   const city=decodeURIComponent(cityEnc||'');
   if(city){ place.value=city; fixedBadge.style.display='none'; toast(`Ciudad preseleccionada: ${city}`); }
@@ -693,11 +764,16 @@ function tryOpenShared(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
   initMap();
-  refetch();        // pinta / feed / ticker
+  refetch();        // pinta / feed / top / ticker
   startPolling();   // sigue sincronizando
-  startHeroTimer(); // contador
+  startHeroTimer(); // contador en el formulario
   tryOpenShared();  // abre flor compartida si aplica
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
+
+  // Acciones modal
+  document.addEventListener('click', e=>{
+    if(e.target===successModal) successModal.style.display='none';
+  });
 });
 </script>
 </body>
