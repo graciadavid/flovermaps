@@ -38,7 +38,7 @@
 
   /* Header */
   .site-header{display:flex; align-items:center; justify-content:center; padding:12px;}
-  .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px; box-shadow:0 6px 18px rgba(2,6,12,.06); margin:2px}
+  .header-card{display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:8px 14px; min-height:64px; box-shadow:0 6px 18px rgba(2,6,12,.06); margin:2px; cursor:pointer}
   .logo-img{display:block; height:72px; width:auto; max-width:100%; object-fit:contain}
   @media (min-width:900px){ .logo-img{height:96px} }
 
@@ -81,7 +81,7 @@
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
 
-  /* MarkerCluster estilo básico (usar el default de la lib) */
+  /* MarkerCluster colores (mantengo default, ajusto tonalidad) */
   .marker-cluster-small{background: rgba(34,197,94,.6);}
   .marker-cluster-medium{background: rgba(34,197,94,.7);}
   .marker-cluster-large{background: rgba(34,197,94,.8);}
@@ -115,14 +115,18 @@
     font-weight:700;
   }
 
-  /* Explore grid (columna 3) */
+  /* Explore col */
   .explore-col .card + .card{margin-top:12px}
+
+  /* Tarjeta “últimas dedicatorias” en fila con botón a la derecha */
+  .recent-row{display:flex; align-items:center; gap:10px; justify-content:space-between}
+  .recent-text{min-width:0}
 </style>
 </head>
 <body>
 
 <header class="site-header">
-  <div class="header-card">
+  <div class="header-card" id="logoBtn">
     <img src="logo.png" alt="FLOVERMAPS" class="logo-img" onerror="this.style.display='none'">
   </div>
 </header>
@@ -207,14 +211,14 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <button id="globalPill" class="global-pill">🌍 Ver mapa global</button>
 
-<div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; background:rgba(0,0,0,.28); z-index:12000">
+<!-- Modal éxito: SOLO dos opciones (Compartir / Ver mapa global) -->
+<div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; position:fixed; background:rgba(0,0,0,.28); z-index:12000">
   <div class="box" style="background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <h3 style="margin:4px 0 10px">🎉 ¡Tu flor ya florece en el mapa!</h3>
     <p class="muted" id="successText">Comparte el enlace o explora el mapa global.</p>
     <div class="actions-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
       <button id="mShare" class="btn btn-outline">🔗 Compartir</button>
-      <button id="mGlobal" class="btn btn-outline">🌍 Ver mapa global</button>
-      <button id="mAnother" class="btn btn-green">➕ Plantar otra</button>
+      <button id="mGlobal" class="btn btn-green">🌍 Ver mapa global</button>
     </div>
   </div>
 </div>
@@ -239,7 +243,8 @@ function jsonp(url, timeoutMs=12000){
 
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null; // ahora cluster
+let flowersLayer=null; // cluster o no, según nº de flores
+let useCluster=null;   // true/false según lista
 let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
@@ -255,7 +260,7 @@ const heroCountEl=$("#heroCount"), msgInput=$("#message");
 const recentList=$("#recentList"), topCitiesEl=$("#topCities");
 const ticker=$("#liveTicker"), tickerText=$("#tickerText");
 const globalPill=$("#globalPill");
-const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mAnother=$("#mAnother");
+const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal");
 
 /* === Utils === */
 // Idiomas preferidos para Nominatim (es + en + navegador)
@@ -307,9 +312,8 @@ function scheduleGeo(lat,lng){
         geoCache[job.k]=data; saveGeoCache();
       }catch(e){ /* silencio */ }
       geoPending.delete(job.k);
-      // cuando hay nuevos datos, refrescamos feed/top parcialmente
       if(window._lastItems) updateFeedAndMeta(window._lastItems, true);
-    }, 700); // ~1.4 req/seg (seguro para Nominatim)
+    }, 700);
   }
 }
 function geoLabel(lat,lng,place){
@@ -318,32 +322,32 @@ function geoLabel(lat,lng,place){
     const g=geoCache[k];
     return g.city || g.state || g.country || (place||'');
   }
-  // programar fetch y dar fallback
   scheduleGeo(lat,lng);
   return (place||'');
 }
 
-/* === Mapa + Cluster === */
+/* === Mapa + Cluster condicional === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
 
-  /* HOME: España (zoom 5) */
   map.setView([40.2, -3.7], 5);
 
-  // Cluster en lugar de layerGroup
-  flowersLayer = L.markerClusterGroup({
-    showCoverageOnHover:false,
-    spiderfyOnEveryZoom:false,
-    disableClusteringAtZoom:16,
-    maxClusterRadius: 60
-  }).addTo(map);
-
+  // capa se crea en renderAllMarkers según nº de flores
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
+}
+function ensureFlowersLayer(wantCluster){
+  if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
+  if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
+  flowersLayer = wantCluster
+    ? L.markerClusterGroup({ showCoverageOnHover:false, spiderfyOnEveryZoom:false, disableClusteringAtZoom:16, maxClusterRadius:60 })
+    : L.layerGroup();
+  flowersLayer.addTo(map);
+  useCluster=wantCluster;
 }
 function syncMapHeight(){
   const mapEl=$("#map"), formCard=$("#formCard");
@@ -511,6 +515,7 @@ msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* GPS */
+const gpsBtn=$("#gpsBtn");
 function setupGpsBtn(){
   if(!('geolocation' in navigator)) return;
   const show = ()=>{ gpsBtn.style.display='inline-block'; };
@@ -539,6 +544,7 @@ function setupGpsBtn(){
 setupGpsBtn();
 
 /* Guardar flor → re-listar y repintar TODO */
+let shareHandler = null;
 async function saveFlower(){
   if(saving) return; saving=true;
   const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
@@ -556,21 +562,23 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch(); // pinta y actualiza feed/top
+      await refetch(); // actualiza markers + feed + top
 
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).bindPopup(html);
-      flowersLayer.addLayer(mk);
+      if(flowersLayer){ flowersLayer.addLayer(mk); } else { mk.addTo(map); }
       mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); }); 
       map.setView([+lat,+lng],17);
       mk.openPopup();
 
       lastShareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
       shareBtn.style.display='inline-block';
-      shareBtn.onclick=async()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
+      if(shareHandler) shareBtn.removeEventListener('click', shareHandler);
+      shareHandler = async ()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
+      shareBtn.addEventListener('click', shareHandler);
 
-      // Éxito: modal y pill (restaurado)
+      // Éxito: abrir modal SOLO con dos opciones
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
       showGlobalPillTemporarily();
@@ -583,8 +591,7 @@ async function saveFlower(){
 }
 plantFab.addEventListener('click', saveFlower);
 
-/* Modal acciones */
-function closeModal(){ successModal.style.display='none'; }
+/* Modal acciones (solo 2) */
 mShare.onclick = async ()=>{
   try{
     if(lastShareUrl){
@@ -592,9 +599,9 @@ mShare.onclick = async ()=>{
       else{ await navigator.clipboard.writeText(lastShareUrl); toast('Enlace copiado'); }
     }
   }catch{}
+  successModal.style.display='none';
 };
-mGlobal.onclick = ()=>{ closeModal(); viewGlobal(); };
-mAnother.onclick = ()=>{ closeModal(); toast('Vamos a plantar otra 🌸'); };
+mGlobal.onclick = ()=>{ successModal.style.display='none'; viewGlobal(); };
 
 /* Sticky pill */
 function showGlobalPillTemporarily(){
@@ -604,9 +611,15 @@ function showGlobalPillTemporarily(){
 globalPill.onclick = ()=>{ viewGlobal(); globalPill.style.display='none'; };
 function viewGlobal(){ map.setView([40.2, -3.7], 5); }
 
-/* Render con cluster */
+/* Logo → refrescar */
+document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
+
+/* Render con capa condicional (cluster si >=10) */
 function renderAllMarkers(list){
-  if(!map || !flowersLayer) return;
+  if(!map) return;
+  const wantCluster = list.length >= 10;
+  ensureFlowersLayer(wantCluster);
+
   try{ flowersLayer.clearLayers(); }catch{}
   const bounds=L.latLngBounds();
   let i=0, n=list.length;
@@ -623,16 +636,19 @@ function renderAllMarkers(list){
       batch.push(mk);
       bounds.extend([lat,lng]);
     }
-    if(batch.length) flowersLayer.addLayers(batch);
+    if(batch.length){
+      if(useCluster) flowersLayer.addLayers(batch);
+      else batch.forEach(m=>flowersLayer.addLayer(m));
+    }
     if(i<n){ requestAnimationFrame(chunk); }
     else{
-      try{ flowersLayer.refreshClusters(); }catch{}
+      try{ useCluster && flowersLayer.refreshClusters(); }catch{}
       if(!didFitBounds && list.length){ didFitBounds=true; map.fitBounds(bounds.pad(0.15), {maxZoom:7}); }
     }
   })();
 }
 
-/* Normaliza items (múltiples nombres de columnas) */
+/* Normaliza items */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -649,24 +665,26 @@ function normalizeItems(items){
   return out;
 }
 
-/* Feed (10 últimas) + Top ciudades (7 días, con reverse real) + Ticker */
+/* Feed (10 últimas) + Top ciudades (7 días, reverse real) + Ticker con número en negrita */
 function updateFeedAndMeta(items, soft=false){
-  // Guardamos último set para refrescos cuando llegue geoCache
   window._lastItems = items;
-
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
 
-  // Ticker (usa reverse cuando esté, si no fallback)
+  // Contador global
+  serverCount=items.length;
+  heroCountEl.textContent=formatES(serverCount);
+
+  // Ticker mejorado con ordinal en negrita
   if(sorted.length){
     const it=sorted[0];
     const city = geoLabel(it.lat, it.lng, it.place);
-    tickerText.textContent = `${(it.fromName||'Alguien')} plantó una flor ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
+    tickerText.innerHTML = `${(it.fromName||'Alguien')} ha plantado la flor <strong>${formatES(serverCount)}</strong> ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
     ticker.style.display='flex';
   } else {
     ticker.style.display='none';
   }
 
-  // Recent 10 (preferir label real)
+  // Últimas 10 con botón a la derecha
   const ten=sorted.slice(0,10);
   if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
@@ -675,11 +693,15 @@ function updateFeedAndMeta(items, soft=false){
       const when=relTime(it.timestamp);
       const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
       return `
-        <div class="card" style="margin:8px 0; padding:10px">
-          <div><strong>${esc(it.fromName)}</strong> → <strong>${esc(it.toName)}</strong></div>
-          <div class="muted" style="margin:2px 0">${esc(it.message)}</div>
-          <div class="muted">${city?esc(city):'—'} · ${when}</div>
-          <div style="margin-top:6px"><button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||"")}')">Plantar en esta ciudad</button></div>
+        <div class="card recent-row">
+          <div class="recent-text">
+            <div><strong>${esc(it.fromName)}</strong> → <strong>${esc(it.toName)}</strong></div>
+            <div class="muted" style="margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(it.message)}</div>
+            <div class="muted" style="font-size:.9rem">${city?esc(city):'—'} · ${when}</div>
+          </div>
+          <div style="flex:0 0 auto; margin-left:8px">
+            <button class="btn btn-outline" onclick="prefillCity('${encodeURIComponent(city||"")}')" title="Plantar en esta ciudad">➕</button>
+          </div>
         </div>`;
     }).join('');
   }
@@ -687,22 +709,20 @@ function updateFeedAndMeta(items, soft=false){
   // Top ciudades últimos 7 días (por reverse real)
   const weekAgo=Date.now()-7*24*3600*1000;
   const counts={};
-  const needGeos = new Set();
   for(const it of items){
     const t=Number(it.timestamp)||Date.parse(it.timestamp)||0;
     if(!t || t<weekAgo) continue;
     const k=geoKey(it.lat,it.lng);
     const g=geoCache[k];
-    if(g){ const name = g.city || g.state || g.country || '—'; counts[name]=(counts[name]||0)+1; }
-    else{ needGeos.add(k); scheduleGeo(it.lat,it.lng); }
+    if(g){
+      const name = g.city || g.state || g.country || '—';
+      counts[name]=(counts[name]||0)+1;
+    } else {
+      scheduleGeo(it.lat,it.lng);
+    }
   }
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
-
-  // Contador global en el formulario
-  serverCount=items.length; heroCountEl.textContent=formatES(serverCount);
-
-  // En “soft refresh” (post-geo), no hace falta más
 }
 
 /* Botón feed “Plantar en esta ciudad” */
@@ -724,7 +744,6 @@ async function refetch(){
       return;
     }
   }catch(e){}
-  // fallback a cache si hay
   const cached=localStorage.getItem('flowers_cache');
   if(cached){
     const items=normalizeItems(JSON.parse(cached));
@@ -751,10 +770,9 @@ function tryOpenShared(){
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
     const go=()=>{ map.setView([+lat,+lng], 17);
-      L.marker([+lat,+lng],{icon:emojiIcon(),zIndexOffset:1600})
-        .addTo(flowersLayer)
-        .bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())))
-        .openPopup();
+      const mk=L.marker([+lat,+lng],{icon:emojiIcon(),zIndexOffset:1600}).bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())));
+      if(flowersLayer){ flowersLayer.addLayer(mk); } else { mk.addTo(map); }
+      mk.openPopup();
     };
     if(flowersLayer){ go(); } else { setTimeout(go, 400); }
   }
@@ -764,13 +782,13 @@ function tryOpenShared(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
   initMap();
-  refetch();        // pinta / feed / top / ticker
-  startPolling();   // sigue sincronizando
-  startHeroTimer(); // contador en el formulario
-  tryOpenShared();  // abre flor compartida si aplica
+  refetch();
+  startPolling();
+  startHeroTimer();
+  tryOpenShared();
   if(document.fonts && document.fonts.ready){ document.fonts.ready.then(syncMapHeight); } else { syncMapHeight(); }
 
-  // Acciones modal
+  // Cerrar modal al clicar fuera
   document.addEventListener('click', e=>{
     if(e.target===successModal) successModal.style.display='none';
   });
