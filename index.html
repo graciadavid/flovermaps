@@ -81,7 +81,7 @@
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
 
-  /* MarkerCluster colores (mantengo default, ajusto tonalidad) */
+  /* MarkerCluster tono */
   .marker-cluster-small{background: rgba(34,197,94,.6);}
   .marker-cluster-medium{background: rgba(34,197,94,.7);}
   .marker-cluster-large{background: rgba(34,197,94,.8);}
@@ -334,7 +334,10 @@ function initMap(){
 
   map.setView([40.2, -3.7], 5);
 
-  // capa se crea en renderAllMarkers según nº de flores
+  /* Capa base vacía por si tryOpenShared corre antes del primer refetch */
+  flowersLayer = L.layerGroup().addTo(map);
+  useCluster = false;
+
   setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
@@ -475,7 +478,7 @@ function renderSuggest(list){
     const state = it.address?.state || it.address?.province || it.address?.state_district || '';
     const country = it.address?.country || (dn[dn.length-1]||'');
     const meta = [city || dn[1] || '', state || dn[2] || ''].filter(Boolean).join(', ') || country;
-    const safe=(s)=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
+    const safe=(s)=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt"}[m]));
     const hlNum = num ? safe(primary).replace(new RegExp('('+num+')'),' <span class="hl">$1</span> ') : safe(primary);
     row.innerHTML = hlNum + (meta?` <small>${safe(meta)}</small>`:'');
     row.onclick=()=>selectSuggest(idx);
@@ -514,8 +517,7 @@ addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* GPS */
-const gpsBtn=$("#gpsBtn");
+/* GPS (FIX: sin redeclarar gpsBtn) */
 function setupGpsBtn(){
   if(!('geolocation' in navigator)) return;
   const show = ()=>{ gpsBtn.style.display='inline-block'; };
@@ -674,7 +676,7 @@ function updateFeedAndMeta(items, soft=false){
   serverCount=items.length;
   heroCountEl.textContent=formatES(serverCount);
 
-  // Ticker mejorado con ordinal en negrita
+  // Ticker con ordinal en negrita
   if(sorted.length){
     const it=sorted[0];
     const city = geoLabel(it.lat, it.lng, it.place);
@@ -792,6 +794,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.addEventListener('click', e=>{
     if(e.target===successModal) successModal.style.display='none';
   });
+
+  // Logo → refrescar
+  document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
 });
 </script>
 </body>
