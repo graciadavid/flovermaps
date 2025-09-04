@@ -177,7 +177,7 @@
           <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
         </div>
 
-        <!-- Flor Premium (placeholder visual, sin captcha) -->
+        <!-- Flor Premium (placeholder visual) -->
         <div class="card" style="margin-top:12px; background:#f7f9fb">
           <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
           <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
@@ -407,7 +407,6 @@ function updateFabPosition(){
   const mr=mapEl.getBoundingClientRect(), fr=frameEl.getBoundingClientRect();
   let left=p.x+(mr.left-fr.left), top=p.y+(mr.top-fr.top)+34;
   const pad=8, maxX=fr.width-pad, maxY=fr.height-pad;
-  // Evita tapar el pin en bordes
   top = Math.max(pad, Math.min(top , maxY-4));
   plantFab.style.left=Math.max(pad, Math.min(left, maxX))+'px';
   plantFab.style.top =top+'px';
@@ -522,7 +521,7 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
 });
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
-/* Mensaje 1 línea / 30 chars (front mantiene 30 por UX; backend no lo fuerza) */
+/* Mensaje 1 línea / 30 chars (front mantiene 30 por UX) */
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
@@ -573,10 +572,8 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      // actualiza lastTs si viene ts del server
       if (data.ts && Number(data.ts) > lastTs) lastTs = Number(data.ts);
 
-      // pide solo lo nuevo
       await refetch(true);
 
       const dtStr=fmtDateTime(new Date());
@@ -629,6 +626,34 @@ mGlobal.onclick = ()=>{ successModal.style.display='none'; map.setView([40.2, -3
 /* Logo → refrescar */
 document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
 
+/* --- LISTA SIN DUPLICADOS POR ID --- */
+function normalizeItems(items){
+  const out=[];
+  for(const f of (items||[])){
+    const lat = toNum(f.lat ?? f.latitude ?? f.Latitude ?? f.LAT ?? f.latitud ?? f.y ?? f.Y ?? f.Lat);
+    const lng = toNum(f.lng ?? f.lon ?? f.long ?? f.longitude ?? f.Longitude ?? f.LON ?? f.longitud ?? f.x ?? f.X ?? f.Lng);
+    if(!isFinite(lat)||!isFinite(lng)) continue;
+    const id       = String(f.id ?? f.ID ?? f.Id ?? `${lat},${lng},${f.timestamp ?? ''}`);
+    const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
+    const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
+    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
+    const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
+    const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
+    out.push({ id, lat, lng, fromName, toName, message, place, timestamp });
+  }
+  return out;
+}
+function mergeUniqueById(oldList, newList){
+  const m = new Map();
+  for(const it of (oldList||[])) m.set(it.id, it);
+  for(const it of (newList||[])) m.set(it.id, it);
+  return Array.from(m.values());
+}
+function uniqueCountById(list){
+  const s = new Set((list||[]).map(it=>it.id));
+  return s.size;
+}
+
 /* Render con capa condicional (cluster si >=10) */
 function renderAllMarkers(list){
   if(!map) return;
@@ -664,29 +689,13 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Normaliza items */
-function normalizeItems(items){
-  const out=[];
-  for(const f of (items||[])){
-    const lat = toNum(f.lat ?? f.latitude ?? f.Latitude ?? f.LAT ?? f.latitud ?? f.y ?? f.Y ?? f.Lat);
-    const lng = toNum(f.lng ?? f.lon ?? f.long ?? f.longitude ?? f.Longitude ?? f.LON ?? f.longitud ?? f.x ?? f.X ?? f.Lng);
-    if(!isFinite(lat)||!isFinite(lng)) continue;
-    const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
-    const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
-    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
-    const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
-    const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
-    out.push({ lat, lng, fromName, toName, message, place, timestamp });
-  }
-  return out;
-}
-
-/* Feed + Top ciudades + Ticker */
+/* Feed + Top ciudades + Ticker (con contador único) */
 function updateFeedAndMeta(items){
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
 
-  // Ticker con ordinal global (aprox por length del client)
-  serverCount=items.length;
+  // Contador global usando IDs únicos
+  serverCount = uniqueCountById(items);
+
   if(sorted.length){
     const it=sorted[0];
     const city = geoLabel(it.lat, it.lng, it.place);
@@ -696,7 +705,7 @@ function updateFeedAndMeta(items){
     ticker.style.display='none';
   }
 
-  // Últimas 10 con botón “Ver flor”
+  // Últimas 10
   const ten=sorted.slice(0,10);
   if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
@@ -721,7 +730,7 @@ function updateFeedAndMeta(items){
     }).join('');
   }
 
-  // Top ciudades últimos 7 días (rellena al resolverse geo)
+  // Top ciudades últimos 7 días (se rellena al resolverse geo)
   const weekAgo=Date.now()-7*24*3600*1000;
   const counts={};
   for(const it of items){
@@ -772,7 +781,7 @@ function pulseAtLatLng(latlng){
   }catch{}
 }
 
-/* Incremental refetch usando ?since=lastTs */
+/* Incremental refetch usando ?since=lastTs y mezcla sin duplicados */
 async function refetch(incremental=true){
   try{
     const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
@@ -781,7 +790,7 @@ async function refetch(incremental=true){
     if (data && Array.isArray(data.items)) {
       if (incremental && lastTs && data.items.length){
         const newNorm = normalizeItems(data.items);
-        const merged = [...(window._lastItems||[]), ...newNorm];
+        const merged = mergeUniqueById(window._lastItems||[], newNorm);
         renderAllMarkers(merged);
         updateFeedAndMeta(merged);
       } else {
@@ -794,7 +803,6 @@ async function refetch(incremental=true){
         const t = Number(it.timestamp)||Date.parse(it.timestamp)||0;
         if (t > lastTs) lastTs = t;
       }
-      // cache opcional local
       try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
       return;
     }
