@@ -1,1 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flovermaps</title>
+
+  <meta name="theme-color" content="#f6fff9" />
+  <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
+  <meta property="og:title" content="Flovermaps">
+  <meta property="og:description" content="Planta flores en el mapa y dedica mensajes bonitos.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="./styles/base.css" />
+
+  <!-- Leaflet + MarkerCluster (CDN) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
+
+  <!-- Tu JavaScript (después de Leaflet) -->
+  <script src="./scripts/main.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-card" id="logoBtn">
+      <span class="logo-emoji" aria-hidden="true">🌸</span>
+      <strong>Flovermaps</strong>
+    </div>
+  </header>
+
+  <div class="container grid">
+    <!-- Columna 1: formulario -->
+    <section class="card">
+      <h1>Planta una flor</h1>
+
+      <div class="row2">
+        <div>
+          <label for="fromName">¿Quién la envía?</label>
+          <input id="fromName" placeholder="Tu nombre" required>
+        </div>
+        <div>
+          <label for="toName">¿Para quién?</label>
+          <input id="toName" placeholder="Nombre del destinatario" required>
+        </div>
+      </div>
+
+      <label for="message" class="mt8">Mensaje <span class="muted" id="chars">(0/30)</span></label>
+      <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
+
+      <label for="place" class="mt8">Ubicación (clic en el mapa para fijarla)</label>
+      <input id="place" placeholder="Ej. Times Square, New York" autocomplete="off">
+      <div class="muted" id="fixed" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
+
+      <div class="actions">
+        <button id="confirmBtn" class="btn btn-dark">✅ Plantar / Guardar</button>
+        <button id="gpsBtn" class="btn btn-dark" style="display:none">📍 Usar mi ubicación</button>
+        <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
+      </div>
+
+      <input type="hidden" id="lat"><input type="hidden" id="lng">
+
+      <div class="card inner mt12">
+        <h3 class="h3">🌸 Últimas dedicatorias</h3>
+        <div id="recentList" class="muted scroll-list">Cargando…</div>
+      </div>
+    </section>
+
+    <!-- Columna 2: mapa -->
+    <section class="map-col" aria-label="Mapa">
+      <div class="frame" id="mapFrame">
+        <div id="map"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
 
