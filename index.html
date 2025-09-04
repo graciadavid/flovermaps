@@ -177,13 +177,6 @@
           <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
         </div>
 
-        <!-- Flor Premium (placeholder visual) -->
-        <div class="card" style="margin-top:12px; background:#f7f9fb">
-          <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
-          <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
-          <button class="btn btn-muted" title="Próximamente" disabled>Desbloquear Premium</button>
-        </div>
-
         <input type="hidden" id="lat"><input type="hidden" id="lng">
       </div>
     </section>
@@ -202,10 +195,6 @@
     <!-- 3) EXPLORAR -->
     <aside class="explore-col" aria-label="Explorar">
       <div class="card">
-        <h3 style="margin:0 0 8px">🏙️ Top ciudades (7 días)</h3>
-        <ol id="topCities" class="muted" style="margin:0; padding-left:18px"></ol>
-      </div>
-      <div class="card">
         <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
         <div id="recentList" class="muted scroll-list" aria-live="polite">Cargando…</div>
       </div>
@@ -220,11 +209,10 @@
 <div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; position:fixed; background:rgba(0,0,0,.28); z-index:12000">
   <div class="box" style="background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <h3 style="margin:4px 0 10px">🎉 ¡Tu flor ya florece en el mapa!</h3>
-    <p class="muted" id="successText">Comparte el enlace o explora el mapa global.</p>
+    <p class="muted" id="successText">Comparte el enlace o abre la flor.</p>
     <div class="actions-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
       <button id="mShare" class="btn btn-outline">🔗 Compartir</button>
-      <button id="mOpen" class="btn btn-outline">🪄 Ver flor ahora</button>
-      <button id="mGlobal" class="btn btn-green">🌍 Ver mapa global</button>
+      <button id="mOpen" class="btn btn-green">🪄 Ver flor ahora</button>
     </div>
   </div>
 </div>
@@ -259,15 +247,17 @@ let serverCount=0;
 let saving=false;
 let lastShareUrl='';
 let lastTs = 0; // para incremental fetch
+let allowPlanting = true; // tras plantar 1 flor, se desactiva
+let plantedOnce = false;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
-const place=$("#place"), slist=$("#slist"), fixedBadge=$("#fixed");
-const plantFab=$("#plantFab"), shareBtn=$("#shareBtn"), gpsBtn=$("#gpsBtn");
-const msgInput=$("#message");
-const recentList=$("#recentList"), topCitiesEl=$("#topCities");
-const tickerText=$("#tickerText"), ticker=$("#liveTicker");
-const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mOpen=$("#mOpen");
+const place=document.querySelector("#place"), slist=document.querySelector("#slist"), fixedBadge=document.querySelector("#fixed");
+const plantFab=document.querySelector("#plantFab"), shareBtn=document.querySelector("#shareBtn"), gpsBtn=document.querySelector("#gpsBtn");
+const msgInput=document.querySelector("#message");
+const recentList=document.querySelector("#recentList");
+const tickerText=document.querySelector("#tickerText"), ticker=document.querySelector("#liveTicker");
+const successModal=document.querySelector("#successModal"), mShare=document.querySelector("#mShare"), mOpen=document.querySelector("#mOpen");
 
 /* === Utils === */
 const ACCEPT_LANG = (()=>{ 
@@ -278,7 +268,7 @@ const ACCEPT_LANG = (()=>{
   }catch{ return 'es,en'; }
 })();
 
-function toast(msg, ok=true){ const t=$("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
+function toast(msg, ok=true){ const t=document.querySelector("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
 function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
 function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
@@ -342,8 +332,13 @@ function initMap(){
 
   setTimeout(()=>{ map.invalidateSize(); syncMapHeights(); },150);
   addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeights(); },120));
-  map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
+  map.on('click', onMapClick);
   map.on('move zoom zoomend', updateFabPosition);
+}
+
+function onMapClick(e){
+  if(!allowPlanting){ toast('Ya has plantado tu flor. Comparte o ábrela.', false); return; }
+  setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true);
 }
 
 function ensureFlowersLayer(wantCluster){
@@ -356,7 +351,7 @@ function ensureFlowersLayer(wantCluster){
   useCluster=wantCluster;
 }
 function syncMapHeights(){
-  const mapEl=$("#map"), formCard=$("#formCard");
+  const mapEl=document.getElementById("map"), formCard=document.getElementById("formCard");
   if(!mapEl||!formCard) return;
   const mq=window.matchMedia('(min-width:1025px)');
   if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
@@ -369,7 +364,8 @@ function syncMapHeights(){
 
 /* Selección/arrastra flor */
 async function setEditPoint(lat,lng,zoom=14,showHint=false){
-  $("#lat").value=lat; $("#lng").value=lng;
+  if(!allowPlanting) return; // bloquea nueva selección tras plantar
+  document.getElementById("lat").value=lat; document.getElementById("lng").value=lng;
   if(editMarker){ editMarker.setLatLng([lat,lng]); }
   else{
     editMarker=L.marker([lat,lng],{icon:emojiIcon(),draggable:true,zIndexOffset:2000}).addTo(map);
@@ -380,7 +376,7 @@ async function setEditPoint(lat,lng,zoom=14,showHint=false){
     editMarker.on('dragend', async e=>{
       unlock();
       const p=e.target.getLatLng(); const lat2=p.lat.toFixed(6), lng2=p.lng.toFixed(6);
-      $("#lat").value=lat2; $("#lng").value=lng2; fixedBadge.style.display='inline'; updateFabPosition();
+      document.getElementById("lat").value=lat2; document.getElementById("lng").value=lng2; fixedBadge.style.display='inline'; updateFabPosition();
       try{
         const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat2}&lon=${lng2}&addressdetails=1`);
         if(r.ok){ const j=await r.json(); const a=j.address||{};
@@ -537,6 +533,7 @@ function setupGpsBtn(){
     }).catch(show);
   } else { show(); }
   gpsBtn.onclick=()=> navigator.geolocation.getCurrentPosition(async pos=>{
+    if(!allowPlanting){ toast('Ya has plantado tu flor.', false); return; }
     const lat=pos.coords.latitude.toFixed(6), lng=pos.coords.longitude.toFixed(6);
     setEditPoint(lat,lng,14,true); fixedBadge.style.display='inline';
     try{
@@ -556,9 +553,11 @@ setupGpsBtn();
 /* Guardar flor */
 let shareHandler = null;
 async function saveFlower(){
-  if(saving) return; saving=true;
-  const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
-  const lat=$("#lat").value.trim(), lng=$("#lng").value.trim(), placeText=place.value.trim();
+  if(saving) return; 
+  if(plantedOnce){ toast('Solo puedes plantar una flor por sesión. Comparte o ábrela.', false); return; }
+  saving=true;
+  const from=document.querySelector("#fromName").value.trim(), to=document.querySelector("#toName").value.trim(), msg=document.querySelector("#message").value.trim();
+  const lat=document.querySelector("#lat").value.trim(), lng=document.querySelector("#lng").value.trim(), placeText=place.value.trim();
   if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); saving=false; return; }
 
   plantFab.disabled=true; const prev=plantFab.textContent; plantFab.textContent='⏳';
@@ -599,7 +598,12 @@ async function saveFlower(){
 
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
-      hideFab(); $("#lat").value=''; $("#lng").value='';
+      hideFab(); document.querySelector("#lat").value=''; document.querySelector("#lng").value='';
+
+      // Bloquea más plantaciones desde mapa y botón
+      plantedOnce = true; allowPlanting = false;
+      try{ map.off('click', onMapClick); }catch{}
+      try{ if(editMarker){ map.removeLayer(editMarker); editMarker=null; } }catch{}
     } else { toast('No se pudo guardar', false); }
   }catch(e){ toast('Error al plantar', false); }
   plantFab.disabled=false; plantFab.textContent=prev;
@@ -621,7 +625,6 @@ mOpen.onclick = ()=>{
   try{ if(lastShareUrl) window.open(lastShareUrl, '_blank'); }catch{}
   successModal.style.display='none';
 };
-mGlobal.onclick = ()=>{ successModal.style.display='none'; map.setView([40.2, -3.7], 5); };
 
 /* Logo → refrescar */
 document.getElementById('logoBtn').addEventListener('click', ()=>{ location.reload(); });
@@ -689,7 +692,7 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Feed + Top ciudades + Ticker (con contador único) */
+/* Feed + Ticker + acciones */
 function updateFeedAndMeta(items){
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
 
@@ -705,7 +708,7 @@ function updateFeedAndMeta(items){
     ticker.style.display='none';
   }
 
-  // Últimas 10
+  // Últimas 10 + botón Compartir
   const ten=sorted.slice(0,10);
   if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
@@ -721,33 +724,30 @@ function updateFeedAndMeta(items){
             <div class="muted" style="margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escHtml(it.message)}</div>
             <div class="muted" style="font-size:.9rem">${city?escHtml(city):'—'} · ${when}</div>
           </div>
-          <div style="flex:0 0 auto; margin-left:8px">
+          <div style="flex:0 0 auto; display:flex; gap:6px; margin-left:8px">
             <button class="btn btn-outline"
               onclick="viewFlower('${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}','${escAttrVal(it.timestamp)}')"
-              title="Ver flor en el mapa">Ver flor</button>
+              title="Ver flor en el mapa">Ver</button>
+            <button class="btn btn-outline"
+              onclick="shareFlower('${escAttrVal(it.id)}','${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}')"
+              title="Compartir enlace">Compartir</button>
           </div>
         </div>`;
     }).join('');
   }
-
-  // Top ciudades últimos 7 días (se rellena al resolverse geo)
-  const weekAgo=Date.now()-7*24*3600*1000;
-  const counts={};
-  for(const it of items){
-    const t=Number(it.timestamp)||Date.parse(it.timestamp)||0;
-    if(!t || t<weekAgo) continue;
-    const k=geoKey(it.lat,it.lng);
-    const g=geoCache[k];
-    if(g){
-      const name = g.city || g.state || g.country || '—';
-      counts[name]=(counts[name]||0)+1;
-    } else {
-      scheduleGeo(it.lat,it.lng);
-    }
-  }
-  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
 }
+
+/* Compartir elemento del feed */
+window.shareFlower = async function(id,lat,lng,fromEnc,toEnc,msgEnc){
+  try{
+    const from=unescAttr(fromEnc), to=unescAttr(toEnc), msg=unescAttr(msgEnc);
+    const SHARE_BASE = SCRIPT_URL.replace(/\?$/, '');
+    const url = id ? (SHARE_BASE + '/f/' + encodeURIComponent(id))
+                   : `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+    if(navigator.share){ await navigator.share({title:'Flovermaps', text:`🌸 ${from} para ${to}: “${msg}”`, url}); }
+    else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
+  }catch{}
+};
 
 /* Ver flor (abre popup, zoom suave, halo) */
 window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
