@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
 
-<!-- OG básica con emoji -->
+<!-- OG genérico por si alguien comparte el index directamente -->
 <meta property="og:title" content="Flovermaps">
 <meta property="og:description" content="Planta flores en el mapa y dedica mensajes bonitos.">
 <meta property="og:type" content="website">
@@ -83,6 +83,16 @@
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
 
+  /* Halo animado para “Ver flor”/link compartido */
+  .ping {
+    position:absolute; width:26px; height:26px; margin-left:-13px; margin-top:-13px;
+    border-radius:999px; background:rgba(34,197,94,0.45); pointer-events:none; animation:ping 1.2s ease-out 2;
+  }
+  @keyframes ping {
+    0% { transform:scale(0.7); opacity:0.8 }
+    100% { transform:scale(2.2); opacity:0 }
+  }
+
   /* MarkerCluster tonos */
   .marker-cluster-small{background: rgba(34,197,94,.6);}
   .marker-cluster-medium{background: rgba(34,197,94,.7);}
@@ -112,7 +122,7 @@
 
   /* Explorar: Top ciudades + Últimas (scroll) */
   .explore-col .card + .card{margin-top:12px}
-  .scroll-list{overflow:auto; max-height:560px} /* se ajusta con JS para no superar el mapa */
+  .scroll-list{overflow:auto; max-height:560px}
 
   /* Fila de “últimas” con botón a la derecha */
   .recent-row{display:flex; align-items:center; gap:10px; justify-content:space-between}
@@ -200,9 +210,8 @@
   </div>
 </div>
 
-<!-- Toast + Sticky pill + Modal -->
+<!-- Toast + Modal -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<button id="globalPill" class="global-pill" style="display:none">🌍 Ver mapa global</button>
 
 <div id="successModal" class="modal" aria-modal="true" role="dialog" style="display:none; align-items:center; justify-content:center; inset:0; position:fixed; background:rgba(0,0,0,.28); z-index:12000">
   <div class="box" style="background:#fff; width:min(520px,92vw); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.25)">
@@ -217,7 +226,8 @@
 
 <script>
 /* === CONFIG === */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
+/* Sustituye la URL por la del deployment de tu Apps Script (termina en /exec) */
+const SCRIPT_URL = "PEGAR_AQUI_TU_URL_DE_APPS_SCRIPT/exec";
 
 /* === JSONP helper === */
 function jsonp(url, timeoutMs=12000){
@@ -240,7 +250,7 @@ let useCluster=null;
 let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
-let serverCount=0, heroTimer=null;
+let serverCount=0;
 let saving=false;
 let lastShareUrl='';
 
@@ -250,8 +260,7 @@ const place=$("#place"), slist=$("#slist"), fixedBadge=$("#fixed");
 const plantFab=$("#plantFab"), shareBtn=$("#shareBtn"), gpsBtn=$("#gpsBtn");
 const msgInput=$("#message");
 const recentList=$("#recentList"), topCitiesEl=$("#topCities");
-const ticker=$("#liveTicker"), tickerText=$("#tickerText");
-const globalPill=$("#globalPill");
+const tickerText=$("#tickerText"), ticker=$("#liveTicker");
 const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal");
 
 /* === Utils === */
@@ -270,19 +279,16 @@ function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function toNum(v){ if(v===null||v===undefined) return NaN; if(typeof v==='number') return v; const s=String(v).trim().replace(/\s+/g,'').replace(',', '.'); const n=Number(s); return isFinite(n)? n : NaN; }
 function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Math.max(1, Math.floor((Date.now()-t)/1000)); if(s<60) return `hace ${s} s`; const m=Math.floor(s/60); if(m<60) return `hace ${m} min`; const h=Math.floor(m/60); if(h<24) return `hace ${h} h`; const d=Math.floor(h/24); return `hace ${d} d`; }
-function escapeAttr(s){ return encodeURIComponent(String(s||'')); }
+function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 
-/* ==== Reverse geocoding con caché ==== */
+/* Reverse geo cache */
 const GEO_CACHE_KEY='fm_geo_cache_v1';
 let geoCache={};
 try{ geoCache=JSON.parse(localStorage.getItem(GEO_CACHE_KEY)||'{}'); }catch{ geoCache={}; }
-const geoQueue=[], geoPending=new Set();
-let geoTimer=null;
-
+const geoQueue=[], geoPending=new Set(); let geoTimer=null;
 function geoKey(lat,lng){ return (Number(lat).toFixed(3)+','+Number(lng).toFixed(3)); }
 function saveGeoCache(){ try{ localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); }catch{} }
-
 async function fetchGeo(lat,lng){
   const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat}&lon=${lng}&addressdetails=1`;
   const r=await fetch(url); if(!r.ok) throw new Error('revgeo');
@@ -303,7 +309,7 @@ function scheduleGeo(lat,lng){
       try{
         const data=await fetchGeo(job.lat, job.lng);
         geoCache[job.k]=data; saveGeoCache();
-      }catch(e){ /* silencio */ }
+      }catch(e){}
       geoPending.delete(job.k);
       if(window._lastItems) updateFeedAndMeta(window._lastItems, true);
     }, 700);
@@ -319,14 +325,12 @@ function geoLabel(lat,lng,place){
   return (place||'');
 }
 
-/* === Mapa + Cluster condicional === */
+/* === Mapa + cluster === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-
-  map.setView([40.2, -3.7], 5);
-
+  map.setView([40.2,-3.7],5);
   flowersLayer = L.layerGroup().addTo(map);
   useCluster = false;
 
@@ -351,8 +355,6 @@ function syncMapHeight(){
   if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
   else{ mapEl.style.height='46vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
 }
-
-/* Ajusta altura de lista “Últimas” para no superar el mapa */
 function syncListHeight(){
   try{
     const mapH = document.getElementById('map').offsetHeight || 560;
@@ -360,7 +362,7 @@ function syncListHeight(){
   }catch{}
 }
 
-/* Editar / arrastrar la flor */
+/* Selección/arrastra flor */
 async function setEditPoint(lat,lng,zoom=14,showHint=false){
   $("#lat").value=lat; $("#lng").value=lng;
   if(editMarker){ editMarker.setLatLng([lat,lng]); }
@@ -571,13 +573,20 @@ async function saveFlower(){
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1500}).bindPopup(html);
       if(flowersLayer){ flowersLayer.addLayer(mk); } else { mk.addTo(map); }
       mk.on('click',()=>{ map.setView(mk.getLatLng(),17); mk.openPopup(); });
-      map.setView([+lat,+lng],17);
+      smoothFlyTo([+lat,+lng],17);
       mk.openPopup();
+      pulseAtLatLng([+lat,+lng]);
 
-      lastShareUrl=`${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      // URL corta del Apps Script: /f/<id>
+      const SHARE_BASE = SCRIPT_URL.replace(/\?$/, '');
+      if (data.id) {
+        lastShareUrl = SHARE_BASE + '/f/' + encodeURIComponent(data.id);
+      } else {
+        lastShareUrl = `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      }
       shareBtn.style.display='inline-block';
       if(shareHandler) shareBtn.removeEventListener('click', shareHandler);
-      shareHandler = async ()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`Una flor para ${to}`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
+      shareHandler = async ()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`🌸 ${from} ha plantado una flor para ${to}: “${msg}”`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
       shareBtn.addEventListener('click', shareHandler);
 
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
@@ -657,7 +666,7 @@ function normalizeItems(items){
 }
 
 /* Feed + Top ciudades + Ticker */
-function updateFeedAndMeta(items, soft=false){
+function updateFeedAndMeta(items){
   window._lastItems = items;
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
 
@@ -680,7 +689,7 @@ function updateFeedAndMeta(items, soft=false){
       const city=geoLabel(it.lat,it.lng,it.place);
       const when=relTime(it.timestamp);
       const escHtml=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
-      const escAttrVal=s=>escapeAttr(String(s||''));
+      const escAttrVal=s=>escAttr(String(s||''));
       return `
         <div class="card recent-row">
           <div class="recent-text">
@@ -715,21 +724,43 @@ function updateFeedAndMeta(items, soft=false){
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
 
-  // Ajusta altura de la lista respecto al mapa
   syncListHeight();
 }
 
-/* Ver flor desde “Últimas” */
+/* Ver flor (abre popup, zoom suave, halo) */
 window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
   const from=unescAttr(fromEnc), to=unescAttr(toEnc), msg=unescAttr(msgEnc);
   const dtStr = fmtDateTime(new Date(Number(tsEnc)||Date.parse(tsEnc)||Date.now()));
   const html = popupHtml(from,to,msg,dtStr);
   const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
-  map.setView([+lat,+lng], 17);
+  smoothFlyTo([+lat,+lng], 17);
   mk.openPopup();
-  // opcional: quitar el marcador temporal cuando cierres el popup
+  pulseAtLatLng([+lat,+lng]);
   mk.on('popupclose', ()=>{ try{ map.removeLayer(mk); }catch{} });
 };
+
+/* Suavizado de zoom/pan */
+function smoothFlyTo(latlng, z=17){
+  try{
+    map.flyTo(latlng, z, {animate:true, duration:0.8, easeLinearity:0.25});
+  }catch{
+    map.setView(latlng, z);
+  }
+}
+/* Halo animado */
+function pulseAtLatLng(latlng){
+  try{
+    const p = map.latLngToContainerPoint(latlng);
+    const wrap = document.getElementById('map');
+    const div = document.createElement('div');
+    div.className='ping';
+    div.style.left = (p.x)+'px';
+    div.style.top  = (p.y)+'px';
+    wrap.parentElement.style.position='relative';
+    wrap.parentElement.appendChild(div);
+    setTimeout(()=>{ try{ div.remove(); }catch{} }, 1400);
+  }catch{}
+}
 
 /* Refetch */
 async function refetch(){
@@ -758,16 +789,18 @@ function startPolling(){
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
 }
 
-/* Compartido por URL (abrir flor concreta) */
+/* Abrir flor compartida por params (desde /f/<id>) */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
-    const go=()=>{ map.setView([+lat,+lng], 17);
+    const go=()=>{ 
+      smoothFlyTo([+lat,+lng], 17);
       const mk=L.marker([+lat,+lng],{icon:emojiIcon(),zIndexOffset:1600}).bindPopup(popupHtml(from,to,msg,fmtDateTime(new Date())));
       if(flowersLayer){ flowersLayer.addLayer(mk); } else { mk.addTo(map); }
       mk.openPopup();
+      pulseAtLatLng([+lat,+lng]);
     };
     if(flowersLayer){ go(); } else { setTimeout(go, 400); }
   }
