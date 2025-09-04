@@ -3,29 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flovermaps</title>
+<title>Planta una flor en el lugar que lo cambió todo — Flovermaps</title>
 
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
-<meta name="description" content="Planta flores en el mapa y dedica mensajes bonitos." />
+<meta name="description" content="Planta flores en el mapa, dedica un mensaje y compártelo para siempre." />
 
-<!-- OG genérico por si alguien comparte el index directamente -->
+<!-- OG/Twitter genérico (index) -->
 <meta property="og:title" content="Flovermaps">
 <meta property="og:description" content="Planta flores en el mapa y dedica mensajes bonitos.">
 <meta property="og:type" content="website">
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
 
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://basemaps.cartocdn.com">
+<link rel="preconnect" href="https://nominatim.openstreetmap.org">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- MarkerCluster -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --accent:#01c064; --accent-weak: rgba(1,192,100,.08); --bg:#f6fff9; }
@@ -83,7 +88,7 @@
   #map{width:100%; height:560px}
   @media (max-width:1024px){ #map{height:46vh} }
 
-  /* Halo animado para “Ver flor”/link compartido */
+  /* Halo animado */
   .ping {
     position:absolute; width:26px; height:26px; margin-left:-13px; margin-top:-13px;
     border-radius:999px; background:rgba(34,197,94,0.45); pointer-events:none; animation:ping 1.2s ease-out 2;
@@ -120,11 +125,10 @@
   .toast{position:fixed; left:50%; bottom:88px; transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:11000; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s}
   .toast.show{opacity:1; bottom:98px}
 
-  /* Explorar: Top ciudades + Últimas (scroll) */
+  /* Explorar */
   .explore-col .card + .card{margin-top:12px}
   .scroll-list{overflow:auto; max-height:560px}
 
-  /* Fila de “últimas” con botón a la derecha */
   .recent-row{display:flex; align-items:center; gap:10px; justify-content:space-between}
   .recent-text{min-width:0}
 </style>
@@ -141,7 +145,7 @@
 
   <!-- Ticker actividad -->
   <section aria-label="Actividad reciente">
-    <div class="ticker" id="liveTicker" style="display:none"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
+    <div class="ticker" id="liveTicker" style="display:none" aria-live="polite"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
   </section>
 
   <!-- GRID 3 columnas: Form — Mapa — Explorar -->
@@ -173,7 +177,7 @@
           <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
         </div>
 
-        <!-- Flor Premium (placeholder) -->
+        <!-- Flor Premium (placeholder visual, sin captcha) -->
         <div class="card" style="margin-top:12px; background:#f7f9fb">
           <strong>🌟 Flor Premium</strong> <span class="muted">(próximamente)</span>
           <div class="muted" style="margin:6px 0 8px">Añade música, vídeo o mensajes secretos. Disponible muy pronto.</div>
@@ -188,7 +192,7 @@
     <section class="map-col" aria-label="Mapa">
       <div class="frame" id="mapFrame">
         <div id="map"></div>
-        <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí">✅ Plantar aquí</button>
+        <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí" aria-describedby="help">✅ Plantar aquí</button>
       </div>
       <div style="display:flex;justify-content:center;padding:10px 0">
         <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
@@ -203,7 +207,7 @@
       </div>
       <div class="card">
         <h3 style="margin:0 0 8px">🌸 Últimas dedicatorias</h3>
-        <div id="recentList" class="muted scroll-list">Cargando…</div>
+        <div id="recentList" class="muted scroll-list" aria-live="polite">Cargando…</div>
       </div>
     </aside>
 
@@ -219,6 +223,7 @@
     <p class="muted" id="successText">Comparte el enlace o explora el mapa global.</p>
     <div class="actions-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
       <button id="mShare" class="btn btn-outline">🔗 Compartir</button>
+      <button id="mOpen" class="btn btn-outline">🪄 Ver flor ahora</button>
       <button id="mGlobal" class="btn btn-green">🌍 Ver mapa global</button>
     </div>
   </div>
@@ -253,6 +258,7 @@ let didFitBounds=false;
 let serverCount=0;
 let saving=false;
 let lastShareUrl='';
+let lastTs = 0; // para incremental fetch
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -261,7 +267,7 @@ const plantFab=$("#plantFab"), shareBtn=$("#shareBtn"), gpsBtn=$("#gpsBtn");
 const msgInput=$("#message");
 const recentList=$("#recentList"), topCitiesEl=$("#topCities");
 const tickerText=$("#tickerText"), ticker=$("#liveTicker");
-const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal");
+const successModal=$("#successModal"), mShare=$("#mShare"), mGlobal=$("#mGlobal"), mOpen=$("#mOpen");
 
 /* === Utils === */
 const ACCEPT_LANG = (()=>{ 
@@ -282,7 +288,7 @@ function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Ma
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 
-/* Reverse geo cache */
+/* Reverse geo cache (localStorage) */
 const GEO_CACHE_KEY='fm_geo_cache_v1';
 let geoCache={};
 try{ geoCache=JSON.parse(localStorage.getItem(GEO_CACHE_KEY)||'{}'); }catch{ geoCache={}; }
@@ -334,11 +340,12 @@ function initMap(){
   flowersLayer = L.layerGroup().addTo(map);
   useCluster = false;
 
-  setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); },150);
-  addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeight(); syncListHeight(); },120));
+  setTimeout(()=>{ map.invalidateSize(); syncMapHeights(); },150);
+  addEventListener('resize', ()=> setTimeout(()=>{ map.invalidateSize(); syncMapHeights(); },120));
   map.on('click', e=>{ setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true); });
   map.on('move zoom zoomend', updateFabPosition);
 }
+
 function ensureFlowersLayer(wantCluster){
   if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
   if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
@@ -348,17 +355,15 @@ function ensureFlowersLayer(wantCluster){
   flowersLayer.addTo(map);
   useCluster=wantCluster;
 }
-function syncMapHeight(){
+function syncMapHeights(){
   const mapEl=$("#map"), formCard=$("#formCard");
   if(!mapEl||!formCard) return;
   const mq=window.matchMedia('(min-width:1025px)');
   if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
   else{ mapEl.style.height='46vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
-}
-function syncListHeight(){
   try{
     const mapH = document.getElementById('map').offsetHeight || 560;
-    recentList.style.maxHeight = mapH + 'px';
+    document.getElementById('recentList').style.maxHeight = mapH + 'px';
   }catch{}
 }
 
@@ -400,15 +405,17 @@ function updateFabPosition(){
   const mapEl=map.getContainer(), frameEl=mapEl.parentElement;
   const p=map.latLngToContainerPoint(editMarker.getLatLng());
   const mr=mapEl.getBoundingClientRect(), fr=frameEl.getBoundingClientRect();
-  const left=p.x+(mr.left-fr.left), top=p.y+(mr.top-fr.top)+34;
+  let left=p.x+(mr.left-fr.left), top=p.y+(mr.top-fr.top)+34;
   const pad=8, maxX=fr.width-pad, maxY=fr.height-pad;
+  // Evita tapar el pin en bordes
+  top = Math.max(pad, Math.min(top , maxY-4));
   plantFab.style.left=Math.max(pad, Math.min(left, maxX))+'px';
-  plantFab.style.top =Math.max(pad, Math.min(top , maxY))+'px';
+  plantFab.style.top =top+'px';
 }
 function showFab(){ updateFabPosition(); plantFab.style.display='inline-flex'; plantFab.classList.remove('pop'); void plantFab.offsetWidth; plantFab.classList.add('pop'); }
 function hideFab(){ plantFab.style.display='none'; }
 
-/* Autocomplete global */
+/* Autocomplete global (Nominatim) */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
@@ -515,7 +522,7 @@ document.getElementById('confirmBtn').addEventListener('click', async ()=>{
 });
 addEventListener('click', e=>{ const box=document.querySelector('.sbox'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
-/* Mensaje 1 línea / 30 chars */
+/* Mensaje 1 línea / 30 chars (front mantiene 30 por UX; backend no lo fuerza) */
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
@@ -554,7 +561,7 @@ async function saveFlower(){
   const from=$("#fromName").value.trim(), to=$("#toName").value.trim(), msg=$("#message").value.trim();
   const lat=$("#lat").value.trim(), lng=$("#lng").value.trim(), placeText=place.value.trim();
   if(!from||!to||!msg||!lat||!lng){ toast('Completa los campos y fija ubicación', false); saving=false; return; }
-  if(msg.length>30){ toast('Máximo 30 caracteres', false); saving=false; return; }
+
   plantFab.disabled=true; const prev=plantFab.textContent; plantFab.textContent='⏳';
   try{
     const url = SCRIPT_URL + '?action=add'
@@ -566,7 +573,11 @@ async function saveFlower(){
       + '&lng='     +encodeURIComponent(lng);
     const data = await jsonp(url);
     if(data && data.ok){
-      await refetch();
+      // actualiza lastTs si viene ts del server
+      if (data.ts && Number(data.ts) > lastTs) lastTs = Number(data.ts);
+
+      // pide solo lo nuevo
+      await refetch(true);
 
       const dtStr=fmtDateTime(new Date());
       const html=popupHtml(from,to,msg,dtStr);
@@ -609,6 +620,10 @@ mShare.onclick = async ()=>{
   }catch{}
   successModal.style.display='none';
 };
+mOpen.onclick = ()=>{
+  try{ if(lastShareUrl) window.open(lastShareUrl, '_blank'); }catch{}
+  successModal.style.display='none';
+};
 mGlobal.onclick = ()=>{ successModal.style.display='none'; map.setView([40.2, -3.7], 5); };
 
 /* Logo → refrescar */
@@ -617,6 +632,7 @@ document.getElementById('logoBtn').addEventListener('click', ()=>{ location.relo
 /* Render con capa condicional (cluster si >=10) */
 function renderAllMarkers(list){
   if(!map) return;
+  window._lastItems = list; // guarda última lista normalizada
   const wantCluster = list.length >= 10;
   ensureFlowersLayer(wantCluster);
 
@@ -657,7 +673,7 @@ function normalizeItems(items){
     if(!isFinite(lat)||!isFinite(lng)) continue;
     const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
     const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
-    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '').slice(0,30);
+    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
     const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
     const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
     out.push({ lat, lng, fromName, toName, message, place, timestamp });
@@ -667,10 +683,9 @@ function normalizeItems(items){
 
 /* Feed + Top ciudades + Ticker */
 function updateFeedAndMeta(items){
-  window._lastItems = items;
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
 
-  // Ticker con ordinal global
+  // Ticker con ordinal global (aprox por length del client)
   serverCount=items.length;
   if(sorted.length){
     const it=sorted[0];
@@ -706,7 +721,7 @@ function updateFeedAndMeta(items){
     }).join('');
   }
 
-  // Top ciudades últimos 7 días (reverse real)
+  // Top ciudades últimos 7 días (rellena al resolverse geo)
   const weekAgo=Date.now()-7*24*3600*1000;
   const counts={};
   for(const it of items){
@@ -723,8 +738,6 @@ function updateFeedAndMeta(items){
   }
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   topCitiesEl.innerHTML = top.length? top.map(([c,n])=>`<li><strong>${c}</strong> · ${n}</li>`).join('') : '<li class="muted">Calculando ubicaciones…</li>';
-
-  syncListHeight();
 }
 
 /* Ver flor (abre popup, zoom suave, halo) */
@@ -741,11 +754,8 @@ window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
 
 /* Suavizado de zoom/pan */
 function smoothFlyTo(latlng, z=17){
-  try{
-    map.flyTo(latlng, z, {animate:true, duration:0.8, easeLinearity:0.25});
-  }catch{
-    map.setView(latlng, z);
-  }
+  try{ map.flyTo(latlng, z, {animate:true, duration:0.8, easeLinearity:0.25}); }
+  catch{ map.setView(latlng, z); }
 }
 /* Halo animado */
 function pulseAtLatLng(latlng){
@@ -762,18 +772,34 @@ function pulseAtLatLng(latlng){
   }catch{}
 }
 
-/* Refetch */
-async function refetch(){
+/* Incremental refetch usando ?since=lastTs */
+async function refetch(incremental=true){
   try{
-    const data=await jsonp(SCRIPT_URL+'?action=list', 12000);
-    if(data && Array.isArray(data.items)){
-      localStorage.setItem('flowers_cache', JSON.stringify(data.items));
-      const norm=normalizeItems(data.items);
-      renderAllMarkers(norm);
-      updateFeedAndMeta(norm);
+    const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
+    const data = await jsonp(url, 12000);
+
+    if (data && Array.isArray(data.items)) {
+      if (incremental && lastTs && data.items.length){
+        const newNorm = normalizeItems(data.items);
+        const merged = [...(window._lastItems||[]), ...newNorm];
+        renderAllMarkers(merged);
+        updateFeedAndMeta(merged);
+      } else {
+        const norm = normalizeItems(data.items);
+        renderAllMarkers(norm);
+        updateFeedAndMeta(norm);
+      }
+      // actualiza lastTs
+      for (const it of data.items) {
+        const t = Number(it.timestamp)||Date.parse(it.timestamp)||0;
+        if (t > lastTs) lastTs = t;
+      }
+      // cache opcional local
+      try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
       return;
     }
-  }catch(e){}
+  } catch(e){/* ignora y usa cache */ }
+
   const cached=localStorage.getItem('flowers_cache');
   if(cached){
     const items=normalizeItems(JSON.parse(cached));
@@ -785,11 +811,11 @@ async function refetch(){
 /* Polling */
 function startPolling(){
   if(pollTimer) clearInterval(pollTimer);
-  pollTimer=setInterval(refetch, 10000);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(); });
+  pollTimer=setInterval(()=>refetch(true), 15000); // 15s
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(true); });
 }
 
-/* Abrir flor compartida por params (desde /f/<id>) */
+/* Abrir flor compartida por params (fallback si no hay /f/<id>) */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
@@ -810,10 +836,10 @@ function tryOpenShared(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('chars').textContent='(0/30)';
   initMap();
-  refetch();
+  refetch(false);   // primera carga completa
   startPolling();
   tryOpenShared();
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ syncMapHeight(); syncListHeight(); }); } else { syncMapHeight(); syncListHeight(); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ syncMapHeights(); }); } else { syncMapHeights(); }
 
   // Cerrar modal al clicar fuera
   document.addEventListener('click', e=>{
