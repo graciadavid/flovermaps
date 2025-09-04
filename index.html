@@ -53,28 +53,22 @@
   .container{max-width:1300px; margin:0 auto; padding:0 14px}
   .grid3{display:block; gap:12px}
   @media (min-width:1100px){
-    .grid3{display:grid; grid-template-columns: 360px 1fr 420px; align-items:start; gap:12px}
+    /* formulario más estrecho, mapa protagonista */
+    .grid3{display:grid; grid-template-columns: 300px 1fr 360px; align-items:start; gap:12px}
   }
 
-  .card{border:1px solid #e8e8e8; border-radius:12px; padding:14px; background:#fff; color:var(--ink); margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
+  .card{border:1px solid #e8e8e8; border-radius:12px; padding:12px; background:#fff; color:var(--ink); margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   .muted{color:var(--muted); font-size:.95rem}
-  label{display:block; margin:6px 0 4px; font-size:.92rem}
-  .row2{display:grid; grid-template-columns:1fr; gap:8px}
+  label{display:block; margin:6px 0 4px; font-size:.9rem}
+  .row2{display:grid; grid-template-columns:1fr; gap:6px}
   @media (min-width:640px){ .row2{grid-template-columns:1fr 1fr} }
 
-  /* Inputs y botones */
-  input,.btn,select{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem}
+  /* Inputs y botones (más compactos) */
+  input,.btn,select{width:100%; padding:8px; border:1px solid #ddd; border-radius:10px; font-size:.92rem}
   .btn{border:0; border-radius:10px; cursor:pointer}
   .btn-dark{background:#444;color:#fff}
-  .btn-share{background:#0066cc;color:#fff}
-  .btn-muted{background:#e9ecef;color:#556; cursor:not-allowed}
   .btn-outline{background:#fff; color:#0f172a; border:1px solid #e6e6e6}
   .btn-green{background:#22c55e; color:#fff}
-
-  /* Ticker */
-  .ticker{display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e8e8e8; background:#fff; border-radius:10px; margin:8px 0; box-shadow:0 4px 12px rgba(2,6,12,.05); font-size:1rem}
-  .dot{width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.6); animation:pulse 1.4s infinite}
-  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{ box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{ box-shadow:0 0 0 0 rgba(34,197,94,0)} }
 
   /* Autocomplete */
   .sbox{position:relative}
@@ -86,7 +80,8 @@
   /* Mapa */
   .frame{position:relative; border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fff; margin:6px 0; box-shadow:0 6px 18px rgba(2,6,12,.05)}
   #map{width:100%; height:560px}
-  @media (max-width:1024px){ #map{height:46vh} }
+  /* en móvil, mapa más alto */
+  @media (max-width:1024px){ #map{height:68vh} }
 
   /* Halo animado */
   .ping {
@@ -143,11 +138,6 @@
 
 <div class="container">
 
-  <!-- Ticker actividad -->
-  <section aria-label="Actividad reciente">
-    <div class="ticker" id="liveTicker" style="display:none" aria-live="polite"><span class="dot"></span><span id="tickerText">Actividad reciente…</span></div>
-  </section>
-
   <!-- GRID 3 columnas: Form — Mapa — Explorar -->
   <div class="grid3">
 
@@ -173,8 +163,8 @@
         <div id="fixed" class="muted" style="display:none;margin-top:4px">✅ Ubicación fijada</div>
 
         <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
-          <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 160px">✅ Confirmar dirección</button>
-          <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 160px; display:none">📍 Usar mi ubicación</button>
+          <button id="confirmBtn" class="btn btn-dark" style="flex:1 1 140px">✅ Confirmar dirección</button>
+          <button id="gpsBtn" class="btn btn-dark" style="flex:1 1 140px; display:none">📍 Usar mi ubicación</button>
         </div>
 
         <input type="hidden" id="lat"><input type="hidden" id="lng">
@@ -186,9 +176,6 @@
       <div class="frame" id="mapFrame">
         <div id="map"></div>
         <button id="plantFab" class="map-fab" type="button" aria-label="Plantar aquí" aria-describedby="help">✅ Plantar aquí</button>
-      </div>
-      <div style="display:flex;justify-content:center;padding:10px 0">
-        <button id="shareBtn" class="btn btn-share" style="display:none">🔗 Compartir</button>
       </div>
     </section>
 
@@ -243,7 +230,6 @@ let useCluster=null;
 let editMarker=null;
 let pollTimer=null;
 let didFitBounds=false;
-let serverCount=0;
 let saving=false;
 let lastShareUrl='';
 let lastTs = 0; // para incremental fetch
@@ -253,10 +239,9 @@ let plantedOnce = false;
 /* === DOM === */
 const $=s=>document.querySelector(s);
 const place=document.querySelector("#place"), slist=document.querySelector("#slist"), fixedBadge=document.querySelector("#fixed");
-const plantFab=document.querySelector("#plantFab"), shareBtn=document.querySelector("#shareBtn"), gpsBtn=document.querySelector("#gpsBtn");
+const plantFab=document.querySelector("#plantFab"), gpsBtn=document.querySelector("#gpsBtn");
 const msgInput=document.querySelector("#message");
 const recentList=document.querySelector("#recentList");
-const tickerText=document.querySelector("#tickerText"), ticker=document.querySelector("#liveTicker");
 const successModal=document.querySelector("#successModal"), mShare=document.querySelector("#mShare"), mOpen=document.querySelector("#mOpen");
 
 /* === Utils === */
@@ -270,7 +255,6 @@ const ACCEPT_LANG = (()=>{
 
 function toast(msg, ok=true){ const t=document.querySelector("#toast"); t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
-function formatES(n){ try{ return new Intl.NumberFormat('es-ES').format(n); }catch{return String(n);} }
 function popupHtml(from,to,msg,dtStr){ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m])); return `<div>${esc(dtStr)} <strong>${esc(from)}</strong> para <strong>${esc(to)}</strong>: ${esc(msg)}.</div>`; }
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function toNum(v){ if(v===null||v===undefined) return NaN; if(typeof v==='number') return v; const s=String(v).trim().replace(/\s+/g,'').replace(',', '.'); const n=Number(s); return isFinite(n)? n : NaN; }
@@ -282,44 +266,8 @@ function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 const GEO_CACHE_KEY='fm_geo_cache_v1';
 let geoCache={};
 try{ geoCache=JSON.parse(localStorage.getItem(GEO_CACHE_KEY)||'{}'); }catch{ geoCache={}; }
-const geoQueue=[], geoPending=new Set(); let geoTimer=null;
 function geoKey(lat,lng){ return (Number(lat).toFixed(3)+','+Number(lng).toFixed(3)); }
-function saveGeoCache(){ try{ localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); }catch{} }
-async function fetchGeo(lat,lng){
-  const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat}&lon=${lng}&addressdetails=1`;
-  const r=await fetch(url); if(!r.ok) throw new Error('revgeo');
-  const j=await r.json(); const a=j.address||{};
-  const city=a.city||a.town||a.village||a.municipality||a.county||'';
-  const state=a.state||a.province||'';
-  const country=a.country||'';
-  return {city,state,country};
-}
-function scheduleGeo(lat,lng){
-  const k=geoKey(lat,lng);
-  if(geoCache[k] || geoPending.has(k)) return;
-  geoPending.add(k); geoQueue.push({lat,lng,k});
-  if(!geoTimer){
-    geoTimer=setInterval(async ()=>{
-      if(!geoQueue.length){ clearInterval(geoTimer); geoTimer=null; return; }
-      const job=geoQueue.shift();
-      try{
-        const data=await fetchGeo(job.lat, job.lng);
-        geoCache[job.k]=data; saveGeoCache();
-      }catch(e){}
-      geoPending.delete(job.k);
-      if(window._lastItems) updateFeedAndMeta(window._lastItems, true);
-    }, 700);
-  }
-}
-function geoLabel(lat,lng,place){
-  const k=geoKey(lat,lng);
-  if(geoCache[k]){
-    const g=geoCache[k];
-    return g.city || g.state || g.country || (place||'');
-  }
-  scheduleGeo(lat,lng);
-  return (place||'');
-}
+function scheduleGeo(){}
 
 /* === Mapa + cluster === */
 function initMap(){
@@ -335,7 +283,6 @@ function initMap(){
   map.on('click', onMapClick);
   map.on('move zoom zoomend', updateFabPosition);
 }
-
 function onMapClick(e){
   if(!allowPlanting){ toast('Ya has plantado tu flor. Comparte o ábrela.', false); return; }
   setEditPoint(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6), 14, true);
@@ -354,8 +301,8 @@ function syncMapHeights(){
   const mapEl=document.getElementById("map"), formCard=document.getElementById("formCard");
   if(!mapEl||!formCard) return;
   const mq=window.matchMedia('(min-width:1025px)');
-  if(mq.matches){ const h=Math.max(420, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
-  else{ mapEl.style.height='46vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
+  if(mq.matches){ const h=Math.max(560, formCard.offsetHeight); mapEl.style.height=h+'px'; if(map) setTimeout(()=>map.invalidateSize(),50); }
+  else{ mapEl.style.height='68vh'; if(map) setTimeout(()=>map.invalidateSize(),50); }
   try{
     const mapH = document.getElementById('map').offsetHeight || 560;
     document.getElementById('recentList').style.maxHeight = mapH + 'px';
@@ -551,7 +498,6 @@ function setupGpsBtn(){
 setupGpsBtn();
 
 /* Guardar flor */
-let shareHandler = null;
 async function saveFlower(){
   if(saving) return; 
   if(plantedOnce){ toast('Solo puedes plantar una flor por sesión. Comparte o ábrela.', false); return; }
@@ -584,23 +530,14 @@ async function saveFlower(){
       mk.openPopup();
       pulseAtLatLng([+lat,+lng]);
 
-      // URL corta del Apps Script: /f/<id>
-      const SHARE_BASE = SCRIPT_URL.replace(/\?$/, '');
-      if (data.id) {
-        lastShareUrl = SHARE_BASE + '/f/' + encodeURIComponent(data.id);
-      } else {
-        lastShareUrl = `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
-      }
-      shareBtn.style.display='inline-block';
-      if(shareHandler) shareBtn.removeEventListener('click', shareHandler);
-      shareHandler = async ()=>{ try{ if(navigator.share){ await navigator.share({title:'Flovermaps',text:`🌸 ${from} ha plantado una flor para ${to}: “${msg}”`,url:lastShareUrl}); } else { await navigator.clipboard.writeText(lastShareUrl); shareBtn.textContent='✅ Copiado'; setTimeout(()=>shareBtn.textContent='🔗 Compartir',1200); } }catch{} };
-      shareBtn.addEventListener('click', shareHandler);
+      /* Enlace de compartir SIEMPRE con parámetros (nada de páginas de Google Drive/Script) */
+      lastShareUrl = `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
 
       document.getElementById('successText').textContent = `De ${from} para ${to}.`;
       successModal.style.display='flex';
       hideFab(); document.querySelector("#lat").value=''; document.querySelector("#lng").value='';
 
-      // Bloquea más plantaciones desde mapa y botón
+      // Bloquea más plantaciones desde mapa
       plantedOnce = true; allowPlanting = false;
       try{ map.off('click', onMapClick); }catch{}
       try{ if(editMarker){ map.removeLayer(editMarker); editMarker=null; } }catch{}
@@ -652,10 +589,6 @@ function mergeUniqueById(oldList, newList){
   for(const it of (newList||[])) m.set(it.id, it);
   return Array.from(m.values());
 }
-function uniqueCountById(list){
-  const s = new Set((list||[]).map(it=>it.id));
-  return s.size;
-}
 
 /* Render con capa condicional (cluster si >=10) */
 function renderAllMarkers(list){
@@ -692,28 +625,13 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Feed + Ticker + acciones */
+/* Feed (solo últimas) */
 function updateFeedAndMeta(items){
   const sorted=[...items].sort((a,b)=>(Number(b.timestamp)||Date.parse(b.timestamp)||0)-(Number(a.timestamp)||Date.parse(a.timestamp)||0));
-
-  // Contador global usando IDs únicos
-  serverCount = uniqueCountById(items);
-
-  if(sorted.length){
-    const it=sorted[0];
-    const city = geoLabel(it.lat, it.lng, it.place);
-    tickerText.innerHTML = `${(it.fromName||'Alguien')} ha plantado la flor <strong>${formatES(serverCount)}</strong> ${city?('en '+city+' '):''}${relTime(it.timestamp)}.`;
-    ticker.style.display='flex';
-  } else {
-    ticker.style.display='none';
-  }
-
-  // Últimas 10 + botón Compartir
   const ten=sorted.slice(0,10);
   if(!ten.length){ recentList.innerHTML='<span class="muted">Aún no hay flores recientes.</span>'; }
   else{
     recentList.innerHTML = ten.map(it=>{
-      const city=geoLabel(it.lat,it.lng,it.place);
       const when=relTime(it.timestamp);
       const escHtml=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
       const escAttrVal=s=>escAttr(String(s||''));
@@ -722,32 +640,17 @@ function updateFeedAndMeta(items){
           <div class="recent-text">
             <div><strong>${escHtml(it.fromName)}</strong> → <strong>${escHtml(it.toName)}</strong></div>
             <div class="muted" style="margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escHtml(it.message)}</div>
-            <div class="muted" style="font-size:.9rem">${city?escHtml(city):'—'} · ${when}</div>
+            <div class="muted" style="font-size:.9rem">· ${when}</div>
           </div>
-          <div style="flex:0 0 auto; display:flex; gap:6px; margin-left:8px">
+          <div style="flex:0 0 auto; margin-left:8px">
             <button class="btn btn-outline"
               onclick="viewFlower('${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}','${escAttrVal(it.timestamp)}')"
               title="Ver flor en el mapa">Ver</button>
-            <button class="btn btn-outline"
-              onclick="shareFlower('${escAttrVal(it.id)}','${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}')"
-              title="Compartir enlace">Compartir</button>
           </div>
         </div>`;
     }).join('');
   }
 }
-
-/* Compartir elemento del feed */
-window.shareFlower = async function(id,lat,lng,fromEnc,toEnc,msgEnc){
-  try{
-    const from=unescAttr(fromEnc), to=unescAttr(toEnc), msg=unescAttr(msgEnc);
-    const SHARE_BASE = SCRIPT_URL.replace(/\?$/, '');
-    const url = id ? (SHARE_BASE + '/f/' + encodeURIComponent(id))
-                   : `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:`🌸 ${from} para ${to}: “${msg}”`, url}); }
-    else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
-  }catch{}
-};
 
 /* Ver flor (abre popup, zoom suave, halo) */
 window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
@@ -798,7 +701,6 @@ async function refetch(incremental=true){
         renderAllMarkers(norm);
         updateFeedAndMeta(norm);
       }
-      // actualiza lastTs
       for (const it of data.items) {
         const t = Number(it.timestamp)||Date.parse(it.timestamp)||0;
         if (t > lastTs) lastTs = t;
@@ -823,7 +725,7 @@ function startPolling(){
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refetch(true); });
 }
 
-/* Abrir flor compartida por params (fallback si no hay /f/<id>) */
+/* Abrir flor compartida por params */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
