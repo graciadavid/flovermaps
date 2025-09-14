@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flovermaps — Planta una flor en el lugar que lo cambió todo</title>
+<title>Flovermaps — Planta una flor solidaria</title>
 
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
-<meta name="description" content="Elige un sitio del mapa, dedica un mensaje y compártalo con un enlace." />
+<meta name="description" content="Planta una flor solidaria en el mapa, dedica un mensaje y compártala con quien quieras." />
 
-<meta property="og:title" content="Planta una flor en el lugar que lo cambió todo — Flovermaps">
-<meta property="og:description" content="Planta una flor en el mapa, dedica un mensaje y compártala con un enlace.">
+<meta property="og:title" content="Planta una flor solidaria — Flovermaps">
+<meta property="og:description" content="Elige un lugar del mapa, dedica tu mensaje y dona a una ONG.">
 <meta property="og:type" content="website">
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
@@ -52,16 +52,14 @@
   .brand img{ height:72px; display:block }
   @media (min-width:900px){ .brand img{ height:96px } }
 
-  /* MAPA full pantalla */
+  /* MAPA */
   #mapWrap{ position:fixed; inset:0; }
   #map{
     position:absolute; inset:0; width:100%;
-    height:100vh;      /* fallback universal */
-    height:100dvh;     /* navegadores con dvh */
-    min-height:100vh;
+    height:100vh; height:100dvh; min-height:100vh;
   }
 
-  /* Controles ABAJO */
+  /* Controles abajo */
   .controls{
     position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
     bottom:calc(24px + var(--safe-b));
@@ -104,7 +102,7 @@
     max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
   }
 
-  /* CTA verde pegada al pin */
+  /* CTA pegada al pin */
   .pin-cta{
     position:absolute; z-index:1203; display:none;
     background:var(--accent); color:#fff; border:0; border-radius:12px; padding:10px 12px; font-size:1rem; white-space:nowrap;
@@ -112,7 +110,7 @@
     transform:translate(-50%, 8px);
   }
 
-  /* Compartir fijo (azul) */
+  /* Compartir fijo (después de plantar) */
   .share-fixed{
     position:fixed; right:14px; bottom:calc(18px + var(--safe-b)); z-index:1204;
     background:var(--blue); color:#fff; border:0; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
@@ -133,7 +131,7 @@
     pointer-events:none; z-index:1100; display:none;
   }
 
-  /* Sheet */
+  /* Sheet (form + éxito) */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1300; transform:translateY(100%); transition:transform .25s ease;
           background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column; }
   .sheet.open{ transform:translateY(0) }
@@ -142,11 +140,19 @@
   .sheet h3{ margin:8px 0 10px }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
   label{ display:block; margin:6px 0 4px; font-size:.92rem }
-  input,.btn{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
+  input,.btn,select{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
   .btn{ border:0; cursor:pointer }
   .btn-green{ background:#22c55e; color:#fff }
   .btn-outline{ background:#fff; color:#0f172a; border:1px solid #e6e6e6 }
   .muted{ color:var(--muted); font-size:.95rem }
+
+  /* Pago (modal demo) */
+  .paymask{ position:fixed; inset:0; background:rgba(0,0,0,.32); z-index:1400; display:none; align-items:center; justify-content:center; }
+  .paycard{ background:#fff; width:min(520px,92vw); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); padding:14px; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
+  .chip{ padding:8px 10px; border:1px solid #e6e6e6; border-radius:999px; cursor:pointer; }
+  .chip.active{ background:#22c55e; color:#fff; border-color:#22c55e }
+  .pay-actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap }
 
   /* Toast */
   .toast{
@@ -165,7 +171,7 @@
 <main id="mapWrap" aria-label="Mapa">
   <div id="map"></div>
   <div id="dragRing" class="drag-ring"></div>
-  <button id="pinCta" class="pin-cta">Plantar la Flor</button>
+  <button id="pinCta" class="pin-cta">Continuar</button>
 </main>
 
 <div class="controls" id="controls" aria-label="Controles">
@@ -197,10 +203,20 @@
       </div>
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
       <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
+
+      <!-- ONG SELECT -->
+      <label for="ngo" style="margin-top:10px">ONG (tu donación irá a)</label>
+      <select id="ngo">
+        <option value="msf" selected>Médicos Sin Fronteras</option>
+        <option value="stc">Save the Children</option>
+        <option value="aecc">Asociación Española Contra el Cáncer</option>
+        <option value="unicef">UNICEF</option>
+      </select>
+
       <div style="margin-top:12px">
-        <button id="saveBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Plantar flor</button>
+        <button id="payAndPlantBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Pagar y plantar</button>
       </div>
-      <p class="muted" style="margin-top:10px">Podrás compartirla con un enlace.</p>
+      <p class="muted" style="margin-top:10px">Plantar es de pago. Tras el pago, tu flor se guardará y podrás compartirla.</p>
     </div>
     <div id="successView" style="display:none">
       <h3>🎉 ¡Tu flor ya florece aquí!</h3>
@@ -211,6 +227,24 @@
     </div>
   </div>
 </section>
+
+<!-- MODAL DE PAGO (DEMO) -->
+<div id="payMask" class="paymask" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="paycard">
+    <h3 id="payTitle" style="margin:0 0 8px">Donación para la ONG</h3>
+    <p class="muted" style="margin:0 0 8px">Elige importe (demo). Tras pagar, plantamos tu flor.</p>
+    <div class="chips">
+      <button class="chip" data-amount="2">2 €</button>
+      <button class="chip active" data-amount="5">5 €</button>
+      <button class="chip" data-amount="10">10 €</button>
+    </div>
+    <div class="pay-actions">
+      <button id="payConfirm" class="btn btn-green">Pagar ahora (demo)</button>
+      <button id="payCancel" class="btn btn-outline">Cancelar</button>
+    </div>
+    <p class="muted" style="margin-top:8px">* Integraremos Apple Pay / Google Pay con Stripe aquí.</p>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -240,7 +274,8 @@ let saving=false, lastShareUrl='';
 let lastTs=0; window._lastItems=[];
 let userInteracted=false;
 let abortRev=null, abortCtrl=null, currentSuggest=[];
-let plantingLocked=false;
+let plantingLocked=false; // tras plantar, bloqueamos nuevas
+let paymentAmount=5; let paymentRef=''; // demo
 const dragRing = document.getElementById('dragRing');
 const pinCta = document.getElementById('pinCta');
 
@@ -251,10 +286,12 @@ const controls=$("#controls");
 const searchInput=$("#searchInput"), slist=$("#slist"), goBtn=$("#goBtn");
 const tapBtn=$("#tapBtn"), gpsBtn=$("#gpsBtn");
 const shareFixed=$("#shareFixed");
-const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView"), saveBtn=$("#saveBtn");
-const fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), chars=$("#chars");
+const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView");
+const fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), chars=$("#chars"), ngoSel=$("#ngo");
+const payAndPlantBtn=$("#payAndPlantBtn");
 const mShare=$("#mShare");
 const toastEl=$("#toast");
+const payMask=$("#payMask"), payConfirm=$("#payConfirm"), payCancel=$("#payCancel");
 
 /* === Utils === */
 const ACCEPT_LANG = (()=>{ 
@@ -336,7 +373,7 @@ function setSelectedPoint(lat,lng,animate=false){
   showPinCtaFromMarker();
 }
 
-/* === Centrado anillo/CTA usando posición real del icono === */
+/* === Centrado anillo/CTA === */
 function getMarkerCenterPx(){
   if(!selectedMarker || !selectedMarker._icon) return null;
   const rect = selectedMarker._icon.getBoundingClientRect();
@@ -378,7 +415,7 @@ async function reverseAt(lat,lng){
 }
 
 /* === Controles === */
-tapBtn.addEventListener('click', ()=>{ if(!plantingLocked) toast('Toca el mapa para plantar la flor'); });
+tapBtn.addEventListener('click', ()=>{ if(!plantingLocked) toast('Toca el mapa para continuar'); });
 gpsBtn.addEventListener('click', ()=>{
   if(plantingLocked) return;
   if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
@@ -454,7 +491,7 @@ document.addEventListener('click', e=>{
   if(!slist.contains(e.target) && e.target!==searchInput && e.target!==goBtn) slist.style.display='none';
 });
 
-/* CTA del pin → abre form */
+/* CTA del pin → abrir form */
 pinCta.addEventListener('click', ()=>{
   if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero', false);
   openSheet('form');
@@ -476,13 +513,43 @@ function closeSheet(){
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* Guardar flor */
-async function saveFlower(){
-  if(saving) return;
-  if(!selectedLat||!selectedLng){ toast('Coloca la flor en el mapa', false); return; }
+/* ===== Pago + Plantar (DEMO) ===== */
+function openPayment(){
+  if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
-  saving=true; saveBtn.disabled=true; saveBtn.textContent='Plantando…';
+  payMask.style.display='flex';
+}
+function closePayment(){ payMask.style.display='none'; }
+
+/* chips selección cantidad */
+document.querySelectorAll('.chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    ch.classList.add('active'); paymentAmount = Number(ch.dataset.amount)||5;
+  });
+});
+payCancel.addEventListener('click', closePayment);
+
+/* Confirmar (simula pasarela) */
+payConfirm.addEventListener('click', async ()=>{
+  // Aquí integrarías Stripe Checkout (crear sesión en tu backend y redirigir).
+  // DEMO: simulamos pago OK
+  payConfirm.disabled=true; payConfirm.textContent='Procesando…';
+  await new Promise(r=>setTimeout(r, 900));
+  paymentRef = 'demo_' + Date.now();
+  closePayment();
+  payConfirm.disabled=false; payConfirm.textContent='Pagar ahora (demo)';
+  actuallySaveFlower(); // ahora sí guardamos
+});
+
+/* Guardar flor tras pago */
+async function actuallySaveFlower(){
+  if(saving) return;
+  const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
+  const ngo = (ngoSel.value||'msf');
+  saving=true;
+  payAndPlantBtn.disabled=true; payAndPlantBtn.textContent='Plantando…';
   try{
     const url = SCRIPT_URL + '?action=add'
       + '&fromName='+encodeURIComponent(from)
@@ -490,7 +557,10 @@ async function saveFlower(){
       + '&message=' +encodeURIComponent(msg)
       + '&place='   +encodeURIComponent(addrBadge.textContent || '')
       + '&lat='     +encodeURIComponent(selectedLat)
-      + '&lng='     +encodeURIComponent(selectedLng);
+      + '&lng='     +encodeURIComponent(selectedLng)
+      + '&ngo='     +encodeURIComponent(ngo)
+      + '&amount='  +encodeURIComponent(paymentAmount)
+      + '&paymentRef=' + encodeURIComponent(paymentRef||'demo');
     const data = await jsonp(url);
 
     if(data && data.ok){
@@ -525,9 +595,12 @@ async function saveFlower(){
   }catch(e){
     toast('Error al plantar', false);
   }
-  saving=false; saveBtn.disabled=false; saveBtn.textContent='Plantar flor';
+  saving=false;
+  payAndPlantBtn.disabled=false; payAndPlantBtn.textContent='Pagar y plantar';
 }
-saveBtn.addEventListener('click', saveFlower);
+
+/* Botón del form dispara pago (no guarda si no hay pago) */
+payAndPlantBtn.addEventListener('click', openPayment);
 
 /* Popups (solo botón Compartir) */
 function shareText(url){ return `He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`; }
@@ -597,7 +670,7 @@ async function tryOpenShared(){
   }
 }
 
-/* Todas las flores */
+/* Todas las flores (mapa vivo) */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
