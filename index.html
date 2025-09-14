@@ -11,7 +11,7 @@
 
 <!-- OG/Twitter (genérico) -->
 <meta property="og:title" content="Planta una flor en el lugar que lo cambió todo — Flovermaps">
-<meta property="og:description" content="Toca el mapa para elegir un lugar, dedica un mensaje y compártalo con un enlace.">
+<meta property="og:description" content="Toca el mapa para plantar una flor, dedica un mensaje y compártalo con un enlace.">
 <meta property="og:type" content="website">
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
@@ -38,10 +38,10 @@
   body{
     margin:0; font-family:'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink);
     background: linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
-    overflow:hidden; /* el body NO scrollea, solo el sheet */
+    overflow:hidden; /* el body NO scrollea, solo el sheet si hiciera falta */
     overscroll-behavior-y: none; /* evita bounce global */
   }
-  body.noscroll{ position:fixed; inset:0; overflow:hidden; } /* lock scroll cuando hay sheet */
+  body.noscroll{ position:fixed; inset:0; overflow:hidden; } /* lock scroll al abrir sheet (si lo usas) */
 
   /* Header minimal (logo) */
   .site-header{
@@ -56,10 +56,29 @@
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100dvh; min-height:100vh; }
 
-  /* Search bar + GPS (overlay) */
+  /* Coach + dirección bajo el pin + FAB */
+  .coach{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(130px + var(--safe-b)); z-index:1200;
+    background:#fff; border:1px solid #e8e8e8; border-radius:999px; padding:8px 14px; font-size:.98rem; box-shadow:0 6px 16px rgba(0,0,0,.08);
+    text-align:center; white-space:nowrap;
+  }
+  .addr-badge{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(72px + var(--safe-b)); z-index:1200;
+    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
+    max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
+  }
+  .fab{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + var(--safe-b)); z-index:1200;
+    background:var(--accent); color:#fff; border:0; border-radius:14px; padding:14px 18px; font-size:1.05rem; min-width:min(92vw,420px);
+    box-shadow:0 12px 24px rgba(0,0,0,.22); cursor:pointer; opacity:.96;
+  }
+  .fab:disabled{ opacity:.55; cursor:not-allowed }
+
+  /* Barra de búsqueda (debajo del coach, centrada) */
   .search-bar{
-    position:fixed; z-index:1201; left:12px; right:12px; top:calc(62px + var(--safe-t));
-    display:flex; gap:6px; align-items:center;
+    position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
+    bottom:calc(96px + var(--safe-b)); /* debajo del coach (130px) y por encima de la dirección (72px) */
+    width:min(92vw,620px); display:flex; gap:6px; justify-content:center;
   }
   .search{ position:relative; flex:1 1 auto }
   .search input{
@@ -74,30 +93,13 @@
   .sitem{ padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Coach + dirección bajo el pin + FAB */
-  .coach{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(110px + var(--safe-b)); z-index:1200;
-    background:#fff; border:1px solid #e8e8e8; border-radius:999px; padding:8px 12px; font-size:.95rem; box-shadow:0 6px 16px rgba(0,0,0,.08);
-  }
-  .addr-badge{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(72px + var(--safe-b)); z-index:1200;
-    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
-    max-width:min(90%,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
-  }
-  .fab{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + var(--safe-b)); z-index:1200;
-    background:var(--accent); color:#fff; border:0; border-radius:14px; padding:12px 16px; font-size:1rem; min-width:180px;
-    box-shadow:0 12px 24px rgba(0,0,0,.22); cursor:pointer; opacity:.92;
-  }
-  .fab:disabled{ opacity:.5; cursor:not-allowed }
-
   /* Marcador emoji */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
   .emoji-marker{ background:transparent; transform:translate(-14px,-28px) }
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   @media (min-width:900px){ .emoji-marker .e{ font-size:38px; line-height:38px } }
 
-  /* Bottom-sheet (form + éxito) */
+  /* Sheet (form + éxito) */
   .sheet{
     position:fixed; left:0; right:0; bottom:0; z-index:1300;
     transform:translateY(100%); transition:transform .25s ease;
@@ -110,7 +112,7 @@
   .sheet h3{ margin:8px 0 10px }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
   label{ display:block; margin:6px 0 4px; font-size:.92rem }
-  input,.btn{ width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:.95rem }
+  input,.btn{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
   .btn{ border:0; cursor:pointer }
   .btn-green{ background:#22c55e; color:#fff }
   .btn-outline{ background:#fff; color:#0f172a; border:1px solid #e6e6e6 }
@@ -136,7 +138,8 @@
   <div id="map"></div>
 </main>
 
-<!-- BARRA DE BÚSQUEDA + GPS -->
+<!-- COACH + DIRECCIÓN + FAB -->
+<div id="coach" class="coach">Toca el mapa para <strong>plantar</strong> la flor</div>
 <div class="search-bar" role="search" aria-label="Buscar lugar">
   <div class="search">
     <input id="place" placeholder="🔎 Buscar un lugar (ej. Champs-Élysées, París)" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
@@ -144,9 +147,6 @@
     <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
   </div>
 </div>
-
-<!-- COACH + DIRECCIÓN + FAB -->
-<div id="coach" class="coach">Toca el mapa para <strong>plantar</strong> la flor</div>
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 <button id="fab" class="fab" disabled>Plantar</button>
 
@@ -169,9 +169,8 @@
       </div>
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
       <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
-      <div style="display:flex; gap:8px; margin-top:10px">
-        <button id="saveBtn" class="btn btn-green" style="flex:1 1 auto">Plantar flor</button>
-        <button id="cancelSheet" class="btn btn-outline" style="flex:0 0 auto">Cancelar</button>
+      <div style="margin-top:12px">
+        <button id="saveBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Plantar flor</button>
       </div>
       <p class="muted" style="margin-top:10px">Podrás compartirla con un enlace.</p>
     </div>
@@ -192,7 +191,6 @@
 
 <script>
 /* === CONFIG === */
-/* Sustituye por tu deployment de Apps Script (termina en /exec) */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
 
 /* === JSONP helper === */
@@ -214,13 +212,14 @@ let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let flowersLayer=null;
 let selectedMarker=null, selectedLat=null, selectedLng=null;
 let saving=false, plantedOnce=false, lastShareUrl='';
+let lastPopupData=null; // para el botón compartir dentro del popup
 let lastTs=0;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
 const mapEl=$("#map"), addrBadge=$("#addrBadge"), coach=$("#coach"), fab=$("#fab");
 const place=$("#place"), slist=$("#slist"), gpsBtn=$("#gpsBtn");
-const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView"), saveBtn=$("#saveBtn"), cancelSheet=$("#cancelSheet");
+const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView"), saveBtn=$("#saveBtn");
 const fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), chars=$("#chars");
 const mShare=$("#mShare"), mOpen=$("#mOpen");
 const toastEl=$("#toast");
@@ -239,16 +238,12 @@ function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">�
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 
-/* === SCROLL LOCK === */
-function lockBodyScroll(){ document.body.classList.add('noscroll'); }
-function unlockBodyScroll(){ document.body.classList.remove('noscroll'); }
-
 /* === MAP === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([48.8566,2.3522],6); // vista inicial (París/EU)
+  map.setView([48.8566,2.3522],6);
 
   flowersLayer = L.layerGroup().addTo(map);
 
@@ -274,7 +269,7 @@ function setSelectedPoint(lat,lng,animate=false){
   }
   if(animate){ try{ map.flyTo([lat,lng], 16, {duration:0.6}); }catch{ map.setView([lat,lng],16); } }
   reverseAt(selectedLat, selectedLng);
-  coach.style.display='none';
+  coach.style.display='block'; // aseguramos visible y centrado (por si estado previo)
   fab.disabled=false; fab.textContent='Continuar';
   addrBadge.style.display='block';
 }
@@ -381,7 +376,7 @@ place.addEventListener('input', e=>{
   if(!q){ slist.style.display='none'; return; }
   suggestTimer=setTimeout(async()=>{ try{ currentSuggest=await searchPlaces(q); renderSuggest(currentSuggest);}catch{} }, 250);
 });
-document.addEventListener('click', e=>{ if(!$('.search').contains(e.target)) slist.style.display='none'; });
+document.addEventListener('click', e=>{ const box=$('.search'); if(box && !box.contains(e.target)) slist.style.display='none'; });
 
 /* GPS */
 gpsBtn.addEventListener('click', ()=>{
@@ -403,15 +398,14 @@ function openSheet(kind){
   sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
   if(kind==='form'){ formView.style.display='block'; successView.style.display='none'; }
   if(kind==='success'){ formView.style.display='none'; successView.style.display='block'; }
-  lockBodyScroll();
+  document.body.classList.add('noscroll');
   try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
 }
 function closeSheet(){
   sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
-  unlockBodyScroll();
+  document.body.classList.remove('noscroll');
   try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
 }
-cancelSheet.addEventListener('click', closeSheet);
 
 /* Form UX */
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
@@ -423,7 +417,7 @@ async function saveFlower(){
   if(!selectedLat||!selectedLng){ toast('Coloca la flor en el mapa', false); return; }
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
-  saving=true; saveBtn.disabled=true; saveBtn.textContent='Guardando…';
+  saving=true; saveBtn.disabled=true; saveBtn.textContent='Plantando…';
   try{
     const url = SCRIPT_URL + '?action=add'
       + '&fromName='+encodeURIComponent(from)
@@ -435,19 +429,29 @@ async function saveFlower(){
     const data = await jsonp(url);
 
     if(data && data.ok){
-      // marcador visible + popup
+      // Enlace de compartir SIEMPRE con parámetros de tu dominio
+      lastShareUrl = `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+
+      // marcador visible + popup con botón azul "Compartir"
       const dtStr=fmtDateTime(new Date());
-      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500})
-        .bindPopup(`<div>${dtStr} <strong>${from}</strong> para <strong>${to}</strong>: ${String(msg).replace(/[&<>"']/g,'')}</div>`);
-      flowersLayer ? flowersLayer.addLayer(mk) : mk.addTo(map);
+      lastPopupData = {from,to,msg,lat:selectedLat,lng:selectedLng,dtStr,url:lastShareUrl};
+      const html = `
+        <div style="min-width:240px;max-width:280px">
+          <div style="margin-bottom:6px">${dtStr} <strong>${from}</strong> para <strong>${to}</strong></div>
+          <div style="margin-bottom:8px">${String(msg).replace(/[&<>"']/g,'')}</div>
+          <button onclick="window._sharePopup()" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
+        </div>`;
+      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500}).addTo(map).bindPopup(html);
+      // Abrimos el popup y centramos
       try{ map.flyTo([+selectedLat,+selectedLng], 17, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], 17); }
       mk.openPopup();
 
-      // Enlace de compartir SIEMPRE con parámetros de tu dominio (nunca Drive)
-      lastShareUrl = `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      // Si tocas la flor, abre su popup (no el mensaje de “ya has plantado”)
+      mk.on('click', ()=>{ mk.openPopup(); });
 
       plantedOnce=true; fab.disabled=true; fab.textContent='Plantada';
 
+      // Éxito (sheet)
       $("#successText").textContent = `De ${from} para ${to}.`;
       openSheet('success');
     } else {
@@ -460,7 +464,7 @@ async function saveFlower(){
 }
 saveBtn.addEventListener('click', saveFlower);
 
-/* Compartir / Ver */
+/* Compartir (sheet éxito) */
 mShare.addEventListener('click', async ()=>{
   try{
     if(lastShareUrl){
@@ -475,6 +479,15 @@ mOpen.addEventListener('click', ()=>{
   closeSheet();
 });
 
+/* Compartir desde popup */
+window._sharePopup = async function(){
+  const url = (lastPopupData && lastPopupData.url) ? lastPopupData.url : lastShareUrl;
+  try{
+    if(navigator.share){ await navigator.share({title:'Flovermaps', text:'Mira esta flor 🌸', url}); }
+    else{ await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
+  }catch{}
+};
+
 /* Deep link: abrir flor compartida con ?lat&lng&from&to&msg */
 function tryOpenShared(){
   const u=new URL(location.href);
@@ -482,10 +495,31 @@ function tryOpenShared(){
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
     setSelectedPoint(+lat,+lng,true);
-    const html = `<div>${fmtDateTime(new Date())} <strong>${unescAttr(from)}</strong> para <strong>${unescAttr(to)}</strong>: ${unescAttr(msg)}</div>`;
+    const dtStr = fmtDateTime(new Date());
+    lastPopupData = {from:unescAttr(from), to:unescAttr(to), msg:unescAttr(msg), lat, lng, dtStr, url:location.href};
+    const html = `
+      <div style="min-width:240px;max-width:280px">
+        <div style="margin-bottom:6px">${dtStr} <strong>${unescAttr(from)}</strong> para <strong>${unescAttr(to)}</strong></div>
+        <div style="margin-bottom:8px">${unescAttr(msg)}</div>
+        <button onclick="window._sharePopup()" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
+      </div>`;
     const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
     mk.openPopup();
   }
+}
+
+/* Sheet helpers */
+function openSheet(kind){
+  sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
+  if(kind==='form'){ formView.style.display='block'; successView.style.display='none'; }
+  if(kind==='success'){ formView.style.display='none'; successView.style.display='block'; }
+  document.body.classList.add('noscroll');
+  try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
+}
+function closeSheet(){
+  sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
+  document.body.classList.remove('noscroll');
+  try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
 }
 
 /* Logo → refrescar */
