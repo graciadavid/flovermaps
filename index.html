@@ -9,6 +9,14 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. 50% ONG / 50% mantenimiento de la web." />
 
+<!-- OG/Twitter (usa un JPG/PNG real en tu hosting para que las redes lo lean) -->
+<meta property="og:title" content="Planta una flor solidaria — Flovermaps">
+<meta property="og:description" content="Elige un lugar, dedica tu mensaje y comparte una flor para siempre.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/og_flovermaps.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="/og_flovermaps.jpg">
+
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="preconnect" href="https://basemaps.cartocdn.com">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
@@ -310,7 +318,6 @@ function setSelectedPoint(lat,lng,animate=false){
       const p=e.target.getLatLng();
       selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
       reverseAt(selectedLat, selectedLng);
-      // NO cambiamos el zoom aquí (mejor control del usuario)
       positionRingFromMarker(); positionPinCtaFromMarker();
     });
   } else { selectedMarker.setLatLng([lat,lng]); }
@@ -338,7 +345,6 @@ function positionRingFromMarker(){
 function positionPinCtaFromMarker(){
   if(!selectedMarker) return;
   const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  const wrapRect = document.getElementById('mapWrap').getBoundingClientRect();
   pinCta.style.left = (p.x) + 'px';
   pinCta.style.top  = (p.y + 44) + 'px';
 }
@@ -376,6 +382,7 @@ gpsBtn.addEventListener('click', ()=>{
 
 /* Búsqueda incremental sin botón */
 let suggestTimer=null;
+let abortCtrl=null, currentSuggest=[];
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -452,7 +459,9 @@ const chars=$("#chars");
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* Importe + split */
+/* Importe + split (solo copy, sin detalle por líneas) */
+const SPLIT_ONG_TXT = '50%';
+const SPLIT_FM_TXT = '50%';
 chips.addEventListener('click', (e)=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -469,7 +478,7 @@ otherAmount.addEventListener('input', ()=>{
 function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
 function ngoLabel(){ const o=ngoSel.options[ngoSel.selectedIndex]; return o?o.textContent:'la ONG'; }
 function updateSplitCopy(){
-  $("#splitCopy").innerHTML = `Tu aportación se reparte <strong>50% ${escHtml(ngoLabel())}</strong> y <strong>50% para el mantenimiento de tu flor para siempre</strong>.`;
+  $("#splitCopy").innerHTML = `Tu aportación se reparte <strong>${SPLIT_ONG_TXT} ${escHtml(ngoLabel())}</strong> y <strong>${SPLIT_FM_TXT} para el mantenimiento de tu flor para siempre</strong>.`;
 }
 ngoSel.addEventListener('change', updateSplitCopy);
 
@@ -508,29 +517,35 @@ async function actuallySaveFlower(from,to,msg){
       + '&paymentRef='   + encodeURIComponent(paymentRef||'demo');
     const data = await jsonp(url);
 
-    // Mostrar inmediatamente sin esperar a refetch
-    const lat=+selectedLat, lng=+selectedLng;
-    const dtStr=fmtDateTime(new Date());
-    const shareUrl = (data && data.id) ? `${location.origin}${location.pathname}?id=${encodeURIComponent(data.id)}` : `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}`;
+    // URL de compartir corta: /f/{id} (SPA)
+    let shareUrl = '';
+    if (data && data.id){
+      shareUrl = `${location.origin}/f/${encodeURIComponent(data.id)}`;
+    } else {
+      // fallback
+      const lat=+selectedLat, lng=+selectedLng;
+      shareUrl = `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}`;
+    }
     lastShareUrl = shareUrl;
 
+    // Mostrar inmediatamente sin esperar a refetch
+    const lat=+selectedLat, lng=+selectedLng;
     if(selectedMarker){
       try{ selectedMarker.dragging.disable(); }catch{}
       try{ selectedMarker.unbindTooltip(); }catch{}
       hideRing(); hidePinCta(); addrBadge.style.display='none';
 
-      const html = popupHtml(from,to,msg,dtStr,shareUrl,total);
-      // Asegura que este pin permanece como marcador independiente visible
+      const dtStr=fmtDateTime(new Date());
+      const html = popupHtml(from,to,msg,dtStr,shareUrl);
       selectedMarker.bindPopup(html).on('click', ()=>selectedMarker.openPopup());
       selectedMarker.addTo(map);
       selectedMarker.openPopup();
       try{ map.flyTo([lat,lng], FINAL_ZOOM, {duration:0.5}); }catch{}
-      // mueve el pin definitivo al layer general
       flowersLayer.addLayer(selectedMarker);
       selectedMarker = null; selectedLat=null; selectedLng=null;
     }
 
-    // Refetch en background (sin bloquear)
+    // Refetch en background
     setTimeout(()=>refetch(true), 50);
     closeSheet();
     toast('Flor plantada 🌸');
@@ -540,19 +555,19 @@ async function actuallySaveFlower(from,to,msg){
   saving=false;
 }
 
-/* Popup con compartir (solo en la flor plantada) */
+/* Popup con compartir (sin línea 50/50) */
 function shareText(url){ return `He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`; }
-function popupHtml(from,to,msg,dtStr,shareUrl,total){
+function popupHtml(from,to,msg,dtStr,shareUrl){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
-  const ong = (total*SPLIT_ONG), fm = (total*SPLIT_FM);
   return `
     <div style="min-width:240px;max-width:280px">
       <div style="margin-bottom:6px">${dtStr} <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>
-      <div style="margin-bottom:8px">${safeMsg}</div>
-      <div class="muted" style="margin-bottom:8px">Aportación 50/50 · ONG: ${fmt(ong)} € · Flovermaps: ${fmt(fm)} €</div>
+      <div style="margin-bottom:10px">${safeMsg}</div>
       <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
-      <div style="margin-top:8px; text-align:center"><button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button></div>
+      <div style="margin-top:8px; text-align:center">
+        <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button>
+      </div>
     </div>`;
 }
 async function shareAny(url){
@@ -562,17 +577,29 @@ async function shareAny(url){
   }catch{}
 }
 window.shareAny = shareAny;
+
 window.plantAnother = function(){
-  // Restablece controles para plantar otra
+  // Cierra cualquier popup abierto y vuelve a los controles de plantar
+  try{ map.closePopup(); }catch{}
   controls.style.display='';
+  slist.style.display='none';
   hideRing(); hidePinCta(); addrBadge.style.display='none';
+  // listo para que el usuario pulse mapa, GPS o busque
 };
 
-/* Deep link: ?id=... (abrir popup directo) */
+/* Deep link: /f/{id} o ?id=... (abrir popup directo) */
 async function tryOpenShared(){
-  const u=new URL(location.href);
-  const id=u.searchParams.get('id');
-  const latParam=u.searchParams.get('lat'), lngParam=u.searchParams.get('lng');
+  const path = location.pathname;
+  let id = null;
+  const m = path.match(/\/f\/([^\/?#]+)/);
+  if(m && m[1]) id = decodeURIComponent(m[1]);
+  if(!id){
+    const u=new URL(location.href);
+    id=u.searchParams.get('id'); // compat antiguo
+  }
+  const u2 = new URL(location.href);
+  const latParam=u2.searchParams.get('lat'), lngParam=u2.searchParams.get('lng');
+
   if(id){
     try{
       const data = await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
@@ -581,11 +608,10 @@ async function tryOpenShared(){
         const lat=Number(it.lat), lng=Number(it.lng);
         const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
         const dtStr = fmtDateTime(new Date(Number(it.timestamp)||Date.now()));
-        const html = popupHtml(from,to,msg,dtStr, location.origin+location.pathname+'?id='+encodeURIComponent(id), Number(it.amount_total)||5);
+        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`);
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         map.setView([lat,lng], FINAL_ZOOM);
         mk.openPopup();
-        controls.style.display=''; // permitimos plantar otra si quieren
         return;
       }
     }catch(e){ /* fallback abajo */ }
@@ -629,8 +655,8 @@ function renderAllMarkers(list){
       const f=list[i++]; const lat=f.lat, lng=f.lng;
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
-      const shareUrl = `${location.origin}${location.pathname}?id=${escAttr(f.id)}`;
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||5);
+      const shareUrl = `${location.origin}/f/${escAttr(f.id)}`;
+      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
       batch.push(mk);
     }
