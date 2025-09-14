@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. 50% ONG / 50% mantenimiento de la web." />
 
-<!-- OG/Twitter (usa un JPG/PNG real en tu hosting para que las redes lo lean) -->
+<!-- OG/Twitter -->
 <meta property="og:title" content="Planta una flor solidaria — Flovermaps">
 <meta property="og:description" content="Elige un lugar, dedica tu mensaje y comparte una flor para siempre.">
 <meta property="og:type" content="website">
@@ -199,7 +199,7 @@
         <option value="unicef">UNICEF</option>
       </select>
 
-      <!-- Importe con split 50/50 -->
+      <!-- Importe -->
       <div style="margin-top:10px">
         <div class="chips" id="chips">
           <button class="chip" data-amount="2">2 €</button>
@@ -277,6 +277,13 @@ function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span cl
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;"}[m])); }
 
+/* === CENTRADO PRECISO DEL ANILLO === */
+/* El punto (latlng) está en el "bottom-center" del emoji (iconAnchor 14,28).
+   Para rodear el emoji con el anillo, subimos unos px: */
+const RING_OFFSET_X = 0;    // píxeles a la derecha (+) o izquierda (-)
+const RING_OFFSET_Y = -14;  // sube el anillo para centrar sobre el emoji
+const CTA_OFFSET_Y  = 44;   // CTA bajo el pin
+
 /* === MAP === */
 function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
@@ -339,14 +346,14 @@ function setSelectedPoint(lat,lng,animate=false){
 function positionRingFromMarker(){
   if(!selectedMarker) return;
   const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  dragRing.style.left = p.x + 'px';
-  dragRing.style.top  = p.y + 'px';
+  dragRing.style.left = (p.x + RING_OFFSET_X) + 'px';
+  dragRing.style.top  = (p.y + RING_OFFSET_Y) + 'px';
 }
 function positionPinCtaFromMarker(){
   if(!selectedMarker) return;
   const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
   pinCta.style.left = (p.x) + 'px';
-  pinCta.style.top  = (p.y + 44) + 'px';
+  pinCta.style.top  = (p.y + CTA_OFFSET_Y) + 'px';
 }
 function showRing(){ dragRing.style.display='block'; }
 function hideRing(){ dragRing.style.display='none'; }
@@ -380,9 +387,8 @@ gpsBtn.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* Búsqueda incremental sin botón */
+/* Búsqueda incremental */
 let suggestTimer=null;
-let abortCtrl=null, currentSuggest=[];
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -459,9 +465,7 @@ const chars=$("#chars");
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* Importe + split (solo copy, sin detalle por líneas) */
-const SPLIT_ONG_TXT = '50%';
-const SPLIT_FM_TXT = '50%';
+/* Importe + copy split */
 chips.addEventListener('click', (e)=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -478,7 +482,7 @@ otherAmount.addEventListener('input', ()=>{
 function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
 function ngoLabel(){ const o=ngoSel.options[ngoSel.selectedIndex]; return o?o.textContent:'la ONG'; }
 function updateSplitCopy(){
-  $("#splitCopy").innerHTML = `Tu aportación se reparte <strong>${SPLIT_ONG_TXT} ${escHtml(ngoLabel())}</strong> y <strong>${SPLIT_FM_TXT} para el mantenimiento de tu flor para siempre</strong>.`;
+  $("#splitCopy").innerHTML = `Tu aportación se reparte <strong>50% ${escHtml(ngoLabel())}</strong> y <strong>50% para el mantenimiento de tu flor para siempre</strong>.`;
 }
 ngoSel.addEventListener('change', updateSplitCopy);
 
@@ -517,18 +521,17 @@ async function actuallySaveFlower(from,to,msg){
       + '&paymentRef='   + encodeURIComponent(paymentRef||'demo');
     const data = await jsonp(url);
 
-    // URL de compartir corta: /f/{id} (SPA)
+    // URL de compartir corta: /f/{id}
     let shareUrl = '';
     if (data && data.id){
       shareUrl = `${location.origin}/f/${encodeURIComponent(data.id)}`;
     } else {
-      // fallback
       const lat=+selectedLat, lng=+selectedLng;
       shareUrl = `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}`;
     }
     lastShareUrl = shareUrl;
 
-    // Mostrar inmediatamente sin esperar a refetch
+    // Mostrar inmediatamente
     const lat=+selectedLat, lng=+selectedLng;
     if(selectedMarker){
       try{ selectedMarker.dragging.disable(); }catch{}
@@ -545,7 +548,6 @@ async function actuallySaveFlower(from,to,msg){
       selectedMarker = null; selectedLat=null; selectedLng=null;
     }
 
-    // Refetch en background
     setTimeout(()=>refetch(true), 50);
     closeSheet();
     toast('Flor plantada 🌸');
@@ -555,7 +557,7 @@ async function actuallySaveFlower(from,to,msg){
   saving=false;
 }
 
-/* Popup con compartir (sin línea 50/50) */
+/* Popup con compartir */
 function shareText(url){ return `He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`; }
 function popupHtml(from,to,msg,dtStr,shareUrl){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
@@ -579,15 +581,14 @@ async function shareAny(url){
 window.shareAny = shareAny;
 
 window.plantAnother = function(){
-  // Cierra cualquier popup abierto y vuelve a los controles de plantar
   try{ map.closePopup(); }catch{}
   controls.style.display='';
   slist.style.display='none';
   hideRing(); hidePinCta(); addrBadge.style.display='none';
-  // listo para que el usuario pulse mapa, GPS o busque
+  // listo para plantar otra
 };
 
-/* Deep link: /f/{id} o ?id=... (abrir popup directo) */
+/* Deep link: /f/{id} ó ?id=... */
 async function tryOpenShared(){
   const path = location.pathname;
   let id = null;
@@ -595,7 +596,7 @@ async function tryOpenShared(){
   if(m && m[1]) id = decodeURIComponent(m[1]);
   if(!id){
     const u=new URL(location.href);
-    id=u.searchParams.get('id'); // compat antiguo
+    id=u.searchParams.get('id'); // compat
   }
   const u2 = new URL(location.href);
   const latParam=u2.searchParams.get('lat'), lngParam=u2.searchParams.get('lng');
@@ -621,7 +622,7 @@ async function tryOpenShared(){
   }
 }
 
-/* Todas las flores (mapa vivo, sin listas) */
+/* Todas las flores (mapa vivo) */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -693,14 +694,30 @@ async function refetch(incremental=false){
 /* Logo → refrescar */
 $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
-/* Inicio */
-document.addEventListener('DOMContentLoaded', ()=>{
-  initMap();
-  refetch(false);
-  setInterval(()=>refetch(true), 15000);
-  tryOpenShared();
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
-});
+/* ======= ARRANQUE A PRUEBA DE BALAS ======= */
+(function ensureLeafletReady(){
+  const start = ()=>{
+    initMap();
+    refetch(false);
+    setInterval(()=>refetch(true), 15000);
+    tryOpenShared();
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
+  };
+  if (window.L){
+    // Leaflet ya cargado (defer ejecutado)
+    start();
+  } else {
+    // Espera explícita hasta que Leaflet esté disponible
+    window.addEventListener('load', ()=>{
+      if (window.L) { start(); return; }
+      // Poll suave por si el CDN tarda un poco más
+      let tries=0; const iv=setInterval(()=>{
+        if (window.L){ clearInterval(iv); start(); }
+        else if(++tries>60){ clearInterval(iv); alert('No se pudo cargar el mapa. Reintenta más tarde.'); }
+      }, 100);
+    });
+  }
+})();
 </script>
 </body>
 </html>
