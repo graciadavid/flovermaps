@@ -145,6 +145,20 @@
     background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s
   }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
+
+  /* Planting animation */
+  .plant-seq{
+    position:absolute; z-index:940; font-size:20px; background:#fff; border:1px solid #e6e6e6; border-radius:999px;
+    padding:4px 8px; box-shadow:0 6px 12px rgba(0,0,0,.12); transform:translate(-50%, -50%);
+  }
+  .ping{
+    position:absolute; width:22px; height:22px; border-radius:999px; background:rgba(34,197,94,0.35); pointer-events:none;
+    transform:translate(-50%,-50%); animation:ping 0.9s ease-out 2;
+  }
+  @keyframes ping{
+    0%{ transform:translate(-50%,-50%) scale(0.7); opacity:.9 }
+    100%{ transform:translate(-50%,-50%) scale(2.1); opacity:0 }
+  }
 </style>
 </head>
 <body>
@@ -224,7 +238,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* === CONFIG === */ 
+/* === CONFIG === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
 const SPLIT_ONG = 0.5, SPLIT_FM = 0.5;
 const SELECT_ZOOM = 10;   // zoom al elegir punto
@@ -272,17 +286,19 @@ const ACCEPT_LANG = (()=>{
 })();
 function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1800); }
 function fmt(n){ return (Number(n)||0).toFixed(2).replace('.',','); }
-function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
+function fmtDateTimeFromTs(ts){
+  const n=Number(ts); if(!isFinite(n)) return '';
+  try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date(n)).replace(',', ''); }
+  catch{return '';}
+}
 function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;"}[m])); }
 
 /* === CENTRADO PRECISO DEL ANILLO === */
-/* El punto (latlng) está en el "bottom-center" del emoji (iconAnchor 14,28).
-   Para rodear el emoji con el anillo, subimos unos px: */
-const RING_OFFSET_X = 0;    // píxeles a la derecha (+) o izquierda (-)
-const RING_OFFSET_Y = -14;  // sube el anillo para centrar sobre el emoji
-const CTA_OFFSET_Y  = 44;   // CTA bajo el pin
+const RING_OFFSET_X = 0;
+const RING_OFFSET_Y = -17;  // centrado óptico sobre el emoji
+const CTA_OFFSET_Y  = 44;
 
 /* === MAP === */
 function initMap(){
@@ -330,7 +346,7 @@ function setSelectedPoint(lat,lng,animate=false){
   } else { selectedMarker.setLatLng([lat,lng]); }
   selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
 
-  const z = Math.max(map.getZoom(), SELECT_ZOOM); // 10 por defecto
+  const z = Math.max(map.getZoom(), SELECT_ZOOM);
   try{
     if(animate){ map.flyTo([lat,lng], z, {duration:0.5}); }
     else{ map.setView([lat,lng], z, {animate:false}); }
@@ -492,9 +508,9 @@ payBtn.addEventListener('click', async ()=>{
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
 
-  // DEMO: simulamos pago OK y plantamos.
+  // DEMO: simulación de pago OK
   payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Plantando…';
-  await new Promise(r=>setTimeout(r, 600));
+  await new Promise(r=>setTimeout(r, 500));
   paymentRef = 'demo_' + Date.now();
   await actuallySaveFlower(from,to,msg);
   payBtn.disabled=false; payBtn.textContent=prev;
@@ -531,15 +547,19 @@ async function actuallySaveFlower(from,to,msg){
     }
     lastShareUrl = shareUrl;
 
-    // Mostrar inmediatamente
+    // Feedback visual inmediato (🌱 → 🌸)
+    plantingAnimationAtLatLng([+selectedLat, +selectedLng]);
+
+    // Mostrar flor inmediatamente (sin esperar refetch)
     const lat=+selectedLat, lng=+selectedLng;
     if(selectedMarker){
       try{ selectedMarker.dragging.disable(); }catch{}
       try{ selectedMarker.unbindTooltip(); }catch{}
       hideRing(); hidePinCta(); addrBadge.style.display='none';
 
-      const dtStr=fmtDateTime(new Date());
-      const html = popupHtml(from,to,msg,dtStr,shareUrl);
+      const ts = (data && data.ts) ? Number(data.ts) : Date.now();
+      const dtStr=fmtDateTimeFromTs(ts);
+      const html = popupHtml(from,to,msg,dtStr,shareUrl,total);
       selectedMarker.bindPopup(html).on('click', ()=>selectedMarker.openPopup());
       selectedMarker.addTo(map);
       selectedMarker.openPopup();
@@ -548,6 +568,7 @@ async function actuallySaveFlower(from,to,msg){
       selectedMarker = null; selectedLat=null; selectedLng=null;
     }
 
+    // Refetch en background
     setTimeout(()=>refetch(true), 50);
     closeSheet();
     toast('Flor plantada 🌸');
@@ -557,15 +578,17 @@ async function actuallySaveFlower(from,to,msg){
   saving=false;
 }
 
-/* Popup con compartir */
-function shareText(url){ return `He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`; }
-function popupHtml(from,to,msg,dtStr,shareUrl){
+/* Popup con importes dentro (tiempos reales si vienen) */
+function popupHtml(from,to,msg,dtStr,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
+  const t = Number(total)||0, ong = (t*0.5).toFixed(2).replace('.',','), fm = (t*0.5).toFixed(2).replace('.',','), tt = t.toFixed(2).replace('.',',');
+  const dateLine = dtStr ? `<div style="margin-bottom:6px">${dtStr} <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>` : `<div style="margin-bottom:6px"><strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>`;
   return `
     <div style="min-width:240px;max-width:280px">
-      <div style="margin-bottom:6px">${dtStr} <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>
-      <div style="margin-bottom:10px">${safeMsg}</div>
+      ${dateLine}
+      <div style="margin-bottom:8px">${safeMsg}</div>
+      <div class="muted" style="margin-bottom:10px">Donación: ${tt} € · ONG: ${ong} € · Mantenimiento: ${fm} €</div>
       <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
       <div style="margin-top:8px; text-align:center">
         <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button>
@@ -574,8 +597,8 @@ function popupHtml(from,to,msg,dtStr,shareUrl){
 }
 async function shareAny(url){
   try{
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:shareText(url), url}); }
-    else{ await navigator.clipboard.writeText(shareText(url)); toast('Enlace copiado'); }
+    if(navigator.share){ await navigator.share({title:'Flovermaps', text:`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`, url}); }
+    else{ await navigator.clipboard.writeText(`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`); toast('Enlace copiado'); }
   }catch{}
 }
 window.shareAny = shareAny;
@@ -587,6 +610,32 @@ window.plantAnother = function(){
   hideRing(); hidePinCta(); addrBadge.style.display='none';
   // listo para plantar otra
 };
+
+/* Animación de plantado (🌱…🌸 + ping) */
+function plantingAnimationAtLatLng(latlng){
+  try{
+    const p = map.latLngToContainerPoint(latlng);
+    const wrap = document.getElementById('mapWrap');
+    const seq = document.createElement('div');
+    seq.className='plant-seq';
+    seq.style.left = p.x+'px';
+    seq.style.top  = (p.y-26)+'px';
+    wrap.appendChild(seq);
+
+    const ring = document.createElement('div');
+    ring.className='ping';
+    ring.style.left = p.x+'px';
+    ring.style.top  = p.y+'px';
+    wrap.appendChild(ring);
+
+    const stages=['🌱','🌱🌱','🌱🌱🌱','🌸'];
+    let i=0; seq.textContent=stages[i++];
+    const iv=setInterval(()=>{
+      if(i<stages.length){ seq.textContent=stages[i++]; }
+      else{ clearInterval(iv); setTimeout(()=>{ try{ seq.remove(); ring.remove(); }catch{} }, 280); }
+    }, 220);
+  }catch{}
+}
 
 /* Deep link: /f/{id} ó ?id=... */
 async function tryOpenShared(){
@@ -608,8 +657,8 @@ async function tryOpenShared(){
         const it=data.item;
         const lat=Number(it.lat), lng=Number(it.lng);
         const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
-        const dtStr = fmtDateTime(new Date(Number(it.timestamp)||Date.now()));
-        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`);
+        const dtStr = fmtDateTimeFromTs(it.timestamp);
+        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0);
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         map.setView([lat,lng], FINAL_ZOOM);
         mk.openPopup();
@@ -626,15 +675,14 @@ async function tryOpenShared(){
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
-    const lat = Number(f.lat ?? f.latitude ?? f.Latitude ?? f.LAT ?? f.latitud ?? f.y ?? f.Y ?? f.Lat);
-    const lng = Number(f.lng ?? f.lon ?? f.long ?? f.longitude ?? f.Longitude ?? f.LON ?? f.longitud ?? f.x ?? f.X ?? f.Lng);
+    const lat = Number(f.lat); const lng = Number(f.lng);
     if(!isFinite(lat)||!isFinite(lng)) continue;
-    const id       = String(f.id ?? f.ID ?? f.Id ?? `${lat},${lng},${f.timestamp ?? ''}`);
-    const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
-    const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
-    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
-    const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
-    const amount_total = Number(f.amount_total)||5;
+    const id       = String(f.id ?? `${lat},${lng},${f.timestamp ?? ''}`);
+    const fromName = f.fromName ?? '';
+    const toName   = f.toName   ?? '';
+    const message  = f.message  ?? '';
+    const timestamp= f.timestamp?? ''; // NO inventar tiempo
+    const amount_total = Number(f.amount_total)||0;
     out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total });
   }
   return out;
@@ -655,9 +703,9 @@ function renderAllMarkers(list){
     while(i<n && (performance.now()-t0)<24){
       const f=list[i++]; const lat=f.lat, lng=f.lng;
       if(!isFinite(lat)||!isFinite(lng)) continue;
-      const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
+      const dtStr = f.timestamp ? fmtDateTimeFromTs(f.timestamp) : ''; // sin fallback
       const shareUrl = `${location.origin}/f/${escAttr(f.id)}`;
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl);
+      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
       batch.push(mk);
     }
@@ -679,7 +727,7 @@ async function refetch(incremental=false){
       const norm = normalizeItems(data.items);
       window._lastItems = incremental && window._lastItems.length ? mergeUniqueById(window._lastItems, norm) : norm;
       renderAllMarkers(window._lastItems);
-      for (const it of data.items) { const t=Number(it.timestamp)||Date.parse(it.timestamp)||0; if(t>lastTs) lastTs=t; }
+      for (const it of data.items) { const t=Number(it.timestamp)||0; if(t>lastTs) lastTs=t; }
       try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
       return;
     }
@@ -703,14 +751,10 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
     tryOpenShared();
     document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
   };
-  if (window.L){
-    // Leaflet ya cargado (defer ejecutado)
-    start();
-  } else {
-    // Espera explícita hasta que Leaflet esté disponible
+  if (window.L){ start(); }
+  else {
     window.addEventListener('load', ()=>{
       if (window.L) { start(); return; }
-      // Poll suave por si el CDN tarda un poco más
       let tries=0; const iv=setInterval(()=>{
         if (window.L){ clearInterval(iv); start(); }
         else if(++tries>60){ clearInterval(iv); alert('No se pudo cargar el mapa. Reintenta más tarde.'); }
