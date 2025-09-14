@@ -10,7 +10,7 @@
 <meta name="description" content="Elige un sitio del mapa, dedica un mensaje y compártalo con un enlace." />
 
 <meta property="og:title" content="Planta una flor en el lugar que lo cambió todo — Flovermaps">
-<meta property="og:description" content="Planta una flor en el mapa, dedica un mensaje y compártalo con un enlace.">
+<meta property="og:description" content="Planta una flor en el mapa, dedica un mensaje y compártala con un enlace.">
 <meta property="og:type" content="website">
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
@@ -37,7 +37,6 @@
     --safe-t: env(safe-area-inset-top, 0px);
   }
   *{ box-sizing:border-box; }
-
   html, body { height:100%; }
   body{
     margin:0; font-family:'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink);
@@ -51,74 +50,74 @@
     display:flex; justify-content:center; padding:8px 10px; padding-top:calc(10px + var(--safe-t)); pointer-events:none;
   }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
-  .brand img{ height:64px; display:block }
-  @media (min-width:900px){ .brand img{ height:84px } }
+  .brand img{ height:72px; display:block }
+  @media (min-width:900px){ .brand img{ height:96px } }
 
   /* MAPA full pantalla */
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100dvh; min-height:100vh; }
 
-  /* Controles: fila 1 (dos botones) + fila 2 (search) */
+  /* Controles más abajo (dos botones) + barra de búsqueda debajo */
   .controls{
     position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
-    bottom:calc(146px + var(--safe-b));
-    width:min(94vw,960px); display:flex; flex-direction:column; gap:8px;
+    bottom:calc(200px + var(--safe-b)); /* más abajo para composición */
+    width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
   }
-  .controls .row{ display:flex; gap:8px; }
+  .controls .row{ display:flex; gap:10px; }
   .tool-btn{
-    flex:1 1 0; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:10px 12px; font-size:.95rem; cursor:pointer;
+    flex:1 1 0; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
     box-shadow:0 6px 14px rgba(0,0,0,.04); display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .tool-btn:active{ transform:translateY(1px) }
   .tool-btn[disabled]{ opacity:.6; cursor:default }
 
-  .searchRow{ display:flex; gap:8px; }
+  .searchRow{ display:flex; gap:10px; }
   .searchRow .input{
     flex:1 1 auto; display:flex; align-items:center; gap:8px;
-    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:10px 12px; box-shadow:0 6px 14px rgba(0,0,0,.04);
+    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04);
   }
   .searchRow input{
     border:0; outline:none; width:100%; font: inherit; background:transparent; color:var(--ink);
   }
   .go-btn{
-    flex:0 0 auto; background:var(--blue); color:#fff; border:0; border-radius:10px; padding:10px 12px; font-size:.95rem; cursor:pointer;
+    flex:0 0 auto; background:var(--blue); color:#fff; border:0; border-radius:10px; padding:12px 14px; font-size:1rem; cursor:pointer;
   }
 
   /* Sugerencias bajo la barra de búsqueda */
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
-    bottom:calc(146px + var(--safe-b) + 56px);
+    bottom:calc(200px + var(--safe-b) + 60px);
     width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px;
     max-height:260px; overflow:auto; display:none; z-index:1202; box-shadow:0 6px 14px rgba(0,0,0,.06)
   }
-  .sitem{ padding:10px 12px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem }
+  .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Badge de dirección */
+  /* Badge de dirección (un poco más arriba por los nuevos márgenes) */
   .addr-badge{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(100px + var(--safe-b)); z-index:1200;
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(150px + var(--safe-b)); z-index:1200;
     background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
     max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
   }
 
-  /* CTA verde anclado al pin */
+  /* CTA verde pegada al pin */
   .pin-cta{
     position:absolute; z-index:1203; display:none;
     background:var(--accent); color:#fff; border:0; border-radius:12px; padding:10px 12px; font-size:1rem; white-space:nowrap;
     box-shadow:0 12px 24px rgba(0,0,0,.22); cursor:pointer;
-    transform:translate(-50%, 8px); /* centrado y bajo el tooltip */
+    transform:translate(-50%, 8px);
   }
 
-  /* Compartir fijo (azul) */
+  /* Compartir fijo (azul) — siempre visible tras plantar */
   .share-fixed{
     position:fixed; right:14px; bottom:calc(18px + var(--safe-b)); z-index:1204;
-    background:var(--blue); color:#fff; border:0; border-radius:12px; padding:10px 12px; font-size:.95rem; cursor:pointer;
+    background:var(--blue); color:#fff; border:0; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
     box-shadow:0 10px 20px rgba(0,0,0,.2); display:none;
   }
 
-  /* Marcador emoji + tooltip + anillo verde con flor dentro */
+  /* Marcador + anillo verde centrado exactamente sobre la flor */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) }
+  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) } /* iconSize 28x28, anchor 14x28 */
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   .leaflet-tooltip.drag-tip{
     background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.08);
@@ -168,7 +167,7 @@
 </main>
 
 <!-- Controles -->
-<div class="controls" aria-label="Controles">
+<div class="controls" id="controls" aria-label="Controles">
   <div class="row">
     <button id="tapBtn" class="tool-btn">🌸 Plantar desde el mapa</button>
     <button id="gpsBtn" class="tool-btn">📍 Mi ubicación</button>
@@ -176,7 +175,7 @@
   <div class="searchRow">
     <div class="input">
       <span aria-hidden="true">🔎</span>
-      <input id="searchInput" placeholder="Buscar un lugar" autocomplete="off" aria-autocomplete="list" aria-controls="slist" />
+      <input id="searchInput" placeholder="Buscar un lugar (calle, ciudad…)" autocomplete="off" aria-autocomplete="list" aria-controls="slist" />
     </div>
     <button id="goBtn" class="go-btn">Buscar</button>
   </div>
@@ -252,12 +251,14 @@ let saving=false, lastShareUrl='';
 let lastTs=0; window._lastItems=[];
 let userInteracted=false;
 let abortRev=null, abortCtrl=null, currentSuggest=[];
+const ICON = {size:{w:28,h:28}, anchor:{x:14,y:28}}; // para centrar anillo en el centro visual
 const dragRing = document.getElementById('dragRing');
 const pinCta = document.getElementById('pinCta');
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
 const addrBadge=$("#addrBadge");
+const controls=$("#controls");
 const searchInput=$("#searchInput"), slist=$("#slist"), goBtn=$("#goBtn");
 const tapBtn=$("#tapBtn"), gpsBtn=$("#gpsBtn");
 const shareFixed=$("#shareFixed");
@@ -276,7 +277,7 @@ const ACCEPT_LANG = (()=>{
 })();
 function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
-function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
+function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[ICON.size.w,ICON.size.h], iconAnchor:[ICON.anchor.x,ICON.anchor.y], popupAnchor:[0,-30]}); }
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
 function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
@@ -298,7 +299,10 @@ function initMap(){
   });
 
   map.on('move zoom', ()=>{
-    if(selectedLat && selectedLng){ positionRing([+selectedLat,+selectedLng]); positionPinCta([+selectedLat,+selectedLng]); }
+    if(selectedLat && selectedLng){
+      positionRing([+selectedLat,+selectedLng]);
+      positionPinCta([+selectedLat,+selectedLng]);
+    }
   });
 
   window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),100));
@@ -325,11 +329,11 @@ function setSelectedPoint(lat,lng,animate=false){
     selectedMarker.on('drag', (e)=>{ const p=e.target.getLatLng(); positionRing([p.lat,p.lng]); positionPinCta([p.lat,p.lng]); });
     selectedMarker.on('dragend', e=>{
       const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
-      reverseAt(selectedLat, selectedLng); showRing([p.lat,p.lng]); // mantiene anillo visible
+      reverseAt(selectedLat, selectedLng); showRing([p.lat,p.lng]);
       try{ map.setView([+selectedLat,+selectedLng], Math.max(map.getZoom(), 15), {animate:false}); }catch{}
     });
   }
-  // Colocar zoom mínimo 15 al seleccionar
+  // Zoom mínimo 15 al seleccionar
   if(animate){
     const targetZ = Math.max(map.getZoom(), 15);
     try{ map.flyTo([lat,lng], targetZ, {duration:0.6}); }catch{ map.setView([lat,lng], targetZ); }
@@ -342,12 +346,14 @@ function setSelectedPoint(lat,lng,animate=false){
   showPinCta([+selectedLat,+selectedLng]);
 }
 
-/* Anillo verde */
+/* Anillo verde centrado sobre el centro visual de la flor */
 function positionRing(latlng){
   const p = map.latLngToContainerPoint(latlng);
   const mapRect = document.getElementById('map').getBoundingClientRect();
+  // Corrige el centro: ancla y tamaño -> desplazar hacia arriba (anchor.y - size.h/2)
+  const offsetY = -(ICON.anchor.y - ICON.size.h/2); // -14px
   dragRing.style.left = (mapRect.left + p.x) + 'px';
-  dragRing.style.top  = (mapRect.top  + p.y) + 'px';
+  dragRing.style.top  = (mapRect.top  + p.y + offsetY) + 'px';
 }
 function showRing(latlng){ positionRing(latlng); dragRing.style.display='block'; }
 function hideRing(){ dragRing.style.display='none'; }
@@ -356,8 +362,9 @@ function hideRing(){ dragRing.style.display='none'; }
 function positionPinCta(latlng){
   const p = map.latLngToContainerPoint(latlng);
   const mapRect = document.getElementById('map').getBoundingClientRect();
+  const offsetY = -(ICON.anchor.y - ICON.size.h/2);
   pinCta.style.left = (mapRect.left + p.x) + 'px';
-  pinCta.style.top  = (mapRect.top  + p.y + 46) + 'px'; // justo debajo del tooltip
+  pinCta.style.top  = (mapRect.top  + p.y + offsetY + 46) + 'px';
 }
 function showPinCta(latlng){ positionPinCta(latlng); pinCta.style.display='inline-block'; }
 function hidePinCta(){ pinCta.style.display='none'; }
@@ -390,7 +397,7 @@ gpsBtn.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* === BÚSQUEDA === */
+/* === BÚSQUEDA === (robustecida) */
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
 function containsStreetType(q){
@@ -430,21 +437,12 @@ async function runSuggest(q){
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
   try{
     const withNum=hasNumber(q);
-    const [A,B] = await Promise.all([
-      searchPlacesPlain(q,sig).catch(()=>[]),
-      withNum? searchPlacesStructured(q,sig).catch(()=>[]) : Promise.resolve([])
-    ]);
-    const list=[...A,...B]; const seen=new Set(); const merged=[];
-    for(const it of list){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seen.has(id)){ seen.add(id); merged.push(it); } }
-    if(withNum){ 
-      const num=extractNumber(q);
-      merged.sort((x,y)=>{
-        const xn=(x.address&&(x.address.house_number||x.address.housenumber))||'';
-        const yn=(y.address&&(y.address.house_number||y.address.housenumber))||'';
-        return (String(yn)===String(num)) - (String(xn)===String(num));
-      }); 
-    }
-    currentSuggest = merged.slice(0,10);
+    const A = await searchPlacesPlain(q,sig).catch(()=>[]);
+    let merged=[...A];
+    if(withNum){ const B = await searchPlacesStructured(q,sig).catch(()=>[]); merged = [...A, ...B]; }
+    const seen=new Set(), out=[];
+    for(const it of merged){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seen.has(id)){ seen.add(id); out.push(it); } }
+    currentSuggest = out.slice(0,10);
     renderSuggest(currentSuggest);
   }catch{ currentSuggest=[]; renderSuggest([]); }
 }
@@ -484,9 +482,11 @@ searchInput.addEventListener('keydown', (e)=>{
 goBtn.addEventListener('click', async ()=>{
   const q=searchInput.value.trim();
   if(!q){ toast('Escribe una dirección o lugar', false); return; }
-  await runSuggest(q);
-  if(currentSuggest.length){ selectSuggest(0); }
-  else{ toast('No encontrado', false); }
+  try{
+    const list = await searchPlacesPlain(q, new AbortController().signal).catch(()=>[]);
+    if(list.length){ currentSuggest=list; selectSuggest(0); }
+    else{ toast('No encontrado. Prueba con “calle, ciudad” o añade país.', false); }
+  }catch{ toast('No encontrado. Intenta otra búsqueda.', false); }
 });
 document.addEventListener('click', e=>{
   if(!slist.contains(e.target) && e.target!==searchInput && e.target!==goBtn) slist.style.display='none';
@@ -532,8 +532,9 @@ async function saveFlower(){
     const data = await jsonp(url);
 
     if(data && data.ok){
-      // Enlace para compartir (siempre con params)
-      lastShareUrl = `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+      // URL limpia y corta con id (deep link manejado abajo)
+      const id = data.id || '';
+      lastShareUrl = `${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`;
 
       const dtStr=fmtDateTime(new Date());
       const html = popupHtml(from,to,msg,dtStr,lastShareUrl);
@@ -546,13 +547,13 @@ async function saveFlower(){
       try{ map.flyTo([+selectedLat,+selectedLng], targetZ, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], targetZ); }
       mk.openPopup();
 
-      // Mostrar botón azul fijo
+      // Mostrar botón azul fijo y ocultar controles para “modo compartir”
       shareFixed.style.display='inline-block';
+      controls.style.display='none';
+      slist.style.display='none';
 
-      // Preparar siguiente plantado si quiere: mantenemos selección y anillo
       closeSheet();
       toast('Flor plantada 🌸');
-
       await refetch(true);
     } else {
       toast('No se pudo guardar', false);
@@ -593,7 +594,7 @@ shareFixed.addEventListener('click', async ()=>{
   }catch{}
 });
 
-/* Compartir desde sheet */
+/* Compartir desde sheet (por si el usuario se queda ahí) */
 mShare.addEventListener('click', async ()=>{
   const url = lastShareUrl || location.href;
   try{
@@ -603,9 +604,31 @@ mShare.addEventListener('click', async ()=>{
   closeSheet();
 });
 
-/* Deep link (abrir flor compartida) */
-function tryOpenShared(){
+/* Deep link: ?id=... ó ?lat/lng... */
+async function tryOpenShared(){
   const u=new URL(location.href);
+  const id=u.searchParams.get('id');
+  if(id){
+    try{
+      const data = await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
+      if(data && data.ok && data.item){
+        const it=data.item;
+        const lat=Number(it.lat), lng=Number(it.lng);
+        const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
+        setSelectedPoint(lat,lng,true);
+        const dtStr = fmtDateTime(new Date(Number(it.timestamp)||Date.now()));
+        const html = popupHtml(from,to,msg,dtStr, location.origin+location.pathname+'?id='+encodeURIComponent(id));
+        const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
+        mk.openPopup();
+        lastShareUrl = location.origin+location.pathname+'?id='+encodeURIComponent(id);
+        shareFixed.style.display='inline-block';
+        // En modo compartir: oculta controles
+        controls.style.display='none';
+        return;
+      }
+    }catch(e){ /* cae a lat/lng si no existe action=get */ }
+  }
+  // Fallback a lat/lng + from/to/msg (versión anterior)
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
@@ -615,9 +638,9 @@ function tryOpenShared(){
     const html = popupHtml(unescAttr(from), unescAttr(to), unescAttr(msg), dtStr, location.href);
     const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
     mk.openPopup();
-    // activar botón compartir fijo con la misma URL
     lastShareUrl = location.href;
     shareFixed.style.display='inline-block';
+    controls.style.display='none';
   }
 }
 
@@ -655,8 +678,8 @@ function renderAllMarkers(list){
       const f=list[i++]; const lat=f.lat, lng=f.lng;
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr,
-        `${location.origin}${location.pathname}?lat=${lat}&lng=${lng}&from=${escAttr(f.fromName||'')}&to=${escAttr(f.toName||'')}&msg=${escAttr(f.message||'')}`);
+      const shareUrl = `${location.origin}${location.pathname}?id=${escAttr(f.id)}`;
+      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
       batch.push(mk); bounds.extend([lat,lng]);
     }
@@ -664,10 +687,7 @@ function renderAllMarkers(list){
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      // Mantén España al inicio
-      if(!userInteracted){
-        try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{}
-      }
+      if(!userInteracted){ try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{} }
     }
   })();
 }
