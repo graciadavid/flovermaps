@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- MarkerCluster (para muchas flores) -->
+<!-- MarkerCluster -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -42,8 +42,7 @@
   body{
     margin:0; font-family:'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink);
     background: linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
-    overflow:hidden; /* el body NO scrollea */
-    overscroll-behavior-y: none;
+    overflow:hidden; overscroll-behavior-y: none;
   }
 
   /* Header (logo) */
@@ -59,17 +58,33 @@
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100dvh; min-height:100vh; }
 
-  /* Coach + dirección + FAB */
+  /* Coach centrado */
   .coach{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(176px + var(--safe-b)); z-index:1200;
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(220px + var(--safe-b)); z-index:1200;
     background:#fff; border:1px solid #e8e8e8; border-radius:999px; padding:10px 16px; font-size:1rem; box-shadow:0 6px 16px rgba(0,0,0,.08);
     text-align:center; white-space:nowrap;
   }
+
+  /* Barra de controles (tres botones homogéneos) */
+  .controls{
+    position:fixed; z-index:1201; left:50%; transform:translateX(-50%); bottom:calc(168px + var(--safe-b));
+    display:flex; gap:8px; width:min(94vw,760px);
+  }
+  .controls .tool-btn{
+    flex:1 1 0; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:10px 12px; font-size:.95rem; cursor:pointer;
+    box-shadow:0 6px 14px rgba(0,0,0,.04); display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .controls .tool-btn:active{ transform:translateY(1px) }
+  .controls .tool-btn[disabled]{ opacity:.6; cursor:default }
+
+  /* Badge de dirección */
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + var(--safe-b)); z-index:1200;
     background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
     max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
   }
+
+  /* Botón principal */
   .fab{
     position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + var(--safe-b)); z-index:1200;
     background:var(--accent); color:#fff; border:0; border-radius:14px; padding:14px 18px; font-size:1.05rem; min-width:min(92vw,420px);
@@ -77,44 +92,24 @@
   }
   .fab:disabled{ opacity:.55; cursor:not-allowed }
 
-  /* Barra de búsqueda (debajo del coach, centrada, con más aire) */
-  .search-bar{
-    position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
-    bottom:calc(136px + var(--safe-b)); /* más separación con el coach */
-    width:min(92vw,620px); display:flex; gap:6px; justify-content:center;
-  }
-  .search{ position:relative; flex:1 1 auto }
-  .search input{
-    width:100%; padding:10px 42px 10px 12px; border:1px solid #e6e6e6; border-radius:12px; background:#fff; font-size:0.95rem;
-    box-shadow:0 6px 14px rgba(0,0,0,.04);
-  }
-  .search .gps{
-    position:absolute; right:6px; top:50%; transform:translateY(-50%);
-    border:0; background:#f3f4f6; border-radius:10px; padding:6px 8px; cursor:pointer
-  }
-  .slist{ position:absolute; left:0; right:0; top:100%; margin-top:6px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:1202 }
-  .sitem{ padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem }
+  /* Sugerencias de búsqueda (estilo compartido con controles) */
+  .slist{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(168px + var(--safe-b) + 52px); /* justo encima de la barra de controles */
+          width:min(94vw,760px); background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:1202; box-shadow:0 6px 14px rgba(0,0,0,.06) }
+  .sitem{ padding:10px 12px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Marcador emoji */
+  /* Marcador emoji + tooltip "Arrastra…" */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
   .emoji-marker{ background:transparent; transform:translate(-14px,-28px) }
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
-  @media (min-width:900px){ .emoji-marker .e{ font-size:38px; line-height:38px } }
-
-  /* Tooltip “Arrastra para ajustar” bajo la flor */
   .leaflet-tooltip.drag-tip{
     background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.08);
     font-size:.9rem;
   }
 
   /* Sheet (form + éxito) */
-  .sheet{
-    position:fixed; left:0; right:0; bottom:0; z-index:1300;
-    transform:translateY(100%); transition:transform .25s ease;
-    background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25);
-    max-height:85dvh; display:flex; flex-direction:column;
-  }
+  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1300; transform:translateY(100%); transition:transform .25s ease;
+          background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column; }
   .sheet.open{ transform:translateY(0) }
   .sheet .handle{ align-self:center; width:54px; height:5px; border-radius:999px; background:#e5e7eb; margin:8px 0 4px }
   .sheet .body{ padding:10px 14px 16px; overflow:auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -145,19 +140,27 @@
   <div id="map"></div>
 </main>
 
+<!-- Coach -->
 <div id="coach" class="coach">Toca el mapa para <strong>plantar</strong> la flor</div>
 
-<div class="search-bar" role="search" aria-label="Buscar lugar">
-  <div class="search">
-    <input id="place" placeholder="🔎 Buscar un lugar (ej. Champs-Élysées, París)" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
-    <button id="gpsBtn" class="gps" title="Usar mi ubicación">📍</button>
-    <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
-  </div>
+<!-- Controles integrados -->
+<div class="controls" aria-label="Controles rápidos">
+  <button id="tapBtn" class="tool-btn">👉 Tocar el mapa</button>
+  <button id="searchBtn" class="tool-btn">🔎 Buscar lugar</button>
+  <button id="gpsBtn" class="tool-btn">📍 Usar ubicación</button>
 </div>
 
+<!-- Sugerencias búsqueda -->
+<div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
+
+<!-- Campo oculto de búsqueda (solo UI virtual arriba) -->
+<input id="place" style="position:absolute; left:-9999px; top:-9999px" autocomplete="off" aria-hidden="true" />
+
+<!-- Dirección + CTA principal -->
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 <button id="fab" class="fab" disabled>Plantar</button>
 
+<!-- SHEET -->
 <section id="sheet" class="sheet" aria-modal="true" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div id="sheetBody" class="body">
@@ -216,13 +219,16 @@ let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let flowersLayer=null, useCluster=null;
 let selectedMarker=null, selectedLat=null, selectedLng=null;
 let saving=false, plantedOnce=false, lastShareUrl='';
-let lastPopupData=null;
 let lastTs=0; window._lastItems=[];
+let userInteracted=false;        // <- evita auto-fit tras interacción
+let allowInitialFit=true;        // <- solo 1 fit opcional (pero lo desactivamos para España fija)
+let lastPopupData=null;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
-const mapEl=$("#map"), addrBadge=$("#addrBadge"), coach=$("#coach"), fab=$("#fab");
-const place=$("#place"), slist=$("#slist"), gpsBtn=$("#gpsBtn");
+const coach=$("#coach"), addrBadge=$("#addrBadge"), fab=$("#fab");
+const place=$("#place"), slist=$("#slist");
+const searchBtn=$("#searchBtn"), gpsBtn=$("#gpsBtn"), tapBtn=$("#tapBtn");
 const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView"), saveBtn=$("#saveBtn");
 const fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), chars=$("#chars");
 const mShare=$("#mShare"), mOpen=$("#mOpen");
@@ -248,17 +254,20 @@ function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([48.8566,2.3522],6);
+
+  // Vista inicial SIEMPRE España (para que se vea "mapa lleno de flores")
+  map.setView([40.4168, -3.7038], 5);
 
   ensureFlowersLayer(false);
 
   map.on('click', e=>{
-    if(plantedOnce) { toast('Ya has plantado una flor en esta sesión.', false); return; }
+    if(plantedOnce){ toast('Ya has plantado una flor en esta sesión.', false); return; }
+    userInteracted=true;
     setSelectedPoint(e.latlng.lat, e.latlng.lng, true);
   });
 
-  setTimeout(()=>map.invalidateSize(),150);
   window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),100));
+  setTimeout(()=>map.invalidateSize(),150);
 }
 
 function ensureFlowersLayer(wantCluster){
@@ -276,15 +285,21 @@ function setSelectedPoint(lat,lng,animate=false){
   if(selectedMarker){ selectedMarker.setLatLng([lat,lng]); }
   else{
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    // tooltip “Arrastra para ajustar” bajo el pin
-    try{ selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'bottom', offset:[0,18], className:'drag-tip'}).openTooltip(); }catch{}
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'bottom', offset:[0,18], className:'drag-tip'}).openTooltip();
+    selectedMarker.on('dragstart', ()=>{ userInteracted=true; });
     selectedMarker.on('dragend', e=>{
-      const p=e.target.getLatLng();
-      selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
-      reverseAt(selectedLat, selectedLng);
+      const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6); reverseAt(selectedLat, selectedLng);
+      // Mantener el zoom actual al terminar de arrastrar
+      try{ map.setView([+selectedLat,+selectedLng], map.getZoom(), {animate:false}); }catch{}
     });
   }
-  if(animate){ try{ map.flyTo([lat,lng], 16, {duration:0.6}); }catch{ map.setView([lat,lng],16); } }
+  if(animate){
+    // Al poner el pin, mantener zoom actual (o acercar mínimo a 15)
+    const targetZ = Math.max(map.getZoom(), 15);
+    try{ map.flyTo([lat,lng], targetZ, {duration:0.6}); }catch{ map.setView([lat,lng], targetZ); }
+  } else {
+    try{ map.setView([lat,lng], map.getZoom(), {animate:false}); }catch{}
+  }
   reverseAt(selectedLat, selectedLng);
   coach.style.display='block';
   fab.disabled=false; fab.textContent='Continuar';
@@ -309,7 +324,24 @@ async function reverseAt(lat,lng){
   }catch{ addrBadge.textContent='Ubicación aproximada'; }
 }
 
-/* === SEARCH + GPS === */
+/* === CONTROLES === */
+tapBtn.addEventListener('click', ()=>{ toast('Toca el mapa para plantar la flor'); });
+searchBtn.addEventListener('click', ()=>{
+  userInteracted=true;
+  // Abrimos un input virtual: para UX, mostramos lista cuando hay texto; aquí solo enfocamos y pedimos término
+  const q = prompt('Buscar un lugar (ciudad, calle, punto de interés):') || '';
+  if(!q.trim()) return;
+  runSuggest(q.trim());
+});
+gpsBtn.addEventListener('click', ()=>{
+  if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
+  userInteracted=true;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
+  }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
+});
+
+/* === SUGERENCIAS === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 function hasNumber(s){ return /[0-9]/.test(s); }
 function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
@@ -345,7 +377,7 @@ async function searchPlacesStructured(q, sig){
   const results = await Promise.allSettled(tasks);
   return results.flatMap(r => r.status==='fulfilled' ? r.value : []);
 }
-async function searchPlaces(q){
+async function runSuggest(q){
   if(abortCtrl) abortCtrl.abort();
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
   try{
@@ -364,8 +396,9 @@ async function searchPlaces(q){
         return (String(yn)===String(num)) - (String(xn)===String(num));
       }); 
     }
-    return merged.slice(0,10);
-  }catch{ return []; }
+    currentSuggest = merged.slice(0,10);
+    renderSuggest(currentSuggest);
+  }catch{ currentSuggest=[]; renderSuggest([]); }
 }
 function renderSuggest(list){
   slist.innerHTML="";
@@ -384,26 +417,13 @@ function renderSuggest(list){
 }
 async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
-  place.value=it.display_name; slist.style.display='none';
+  slist.style.display='none';
+  userInteracted=true;
   setSelectedPoint(Number(it.lat), Number(it.lon), true);
 }
-place.addEventListener('input', e=>{
-  const q=e.target.value.trim();
-  clearTimeout(suggestTimer);
-  if(!q){ slist.style.display='none'; return; }
-  suggestTimer=setTimeout(async()=>{ try{ currentSuggest=await searchPlaces(q); renderSuggest(currentSuggest);}catch{} }, 250);
-});
-document.addEventListener('click', e=>{ const box=$('.search'); if(box && !box.contains(e.target)) slist.style.display='none'; });
+document.addEventListener('click', e=>{ if(!slist.contains(e.target) && e.target!==searchBtn) slist.style.display='none'; });
 
-/* GPS */
-gpsBtn.addEventListener('click', ()=>{
-  if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
-  navigator.geolocation.getCurrentPosition(pos=>{
-    setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
-  }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
-});
-
-/* FAB → abre sheet (formulario) */
+/* FAB → abrir form */
 fab.addEventListener('click', ()=>{
   if(plantedOnce) return toast('Ya has plantado una flor en esta sesión.', false);
   if(!selectedLat||!selectedLng) return toast('Toca el mapa para plantar la flor', false);
@@ -415,12 +435,10 @@ function openSheet(kind){
   sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
   if(kind==='form'){ formView.style.display='block'; successView.style.display='none'; }
   if(kind==='success'){ formView.style.display='none'; successView.style.display='block'; }
-  document.body.classList.add('noscroll');
   try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
 }
 function closeSheet(){
   sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
-  document.body.classList.remove('noscroll');
   try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
 }
 
@@ -446,28 +464,29 @@ async function saveFlower(){
     const data = await jsonp(url);
 
     if(data && data.ok){
-      // Enlace de compartir SIEMPRE con parámetros
+      // Enlace de compartir
       lastShareUrl = `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
 
       const dtStr=fmtDateTime(new Date());
-      lastPopupData = {from,to,msg,lat:selectedLat,lng:selectedLng,dtStr,url:lastShareUrl};
-
-      // Añade la flor plantada al layer general para que se mantenga con el resto
       const html = popupHtml(from,to,msg,dtStr,lastShareUrl);
-      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500});
-      mk.bindPopup(html);
-      flowersLayer.addLayer(mk);
-      mk.on('click', ()=>{ mk.openPopup(); });
 
-      try{ map.flyTo([+selectedLat,+selectedLng], 17, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], 17); }
+      // Añadir al layer general
+      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500});
+      mk.bindPopup(html).on('click', ()=>mk.openPopup());
+      flowersLayer.addLayer(mk);
+
+      // Mantener al usuario sobre su flor con zoom correcto (mínimo 15)
+      const targetZ = Math.max(map.getZoom(), 15);
+      try{ map.flyTo([+selectedLat,+selectedLng], targetZ, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], targetZ); }
       mk.openPopup();
 
       plantedOnce=true; fab.disabled=true; fab.textContent='Plantada';
+      userInteracted=true; // desactiva auto-fit permanente
 
       $("#successText").textContent = `De ${from} para ${to}.`;
       openSheet('success');
 
-      await refetch(true); // refresco incremental
+      await refetch(true); // refresco silencioso de otras flores
     } else {
       toast('No se pudo guardar', false);
     }
@@ -489,7 +508,6 @@ function popupHtml(from,to,msg,dtStr,shareUrl){
       <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
     </div>`;
 }
-
 async function shareAny(url){
   try{
     if(navigator.share){ await navigator.share({title:'Flovermaps', text:'Mira esta flor 🌸', url}); }
@@ -498,22 +516,22 @@ async function shareAny(url){
 }
 window.shareAny = shareAny;
 
-/* Deep link: abrir flor compartida con ?lat&lng&from&to&msg */
+/* Deep link (abrir flor compartida) */
 function tryOpenShared(){
   const u=new URL(location.href);
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
+    userInteracted=true; // para que no haya auto-fit
     setSelectedPoint(+lat,+lng,true);
     const dtStr = fmtDateTime(new Date());
-    lastPopupData = {from:unescAttr(from), to:unescAttr(to), msg:unescAttr(msg), lat, lng, dtStr, url:location.href};
     const html = popupHtml(unescAttr(from), unescAttr(to), unescAttr(msg), dtStr, location.href);
     const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
     mk.openPopup();
   }
 }
 
-/* === Render de TODAS las flores === */
+/* === Todas las flores === */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -524,9 +542,8 @@ function normalizeItems(items){
     const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
     const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
     const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
-    const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
     const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
-    out.push({ id, lat, lng, fromName, toName, message, place, timestamp });
+    out.push({ id, lat, lng, fromName, toName, message, timestamp });
   }
   return out;
 }
@@ -555,11 +572,19 @@ function renderAllMarkers(list){
     }
     if(batch.length){ if(useCluster) flowersLayer.addLayers(batch); else batch.forEach(m=>flowersLayer.addLayer(m)); }
     if(i<n){ requestAnimationFrame(chunk); }
-    else{ try{ useCluster && flowersLayer.refreshClusters(); }catch{} if(list.length){ map.fitBounds(bounds.pad(0.15), {maxZoom:7}); } }
+    else{
+      try{ useCluster && flowersLayer.refreshClusters(); }catch{}
+      // Solo auto-fit si el usuario no ha interactuado (primera impresión) y lo permitimos
+      if(!userInteracted && allowInitialFit && list.length){
+        // En vez de fit completo, mantenemos España (zoom máximo 6) para coherencia
+        try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{}
+        allowInitialFit=false;
+      }
+    }
   })();
 }
 
-/* Fetch (lista completa + incremental) */
+/* Fetch listado */
 async function refetch(incremental=false){
   try{
     const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
@@ -585,12 +610,10 @@ function openSheet(kind){
   sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
   if(kind==='form'){ formView.style.display='block'; successView.style.display='none'; }
   if(kind==='success'){ formView.style.display='none'; successView.style.display='block'; }
-  document.body.classList.add('noscroll');
   try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
 }
 function closeSheet(){
   sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
-  document.body.classList.remove('noscroll');
   try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
 }
 
@@ -601,10 +624,11 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 document.addEventListener('DOMContentLoaded', ()=>{
   initMap();
   refetch(false);
-  setInterval(()=>refetch(true), 15000); // polling ligero
+  setInterval(()=>refetch(true), 15000);
 
   tryOpenShared();
 
+  // ESC cierra sugerencias
   document.addEventListener('keydown', e=>{
     if(e.key==='Escape'){ slist.style.display='none'; }
   });
