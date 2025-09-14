@@ -8,6 +8,8 @@
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Elige un sitio del mapa, dedica un mensaje y compártalo con un enlace." />
+
+<!-- OG/Twitter (genérico) -->
 <meta property="og:title" content="Planta una flor en el lugar que lo cambió todo — Flovermaps">
 <meta property="og:description" content="Toca el mapa para elegir un lugar, dedica un mensaje y compártalo con un enlace.">
 <meta property="og:type" content="website">
@@ -24,11 +26,6 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- MarkerCluster (solo si hay muchas flores) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
 <style>
   :root{
     --ink:#0f172a; --muted:#64748b; --accent:#22c55e; --bg:#f6fff9;
@@ -41,7 +38,7 @@
   body{
     margin:0; font-family:'Plus Jakarta Sans', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink);
     background: linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
-    overflow:hidden; /* el body NO scrollea, solo los sheets */
+    overflow:hidden; /* el body NO scrollea, solo el sheet */
     overscroll-behavior-y: none; /* evita bounce global */
   }
   body.noscroll{ position:fixed; inset:0; overflow:hidden; } /* lock scroll cuando hay sheet */
@@ -61,7 +58,7 @@
 
   /* Search bar + GPS (overlay) */
   .search-bar{
-    position:fixed; z-index:1201; left:12px; right:56px; top:calc(62px + var(--safe-t));
+    position:fixed; z-index:1201; left:12px; right:12px; top:calc(62px + var(--safe-t));
     display:flex; gap:6px; align-items:center;
   }
   .search{ position:relative; flex:1 1 auto }
@@ -76,13 +73,6 @@
   .slist{ position:absolute; left:0; right:0; top:100%; margin-top:6px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:1202 }
   .sitem{ padding:8px 10px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:.95rem }
   .sitem:last-child{ border-bottom:0 }
-
-  /* Botón Últimas (esquina) */
-  .latest-trigger{
-    position:fixed; right:12px; top:calc(62px + var(--safe-t));
-    z-index:1201; border:1px solid #e6e6e6; background:#fff; border-radius:12px; padding:8px 10px; cursor:pointer;
-    box-shadow:0 6px 14px rgba(0,0,0,.04); font-size:.95rem;
-  }
 
   /* Coach + dirección bajo el pin + FAB */
   .coach{
@@ -107,7 +97,7 @@
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   @media (min-width:900px){ .emoji-marker .e{ font-size:38px; line-height:38px } }
 
-  /* Bottom-sheet (form + éxito + últimas) */
+  /* Bottom-sheet (form + éxito) */
   .sheet{
     position:fixed; left:0; right:0; bottom:0; z-index:1300;
     transform:translateY(100%); transition:transform .25s ease;
@@ -125,22 +115,6 @@
   .btn-green{ background:#22c55e; color:#fff }
   .btn-outline{ background:#fff; color:#0f172a; border:1px solid #e6e6e6 }
   .muted{ color:var(--muted); font-size:.95rem }
-  .btn-xxs{ padding:6px 8px; font-size:.86rem; border-radius:10px }
-
-  /* Splash (solo primera vez) */
-  .splash{
-    position:fixed; inset:0; z-index:1400; display:flex; align-items:stretch; justify-content:center; background:#000;
-    cursor:pointer;
-  }
-  .splash picture, .splash img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
-  .splash .hint{
-    position:absolute; left:50%; transform:translateX(-50%); bottom:calc(18px + var(--safe-b));
-    background:rgba(255,255,255,.85); color:#111; padding:6px 10px; border-radius:999px; font-size:.95rem;
-  }
-  .splash .skip{
-    position:absolute; right:12px; top:calc(12px + var(--safe-t));
-    background:rgba(255,255,255,.85); color:#111; padding:6px 10px; border-radius:999px; font-size:.9rem;
-  }
 
   /* Toast */
   .toast{
@@ -165,17 +139,14 @@
 <!-- BARRA DE BÚSQUEDA + GPS -->
 <div class="search-bar" role="search" aria-label="Buscar lugar">
   <div class="search">
-    <input id="place" placeholder="🔎 Buscar un lugar (ej. Calle Alcalá 42, Madrid)" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
+    <input id="place" placeholder="🔎 Buscar un lugar (ej. Champs-Élysées, París)" autocomplete="off" aria-autocomplete="list" aria-controls="slist">
     <button id="gpsBtn" class="gps" title="Usar mi ubicación">📍</button>
     <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
   </div>
 </div>
 
-<!-- ÚLTIMAS (trigger) -->
-<button id="openLatest" class="latest-trigger" title="Ver últimas">🌸 Últimas</button>
-
 <!-- COACH + DIRECCIÓN + FAB -->
-<div id="coach" class="coach">Toca el mapa para colocar la flor</div>
+<div id="coach" class="coach">Toca el mapa para <strong>plantar</strong> la flor</div>
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 <button id="fab" class="fab" disabled>Plantar</button>
 
@@ -216,38 +187,12 @@
   </div>
 </section>
 
-<!-- SHEET de Últimas -->
-<section id="latestSheet" class="sheet" aria-modal="true" role="dialog" aria-labelledby="latestTitle" aria-hidden="true">
-  <div class="handle"></div>
-  <div class="body">
-    <h3 id="latestTitle" style="margin:8px 0 10px">Últimas dedicatorias</h3>
-    <div id="latestList"></div>
-    <div style="display:flex; gap:8px; justify-content:center; margin-top:8px">
-      <button id="prevPage" class="btn btn-outline btn-xxs">◀︎</button>
-      <button id="nextPage" class="btn btn-outline btn-xxs">▶︎</button>
-    </div>
-  </div>
-</section>
-
-<!-- SPLASH (primera vez / entrada) -->
-<section id="splash" class="splash" role="dialog" aria-label="Pantalla de bienvenida" style="display:none;">
-  <button class="skip" id="skipSplash" aria-label="Saltar">Saltar</button>
-  <div class="hint">Toca para empezar</div>
-  <picture>
-    <!-- Sustituye estos assets por los tuyos -->
-    <source srcset="splash-desktop.avif" type="image/avif" media="(min-width:768px)">
-    <source srcset="splash-desktop.webp" type="image/webp" media="(min-width:768px)">
-    <source srcset="splash-mobile.avif" type="image/avif">
-    <source srcset="splash-mobile.webp" type="image/webp">
-    <img src="splash-mobile.jpg" alt="Pareja caminando sobre un mapa con flores plantadas">
-  </picture>
-</section>
-
 <!-- Toast -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* === CONFIG === */
+/* Sustituye por tu deployment de Apps Script (termina en /exec) */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
 
 /* === JSONP helper === */
@@ -266,11 +211,10 @@ function jsonp(url, timeoutMs=12000){
 
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null; let useCluster=null;
-let selectedMarker=null; let selectedLat=null; let selectedLng=null;
-let saving=false; let plantedOnce=false; let lastShareUrl=''; let lastTs=0;
-let latestItems=[]; let page=0; const pageSize=8;
-let abortRev=null;
+let flowersLayer=null;
+let selectedMarker=null, selectedLat=null, selectedLng=null;
+let saving=false, plantedOnce=false, lastShareUrl='';
+let lastTs=0;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -279,8 +223,6 @@ const place=$("#place"), slist=$("#slist"), gpsBtn=$("#gpsBtn");
 const sheet=$("#sheet"), formView=$("#formView"), successView=$("#successView"), saveBtn=$("#saveBtn"), cancelSheet=$("#cancelSheet");
 const fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), chars=$("#chars");
 const mShare=$("#mShare"), mOpen=$("#mOpen");
-const latestSheet=$("#latestSheet"), latestList=$("#latestList"), openLatest=$("#openLatest"), prevPage=$("#prevPage"), nextPage=$("#nextPage");
-const splash=$("#splash"), skipSplash=$("#skipSplash");
 const toastEl=$("#toast");
 
 /* === Utils === */
@@ -296,9 +238,8 @@ function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'
 function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
-function relTime(ts){ const t=Number(ts)||Date.parse(ts)||Date.now(); const s=Math.max(1, Math.floor((Date.now()-t)/1000)); if(s<60) return `hace ${s} s`; const m=Math.floor(s/60); if(m<60) return `hace ${m} min`; const h=Math.floor(m/60); if(h<24) return `hace ${h} h`; const d=Math.floor(h/24); return `hace ${d} d`; }
 
-/* === SCROLL LOCK helpers === */
+/* === SCROLL LOCK === */
 function lockBodyScroll(){ document.body.classList.add('noscroll'); }
 function unlockBodyScroll(){ document.body.classList.remove('noscroll'); }
 
@@ -307,9 +248,9 @@ function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([40.4168,-3.7038],6);
+  map.setView([48.8566,2.3522],6); // vista inicial (París/EU)
 
-  flowersLayer = L.layerGroup().addTo(map); useCluster=false;
+  flowersLayer = L.layerGroup().addTo(map);
 
   map.on('click', e=>{
     if(plantedOnce) { toast('Ya has plantado una flor en esta sesión.', false); return; }
@@ -338,6 +279,7 @@ function setSelectedPoint(lat,lng,animate=false){
   addrBadge.style.display='block';
 }
 
+let abortRev=null;
 async function reverseAt(lat,lng){
   if(abortRev){ try{ abortRev.abort(); }catch{} }
   const ctl=new AbortController(); abortRev=ctl;
@@ -449,14 +391,14 @@ gpsBtn.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* === FAB → abre sheet de formulario === */
+/* FAB → abre sheet de formulario */
 fab.addEventListener('click', ()=>{
   if(plantedOnce) return toast('Ya has plantado una flor en esta sesión.', false);
-  if(!selectedLat||!selectedLng) return toast('Coloca la flor tocando el mapa', false);
+  if(!selectedLat||!selectedLng) return toast('Toca el mapa para plantar la flor', false);
   openSheet('form');
 });
 
-/* === SHEETS control (lock scroll, disable map drag) === */
+/* SHEET control */
 function openSheet(kind){
   sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
   if(kind==='form'){ formView.style.display='block'; successView.style.display='none'; }
@@ -471,11 +413,11 @@ function closeSheet(){
 }
 cancelSheet.addEventListener('click', closeSheet);
 
-/* === Form: validaciones mínimas === */
+/* Form UX */
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* === Guardar flor === */
+/* Guardar flor */
 async function saveFlower(){
   if(saving) return;
   if(!selectedLat||!selectedLng){ toast('Coloca la flor en el mapa', false); return; }
@@ -493,25 +435,21 @@ async function saveFlower(){
     const data = await jsonp(url);
 
     if(data && data.ok){
-      // Añadimos marcador visible y popup
+      // marcador visible + popup
       const dtStr=fmtDateTime(new Date());
-      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500}).bindPopup(`<div>${dtStr} <strong>${from}</strong> para <strong>${to}</strong>: ${String(msg).replace(/[&<>"']/g,'')}</div>`);
+      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500})
+        .bindPopup(`<div>${dtStr} <strong>${from}</strong> para <strong>${to}</strong>: ${String(msg).replace(/[&<>"']/g,'')}</div>`);
       flowersLayer ? flowersLayer.addLayer(mk) : mk.addTo(map);
       try{ map.flyTo([+selectedLat,+selectedLng], 17, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], 17); }
       mk.openPopup();
 
-      // Enlace de compartir SIEMPRE con parámetros de tu dominio
+      // Enlace de compartir SIEMPRE con parámetros de tu dominio (nunca Drive)
       lastShareUrl = `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
 
-      // Bloquear nuevas plantaciones (solo sesión actual)
-      plantedOnce=true;
-      fab.disabled=true; fab.textContent='Plantada';
+      plantedOnce=true; fab.disabled=true; fab.textContent='Plantada';
 
-      // Mostrar éxito
       $("#successText").textContent = `De ${from} para ${to}.`;
       openSheet('success');
-
-      await refetch(true);
     } else {
       toast('No se pudo guardar', false);
     }
@@ -522,7 +460,7 @@ async function saveFlower(){
 }
 saveBtn.addEventListener('click', saveFlower);
 
-/* === Compartir (éxito) === */
+/* Compartir / Ver */
 mShare.addEventListener('click', async ()=>{
   try{
     if(lastShareUrl){
@@ -536,148 +474,6 @@ mOpen.addEventListener('click', ()=>{
   try{ if(lastShareUrl) window.open(lastShareUrl,'_blank'); }catch{}
   closeSheet();
 });
-
-/* === Últimas (sheet secundario) === */
-openLatest.addEventListener('click', ()=>{ openLatestSheet(); });
-latestSheet.addEventListener('click', e=>{ if(e.target===latestSheet) closeLatestSheet(); });
-function openLatestSheet(){ latestSheet.classList.add('open'); latestSheet.setAttribute('aria-hidden','false'); lockBodyScroll(); }
-function closeLatestSheet(){ latestSheet.classList.remove('open'); latestSheet.setAttribute('aria-hidden','true'); unlockBodyScroll(); }
-
-prevPage.addEventListener('click', ()=>{ page=Math.max(0, page-1); renderLatest(); });
-nextPage.addEventListener('click', ()=>{ const maxPage=Math.max(0, Math.ceil(latestItems.length/pageSize)-1); page=Math.min(maxPage, page+1); renderLatest(); });
-
-function renderLatest(){
-  const start=page*pageSize, slice=latestItems.slice(start,start+pageSize);
-  if(!slice.length){ latestList.innerHTML='<div class="muted">Aún no hay flores recientes.</div>'; return; }
-  latestList.innerHTML = slice.map(it=>{
-    const escHtml=s=>String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m]));
-    const escAttrVal=s=>escAttr(String(s||''));
-    const shareUrl = `${location.origin}${location.pathname}?lat=${it.lat}&lng=${it.lng}&from=${escAttrVal(it.fromName)}&to=${escAttrVal(it.toName)}&msg=${escAttrVal(it.message)}`;
-    return `<div style="border:1px solid #e8e8e8; border-radius:12px; padding:10px; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.05); margin-bottom:8px">
-      <div><strong>${escHtml(it.fromName||'—')}</strong> → <strong>${escHtml(it.toName||'—')}</strong></div>
-      <div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(it.message||'')}</div>
-      <div class="muted" style="font-size:.9rem">${relTime(it.timestamp)}</div>
-      <div style="display:flex; gap:8px; margin-top:6px">
-        <button class="btn btn-outline btn-xxs" onclick="viewFlower('${it.lat}','${it.lng}','${escAttrVal(it.fromName)}','${escAttrVal(it.toName)}','${escAttrVal(it.message)}','${escAttrVal(it.timestamp)}')">Ver</button>
-        <button class="btn btn-outline btn-xxs" onclick="shareAny('${shareUrl}')">Compartir</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-/* Ayudas de compartir/ver para Latest */
-window.shareAny = async function(url){
-  try{
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:'Mira esta flor 🌸', url}); }
-    else{ await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
-  }catch{}
-};
-window.viewFlower = function(lat,lng,fromEnc,toEnc,msgEnc,tsEnc){
-  const from=unescAttr(fromEnc), to=unescAttr(toEnc), msg=unescAttr(msgEnc);
-  const dtStr = fmtDateTime(new Date(Number(tsEnc)||Date.parse(tsEnc)||Date.now()));
-  const html = `<div>${dtStr} <strong>${from}</strong> para <strong>${to}</strong>: ${String(msg).replace(/[&<>"']/g,'')}</div>`;
-  const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
-  try{ map.flyTo([+lat,+lng], 17, {duration:0.6}); }catch{ map.setView([+lat,+lng], 17); }
-  mk.openPopup();
-  setTimeout(()=>{ try{ map.removeLayer(mk); }catch{} }, 12000);
-  closeLatestSheet();
-};
-
-/* === Lista y render de todas las flores === */
-function normalizeItems(items){
-  const out=[];
-  for(const f of (items||[])){
-    const lat = Number(f.lat ?? f.latitude ?? f.Latitude ?? f.LAT ?? f.latitud ?? f.y ?? f.Y ?? f.Lat);
-    const lng = Number(f.lng ?? f.lon ?? f.long ?? f.longitude ?? f.Longitude ?? f.LON ?? f.longitud ?? f.x ?? f.X ?? f.Lng);
-    if(!isFinite(lat)||!isFinite(lng)) continue;
-    const id       = String(f.id ?? f.ID ?? f.Id ?? `${lat},${lng},${f.timestamp ?? ''}`);
-    const fromName = f.fromName ?? f.from ?? f.de ?? f.sender ?? f.quien ?? '';
-    const toName   = f.toName   ?? f.to   ?? f.para ?? f.recipient ?? f.destinatario ?? '';
-    const message  = (f.message ?? f.msg  ?? f.text ?? f.mensaje ?? f.note ?? '');
-    const place    = f.place    ?? f.address ?? f.direccion ?? f.location ?? '';
-    const timestamp= f.timestamp?? f.ts ?? f.time ?? f.fecha ?? f.createdAt ?? f.created_at ?? '';
-    out.push({ id, lat, lng, fromName, toName, message, place, timestamp });
-  }
-  return out;
-}
-function ensureFlowersLayer(wantCluster){
-  if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
-  if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
-  flowersLayer = wantCluster
-    ? L.markerClusterGroup({ showCoverageOnHover:false, spiderfyOnEveryZoom:false, disableClusteringAtZoom:16, maxClusterRadius:60 })
-    : L.layerGroup();
-  flowersLayer.addTo(map);
-  useCluster=wantCluster;
-}
-function renderAllMarkers(list){
-  if(!map) return;
-  const wantCluster = list.length >= 10;
-  ensureFlowersLayer(wantCluster);
-  try{ flowersLayer.clearLayers(); }catch{}
-  const bounds=L.latLngBounds();
-  let i=0, n=list.length;
-  (function chunk(){
-    const t0=performance.now();
-    const batch=[];
-    while(i<n && (performance.now()-t0)<24){
-      const f=list[i++]; const lat=f.lat, lng=f.lng;
-      if(!isFinite(lat)||!isFinite(lng)) continue;
-      const dtStr=f.timestamp?fmtDateTime(new Date(Number(f.timestamp)||Date.parse(f.timestamp)||Date.now())):"";
-      const html=`<div>${dtStr} <strong>${(f.fromName||'')}</strong> para <strong>${(f.toName||'')}</strong>: ${String((f.message||'')).replace(/[&<>"']/g,'')}</div>`;
-      const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
-      batch.push(mk); bounds.extend([lat,lng]);
-    }
-    if(batch.length){ if(useCluster) flowersLayer.addLayers(batch); else batch.forEach(m=>flowersLayer.addLayer(m)); }
-    if(i<n){ requestAnimationFrame(chunk); }
-    else{ try{ useCluster && flowersLayer.refreshClusters(); }catch{} if(list.length){ map.fitBounds(bounds.pad(0.15), {maxZoom:7}); } }
-  })();
-}
-
-/* Incremental fetch */
-async function refetch(incremental=false){
-  try{
-    const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
-    const data = await jsonp(url, 12000);
-    if (data && Array.isArray(data.items)) {
-      const norm = normalizeItems(data.items);
-      if(incremental && window._lastItems){ window._lastItems = mergeUniqueById(window._lastItems, norm); }
-      else { window._lastItems = norm; }
-      latestItems = window._lastItems.slice().sort((a,b)=>(Number(b.timestamp)||0)-(Number(a.timestamp)||0));
-      renderAllMarkers(window._lastItems);
-      renderLatest();
-      for (const it of data.items) { const t=Number(it.timestamp)||Date.parse(it.timestamp)||0; if(t>lastTs) lastTs=t; }
-      try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
-      return;
-    }
-  } catch(e){ /* usa cache si hay */ }
-  const cached=localStorage.getItem('flowers_cache');
-  if(cached){
-    window._lastItems = JSON.parse(cached);
-    latestItems = window._lastItems.slice().sort((a,b)=>(Number(b.timestamp)||0)-(Number(a.timestamp)||0));
-    renderAllMarkers(window._lastItems);
-    renderLatest();
-  }
-}
-function mergeUniqueById(oldList, newList){
-  const m=new Map(); for(const it of (oldList||[])) m.set(it.id,it); for(const it of (newList||[])) m.set(it.id,it);
-  return Array.from(m.values());
-}
-
-/* SPLASH control (solo primera vez) */
-function maybeShowSplash(){
-  const u=new URL(location.href);
-  const hasDeep = u.searchParams.has('lat') && u.searchParams.has('lng');
-  const seen = localStorage.getItem('hasSeenSplash')==='1';
-  if(hasDeep) return; // si viene con flor → no mostrar
-  if(!seen){
-    splash.style.display='flex';
-    lockBodyScroll();
-    const close=()=>{ splash.style.display='none'; unlockBodyScroll(); localStorage.setItem('hasSeenSplash','1'); };
-    splash.addEventListener('click', close, {once:true});
-    skipSplash.addEventListener('click', (e)=>{ e.stopPropagation(); close(); }, {once:true});
-    setTimeout(close, 5000); // auto a los 5s
-  }
-}
 
 /* Deep link: abrir flor compartida con ?lat&lng&from&to&msg */
 function tryOpenShared(){
@@ -697,21 +493,13 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
-  // UI básica
   initMap();
-  refetch(false);
-  setInterval(()=>refetch(true), 15000);
+  tryOpenShared();
 
-  // accesibilidad: cerrar lista de sugerencias con Escape
+  // Accesibilidad: cerrar lista de sugerencias con Escape
   document.addEventListener('keydown', e=>{
     if(e.key==='Escape'){ slist.style.display='none'; }
   });
-
-  // deep link si llega
-  tryOpenShared();
-
-  // Splash primera vez
-  maybeShowSplash();
 });
 </script>
 </body>
