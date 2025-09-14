@@ -15,19 +15,19 @@
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://unpkg.com">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet (jsDelivr estable) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet (unpkg) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- MarkerCluster -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<!-- MarkerCluster (unpkg) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
   :root{
@@ -43,7 +43,7 @@
     overflow:hidden; overscroll-behavior-y: none;
   }
 
-  /* Header (logo grande) */
+  /* Header */
   .site-header{
     position:fixed; z-index:1200; left:0; right:0; top:0;
     display:flex; justify-content:center; padding:8px 10px; padding-top:calc(10px + var(--safe-t)); pointer-events:none;
@@ -57,14 +57,14 @@
   #map{
     position:absolute; inset:0; width:100%;
     height:100vh;      /* fallback universal */
-    height:100dvh;     /* si el navegador soporta dvh */
+    height:100dvh;     /* navegadores con dvh */
     min-height:100vh;
   }
 
-  /* Controles ABAJO: fila de 2 botones + barra de búsqueda debajo */
+  /* Controles ABAJO */
   .controls{
     position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
-    bottom:calc(24px + var(--safe-b));  /* pegado abajo */
+    bottom:calc(24px + var(--safe-b));
     width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
   }
   .controls .row{ display:flex; gap:10px; }
@@ -87,7 +87,7 @@
     flex:0 0 auto; background:var(--blue); color:#fff; border:0; border-radius:10px; padding:12px 14px; font-size:1rem; cursor:pointer;
   }
 
-  /* Sugerencias aparece encima de controles */
+  /* Sugerencias */
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(24px + var(--safe-b) + 60px);
@@ -97,7 +97,7 @@
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Badge de dirección (arriba de controles) */
+  /* Dirección */
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%); bottom:calc(100px + var(--safe-b)); z-index:1200;
     background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
@@ -112,16 +112,16 @@
     transform:translate(-50%, 8px);
   }
 
-  /* Compartir fijo (azul) — visible tras plantar o al abrir enlace */
+  /* Compartir fijo (azul) */
   .share-fixed{
     position:fixed; right:14px; bottom:calc(18px + var(--safe-b)); z-index:1204;
     background:var(--blue); color:#fff; border:0; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
     box-shadow:0 10px 20px rgba(0,0,0,.2); display:none;
   }
 
-  /* Marcador + anillo verde centrado EXACTO en la flor */
+  /* Marcador + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) } /* size 28x28 con ancla [14,28] */
+  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) }
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   .leaflet-tooltip.drag-tip{
     background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.08);
@@ -133,7 +133,7 @@
     pointer-events:none; z-index:1100; display:none;
   }
 
-  /* Sheet (form + éxito) */
+  /* Sheet */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1300; transform:translateY(100%); transition:transform .25s ease;
           background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column; }
   .sheet.open{ transform:translateY(0) }
@@ -164,13 +164,10 @@
 
 <main id="mapWrap" aria-label="Mapa">
   <div id="map"></div>
-  <!-- anillo verde con la flor dentro -->
   <div id="dragRing" class="drag-ring"></div>
-  <!-- CTA verde pegada al pin -->
   <button id="pinCta" class="pin-cta">Plantar la Flor</button>
 </main>
 
-<!-- Controles ABAJO -->
 <div class="controls" id="controls" aria-label="Controles">
   <div class="row">
     <button id="tapBtn" class="tool-btn">🌸 Plantar desde el mapa</button>
@@ -185,30 +182,18 @@
   </div>
 </div>
 
-<!-- Sugerencias -->
 <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
-
-<!-- Dirección -->
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
-
-<!-- Compartir fijo -->
 <button id="shareFixed" class="share-fixed">🔗 Compartir</button>
 
-<!-- SHEET -->
 <section id="sheet" class="sheet" aria-modal="true" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div id="sheetBody" class="body">
     <div id="formView">
       <h3 id="sheetTitle">Tu dedicatoria</h3>
       <div class="row2">
-        <div>
-          <label for="fromName">¿Quién la envía?</label>
-          <input id="fromName" placeholder="Tu nombre" required>
-        </div>
-        <div>
-          <label for="toName">¿Para quién?</label>
-          <input id="toName" placeholder="Nombre del destinatario" required>
-        </div>
+        <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
+        <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" required></div>
       </div>
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
       <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
@@ -247,17 +232,6 @@ function jsonp(url, timeoutMs=12000){
   });
 }
 
-/* === ESPERAR LEAFLET (evita L is not defined) === */
-function waitForLeaflet(cb, tries=40){
-  if (window.L && L.map) return cb();
-  if (tries <= 0){
-    const el = document.getElementById('map');
-    if (el) el.innerHTML = '<div style="position:absolute;inset:0;display:grid;place-items:center;font:14px system-ui;background:#fff">No se pudo cargar el mapa. Recarga la página.</div>';
-    return;
-  }
-  setTimeout(()=>waitForLeaflet(cb, tries-1), 150);
-}
-
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let flowersLayer=null, useCluster=null;
@@ -266,7 +240,7 @@ let saving=false, lastShareUrl='';
 let lastTs=0; window._lastItems=[];
 let userInteracted=false;
 let abortRev=null, abortCtrl=null, currentSuggest=[];
-let plantingLocked=false; // tras plantar o desde enlace, bloquea nuevos plantados
+let plantingLocked=false;
 const dragRing = document.getElementById('dragRing');
 const pinCta = document.getElementById('pinCta');
 
@@ -302,14 +276,12 @@ function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-
-  // Vista inicial: España
   map.setView([40.4168, -3.7038], 5);
 
   ensureFlowersLayer(false);
 
   map.on('click', e=>{
-    if(plantingLocked) return; // tras plantar, no permitir nuevas selecciones
+    if(plantingLocked) return;
     userInteracted=true;
     setSelectedPoint(e.latlng.lat, e.latlng.lng, true);
   });
@@ -321,7 +293,6 @@ function initMap(){
   window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),100));
   setTimeout(()=>map.invalidateSize(),150);
 }
-
 function ensureFlowersLayer(wantCluster){
   if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
   if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
@@ -336,7 +307,6 @@ function ensureFlowersLayer(wantCluster){
 function setSelectedPoint(lat,lng,animate=false){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    // Tooltip arriba para que no lo tape el botón
     selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-18], className:'drag-tip'}).openTooltip();
     selectedMarker.on('drag', positionRingFromMarker);
     selectedMarker.on('dragstart', ()=>{ showRing(); });
@@ -353,7 +323,6 @@ function setSelectedPoint(lat,lng,animate=false){
   }
   selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
 
-  // Zoom mínimo 15 al seleccionar
   if(animate){
     const targetZ = Math.max(map.getZoom(), 15);
     try{ map.flyTo([lat,lng], targetZ, {duration:0.6}); }catch{ map.setView([lat,lng], targetZ); }
@@ -367,7 +336,7 @@ function setSelectedPoint(lat,lng,animate=false){
   showPinCtaFromMarker();
 }
 
-/* === Centrado preciso del anillo y CTA usando el icono real === */
+/* === Centrado anillo/CTA usando posición real del icono === */
 function getMarkerCenterPx(){
   if(!selectedMarker || !selectedMarker._icon) return null;
   const rect = selectedMarker._icon.getBoundingClientRect();
@@ -383,7 +352,7 @@ function positionPinCtaFromMarker(){
   const c = getMarkerCenterPx(); if(!c) return;
   const wrapRect = document.getElementById('mapWrap').getBoundingClientRect();
   pinCta.style.left = (c.x - wrapRect.left) + 'px';
-  pinCta.style.top  = (c.y - wrapRect.top + 42) + 'px'; // bajo la flor
+  pinCta.style.top  = (c.y - wrapRect.top + 42) + 'px';
 }
 function showRing(){ dragRing.style.display='block'; }
 function hideRing(){ dragRing.style.display='none'; }
@@ -532,7 +501,6 @@ async function saveFlower(){
       const dtStr=fmtDateTime(new Date());
       const html = popupHtml(from,to,msg,dtStr,lastShareUrl);
 
-      // Convertir el marcador de selección en definitivo
       if(selectedMarker){
         try{ selectedMarker.dragging.disable(); }catch{}
         try{ selectedMarker.unbindTooltip(); }catch{}
@@ -544,7 +512,6 @@ async function saveFlower(){
         selectedMarker = null; selectedLat = null; selectedLng = null;
       }
 
-      // Modo compartir: oculta controles y bloquear nuevos plantados
       controls.style.display='none'; slist.style.display='none';
       shareFixed.style.display='inline-block';
       plantingLocked = true;
@@ -582,7 +549,7 @@ async function shareAny(url){
 }
 window.shareAny = shareAny;
 
-/* Compartir fijo (azul) */
+/* Compartir fijo */
 shareFixed.addEventListener('click', async ()=>{
   const url = lastShareUrl || location.href;
   try{
@@ -591,7 +558,7 @@ shareFixed.addEventListener('click', async ()=>{
   }catch{}
 });
 
-/* Deep link: ?id=... ó fallback ?lat/lng... (mensaje abierto y bloqueado) */
+/* Deep link: ?id=... ó fallback ?lat/lng... */
 async function tryOpenShared(){
   const u=new URL(location.href);
   const id=u.searchParams.get('id');
@@ -607,7 +574,6 @@ async function tryOpenShared(){
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         map.setView([lat,lng], 17);
         mk.openPopup();
-        // Modo compartir y bloqueo
         controls.style.display='none';
         shareFixed.style.display='inline-block';
         lastShareUrl = location.origin+location.pathname+'?id='+encodeURIComponent(id);
@@ -616,7 +582,6 @@ async function tryOpenShared(){
       }
     }catch(e){ /* fallback */ }
   }
-  // Fallback versión larga
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
@@ -632,7 +597,7 @@ async function tryOpenShared(){
   }
 }
 
-/* Todas las flores (para que el mapa se vea “vivo”) */
+/* Todas las flores */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -705,17 +670,11 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
-  waitForLeaflet(()=>{
-    initMap();
-    refetch(false);
-    setInterval(()=>refetch(true), 15000);
-    tryOpenShared();
-
-    // ESC cierra sugerencias
-    document.addEventListener('keydown', e=>{
-      if(e.key==='Escape'){ slist.style.display='none'; }
-    });
-  });
+  initMap();
+  refetch(false);
+  setInterval(()=>refetch(true), 15000);
+  tryOpenShared();
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
 });
 </script>
 </body>
