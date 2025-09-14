@@ -57,10 +57,10 @@
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100dvh; min-height:100vh; }
 
-  /* Controles más abajo (dos botones) + barra de búsqueda debajo */
+  /* Controles pegados abajo: fila de 2 botones + barra de búsqueda debajo */
   .controls{
     position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
-    bottom:calc(200px + var(--safe-b)); /* más abajo para composición */
+    bottom:calc(24px + var(--safe-b));  /* ABAJO */
     width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
   }
   .controls .row{ display:flex; gap:10px; }
@@ -83,19 +83,19 @@
     flex:0 0 auto; background:var(--blue); color:#fff; border:0; border-radius:10px; padding:12px 14px; font-size:1rem; cursor:pointer;
   }
 
-  /* Sugerencias bajo la barra de búsqueda */
+  /* Sugerencias aparece justo encima de controles */
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
-    bottom:calc(200px + var(--safe-b) + 60px);
+    bottom:calc(24px + var(--safe-b) + 60px);
     width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px;
     max-height:260px; overflow:auto; display:none; z-index:1202; box-shadow:0 6px 14px rgba(0,0,0,.06)
   }
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Badge de dirección (un poco más arriba por los nuevos márgenes) */
+  /* Badge de dirección (arriba de controles) */
   .addr-badge{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(150px + var(--safe-b)); z-index:1200;
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(100px + var(--safe-b)); z-index:1200;
     background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:6px 10px; font-size:.9rem;
     max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 4px 12px rgba(0,0,0,.06); display:none;
   }
@@ -115,16 +115,16 @@
     box-shadow:0 10px 20px rgba(0,0,0,.2); display:none;
   }
 
-  /* Marcador + anillo verde centrado exactamente sobre la flor */
+  /* Marcador + anillo verde centrado EXACTO en la flor */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) } /* iconSize 28x28, anchor 14x28 */
+  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) } /* size 28x28 con ancla [14,28] */
   .emoji-marker .e{ font-size:34px; line-height:34px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   .leaflet-tooltip.drag-tip{
     background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.08);
     font-size:.9rem;
   }
   .drag-ring{
-    position:absolute; width:54px; height:54px; margin-left:-27px; margin-top:-27px;
+    position:absolute; width:56px; height:56px; margin-left:-28px; margin-top:-28px;
     border-radius:999px; border:2px solid #22c55e; box-shadow:0 0 0 8px rgba(34,197,94,.15);
     pointer-events:none; z-index:1100; display:none;
   }
@@ -166,7 +166,7 @@
   <button id="pinCta" class="pin-cta">Plantar la Flor</button>
 </main>
 
-<!-- Controles -->
+<!-- Controles ABAJO -->
 <div class="controls" id="controls" aria-label="Controles">
   <div class="row">
     <button id="tapBtn" class="tool-btn">🌸 Plantar desde el mapa</button>
@@ -251,7 +251,6 @@ let saving=false, lastShareUrl='';
 let lastTs=0; window._lastItems=[];
 let userInteracted=false;
 let abortRev=null, abortCtrl=null, currentSuggest=[];
-const ICON = {size:{w:28,h:28}, anchor:{x:14,y:28}}; // para centrar anillo en el centro visual
 const dragRing = document.getElementById('dragRing');
 const pinCta = document.getElementById('pinCta');
 
@@ -277,10 +276,10 @@ const ACCEPT_LANG = (()=>{
 })();
 function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1600); }
 function fmtDateTime(d){ try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(d).replace(',', ''); }catch{ const dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=d.getFullYear(), hh=String(d.getHours()).padStart(2,"0"), mi=String(d.getMinutes()).padStart(2,"0"); return `${dd}/${mm}/${yy} ${hh}:${mi}`; } }
-function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[ICON.size.w,ICON.size.h], iconAnchor:[ICON.anchor.x,ICON.anchor.y], popupAnchor:[0,-30]}); }
+function emojiIcon(){ const html='<span class="e" role="img" aria-label="flor">🌸</span>'; return L.divIcon({className:'emoji-marker', html, iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function unescAttr(s){ return decodeURIComponent(String(s||'')); }
-function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;",">":"&gt;"}[m])); }
+function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","&quot;":"&quot;","'":"&#39;"}[m])); }
 
 /* === MAP === */
 function initMap(){
@@ -288,7 +287,7 @@ function initMap(){
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
 
-  // Vista inicial fija España
+  // Vista inicial: España
   map.setView([40.4168, -3.7038], 5);
 
   ensureFlowersLayer(false);
@@ -299,10 +298,7 @@ function initMap(){
   });
 
   map.on('move zoom', ()=>{
-    if(selectedLat && selectedLng){
-      positionRing([+selectedLat,+selectedLng]);
-      positionPinCta([+selectedLat,+selectedLng]);
-    }
+    if(selectedMarker){ positionRingFromMarker(); positionPinCtaFromMarker(); }
   });
 
   window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),100));
@@ -319,20 +315,28 @@ function ensureFlowersLayer(wantCluster){
   useCluster=wantCluster;
 }
 
+/* === Selección de punto === */
 function setSelectedPoint(lat,lng,animate=false){
-  selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
-  if(selectedMarker){ selectedMarker.setLatLng([lat,lng]); }
-  else{
+  if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'bottom', offset:[0,18], className:'drag-tip'}).openTooltip();
-    selectedMarker.on('dragstart', ()=>{ showRing([+selectedLat,+selectedLng]); });
-    selectedMarker.on('drag', (e)=>{ const p=e.target.getLatLng(); positionRing([p.lat,p.lng]); positionPinCta([p.lat,p.lng]); });
+    // Tooltip arriba para que no lo tape el botón
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-18], className:'drag-tip'}).openTooltip();
+    selectedMarker.on('drag', positionRingFromMarker);
+    selectedMarker.on('dragstart', ()=>{ showRing(); });
     selectedMarker.on('dragend', e=>{
-      const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
-      reverseAt(selectedLat, selectedLng); showRing([p.lat,p.lng]);
+      const p=e.target.getLatLng();
+      selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
+      reverseAt(selectedLat, selectedLng);
+      // Mantener zoom
       try{ map.setView([+selectedLat,+selectedLng], Math.max(map.getZoom(), 15), {animate:false}); }catch{}
+      positionRingFromMarker();
+      positionPinCtaFromMarker();
     });
+  } else {
+    selectedMarker.setLatLng([lat,lng]);
   }
+  selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
+
   // Zoom mínimo 15 al seleccionar
   if(animate){
     const targetZ = Math.max(map.getZoom(), 15);
@@ -340,33 +344,34 @@ function setSelectedPoint(lat,lng,animate=false){
   } else {
     try{ map.setView([lat,lng], Math.max(map.getZoom(), 15), {animate:false}); }catch{}
   }
+
   reverseAt(selectedLat, selectedLng);
   addrBadge.style.display='block';
-  showRing([+selectedLat,+selectedLng]);
-  showPinCta([+selectedLat,+selectedLng]);
+  showRing(); positionRingFromMarker();
+  showPinCtaFromMarker();
 }
 
-/* Anillo verde centrado sobre el centro visual de la flor */
-function positionRing(latlng){
-  const p = map.latLngToContainerPoint(latlng);
-  const mapRect = document.getElementById('map').getBoundingClientRect();
-  // Corrige el centro: ancla y tamaño -> desplazar hacia arriba (anchor.y - size.h/2)
-  const offsetY = -(ICON.anchor.y - ICON.size.h/2); // -14px
-  dragRing.style.left = (mapRect.left + p.x) + 'px';
-  dragRing.style.top  = (mapRect.top  + p.y + offsetY) + 'px';
+/* === Centrado preciso del anillo y CTA usando el icono real === */
+function getMarkerCenterPx(){
+  if(!selectedMarker || !selectedMarker._icon) return null;
+  const rect = selectedMarker._icon.getBoundingClientRect();
+  return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
 }
-function showRing(latlng){ positionRing(latlng); dragRing.style.display='block'; }
+function positionRingFromMarker(){
+  const c = getMarkerCenterPx(); if(!c) return;
+  const wrapRect = document.getElementById('mapWrap').getBoundingClientRect();
+  dragRing.style.left = (c.x - wrapRect.left) + 'px';
+  dragRing.style.top  = (c.y - wrapRect.top) + 'px';
+}
+function positionPinCtaFromMarker(){
+  const c = getMarkerCenterPx(); if(!c) return;
+  const wrapRect = document.getElementById('mapWrap').getBoundingClientRect();
+  pinCta.style.left = (c.x - wrapRect.left) + 'px';
+  pinCta.style.top  = (c.y - wrapRect.top + 42) + 'px'; // bajo la flor
+}
+function showRing(){ dragRing.style.display='block'; }
 function hideRing(){ dragRing.style.display='none'; }
-
-/* CTA pegada al pin */
-function positionPinCta(latlng){
-  const p = map.latLngToContainerPoint(latlng);
-  const mapRect = document.getElementById('map').getBoundingClientRect();
-  const offsetY = -(ICON.anchor.y - ICON.size.h/2);
-  pinCta.style.left = (mapRect.left + p.x) + 'px';
-  pinCta.style.top  = (mapRect.top  + p.y + offsetY + 46) + 'px';
-}
-function showPinCta(latlng){ positionPinCta(latlng); pinCta.style.display='inline-block'; }
+function showPinCtaFromMarker(){ positionPinCtaFromMarker(); pinCta.style.display='inline-block'; }
 function hidePinCta(){ pinCta.style.display='none'; }
 
 /* Reverse geocoding */
@@ -387,62 +392,30 @@ async function reverseAt(lat,lng){
   }catch{ addrBadge.textContent='Ubicación aproximada'; }
 }
 
-/* === CONTROLES === */
+/* === Controles === */
 tapBtn.addEventListener('click', ()=>{ toast('Toca el mapa para plantar la flor'); });
 gpsBtn.addEventListener('click', ()=>{
   if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
-  userInteracted=true;
   navigator.geolocation.getCurrentPosition(pos=>{
     setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* === BÚSQUEDA === (robustecida) */
-function hasNumber(s){ return /[0-9]/.test(s); }
-function extractNumber(s){ const m=s.match(/([0-9]{1,6})/); return m? m[1]:null; }
-function containsStreetType(q){
-  return /(calle|carrer|avenida|av\.?|avinguda|paseo|ps\.?|plaça|plaza|street|st\.?|road|rd\.?|avenue|ave\.?|blvd\.?|boulevard|place|square|piazza|rua|rue|straße|strasse|ulica|via|cours|allee)/i.test(q);
-}
-function normalizeStreet(q){
-  const base=q.replace(/\s+/g,' ').trim();
-  if(!base) return [];
-  if(containsStreetType(base)) return [base];
-  return [ base, `Calle ${base}`, `Avenida ${base}`, `Carrer de ${base}`, `Street ${base}`, `Avenue ${base}`, `Road ${base}`, `Boulevard ${base}`, `Rue ${base}`, `Rua ${base}`, `Via ${base}` ];
-}
+/* === Búsqueda robusta === */
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
     + '&accept-language=' + encodeURIComponent(ACCEPT_LANG)
     + '&q=' + encodeURIComponent(q);
-  const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error('nominatim');
-  return r.json();
+  const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error('nominatim'); return r.json();
 }
-async function searchPlacesStructured(q, sig){
-  let raw=q, tail='';
-  if(q.includes(',')){ const parts=q.split(','); raw=parts[0].trim(); tail=parts.slice(1).join(',').trim(); }
-  const variants=normalizeStreet(raw);
-  const tasks = variants.map(street => {
-    const url = 'https://nominatim.openstreetmap.org/search'
-      + '?format=json&addressdetails=1&limit=7'
-      + '&accept-language=' + encodeURIComponent(ACCEPT_LANG)
-      + '&street=' + encodeURIComponent(street)
-      + (tail ? ('&city=' + encodeURIComponent(tail)) : '');
-    return fetch(url, {signal:sig}).then(r=>r.ok?r.json():[]).catch(()=>[]);
-  });
-  const results = await Promise.allSettled(tasks);
-  return results.flatMap(r => r.status==='fulfilled' ? r.value : []);
-}
+let abortCtrl=null, currentSuggest=[];
 async function runSuggest(q){
   if(abortCtrl) abortCtrl.abort();
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
   try{
-    const withNum=hasNumber(q);
-    const A = await searchPlacesPlain(q,sig).catch(()=>[]);
-    let merged=[...A];
-    if(withNum){ const B = await searchPlacesStructured(q,sig).catch(()=>[]); merged = [...A, ...B]; }
-    const seen=new Set(), out=[];
-    for(const it of merged){ const id=(it.place_id||it.lat+'|'+it.lon); if(!seen.has(id)){ seen.add(id); out.push(it); } }
-    currentSuggest = out.slice(0,10);
+    const list = await searchPlacesPlain(q,sig).catch(()=>[]);
+    currentSuggest = list || [];
     renderSuggest(currentSuggest);
   }catch{ currentSuggest=[]; renderSuggest([]); }
 }
@@ -464,7 +437,6 @@ function renderSuggest(list){
 async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
   slist.style.display='none';
-  userInteracted=true;
   setSelectedPoint(Number(it.lat), Number(it.lon), true);
 }
 searchInput.addEventListener('input', (e)=>{
@@ -476,7 +448,7 @@ searchInput.addEventListener('keydown', (e)=>{
   if(e.key==='Enter'){
     e.preventDefault();
     if(currentSuggest.length){ selectSuggest(0); }
-    else{ goBtn.click(); }
+    else { goBtn.click(); }
   }
 });
 goBtn.addEventListener('click', async ()=>{
@@ -484,8 +456,8 @@ goBtn.addEventListener('click', async ()=>{
   if(!q){ toast('Escribe una dirección o lugar', false); return; }
   try{
     const list = await searchPlacesPlain(q, new AbortController().signal).catch(()=>[]);
-    if(list.length){ currentSuggest=list; selectSuggest(0); }
-    else{ toast('No encontrado. Prueba con “calle, ciudad” o añade país.', false); }
+    if(list && list.length){ currentSuggest=list; selectSuggest(0); }
+    else { toast('No encontrado. Prueba “calle, ciudad” o añade país.', false); }
   }catch{ toast('No encontrado. Intenta otra búsqueda.', false); }
 });
 document.addEventListener('click', e=>{
@@ -532,26 +504,30 @@ async function saveFlower(){
     const data = await jsonp(url);
 
     if(data && data.ok){
-      // URL limpia y corta con id (deep link manejado abajo)
       const id = data.id || '';
-      lastShareUrl = `${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`;
+      lastShareUrl = id ? `${location.origin}${location.pathname}?id=${encodeURIComponent(id)}`
+                        : `${location.origin}${location.pathname}?lat=${selectedLat}&lng=${selectedLng}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
 
       const dtStr=fmtDateTime(new Date());
       const html = popupHtml(from,to,msg,dtStr,lastShareUrl);
 
-      const mk=L.marker([+selectedLat,+selectedLng],{icon:emojiIcon(), zIndexOffset:1500});
-      mk.bindPopup(html).on('click', ()=>mk.openPopup());
-      flowersLayer.addLayer(mk);
+      /* Convertimos el marcador de selección en definitivo:
+         - quitar arrastre/anillo/cta/tooltip
+         - añadir al layer de flores
+      */
+      if(selectedMarker){
+        try{ selectedMarker.dragging.disable(); }catch{}
+        try{ selectedMarker.unbindTooltip(); }catch{}
+        hideRing(); hidePinCta();
+        selectedMarker.off('drag'); selectedMarker.off('dragstart'); selectedMarker.off('dragend');
+        selectedMarker.bindPopup(html).on('click', ()=>selectedMarker.openPopup());
+        flowersLayer.addLayer(selectedMarker); // lo mueve al cluster/layer
+        selectedMarker = null; selectedLat = null; selectedLng = null;
+      }
 
-      const targetZ = Math.max(map.getZoom(), 15);
-      try{ map.flyTo([+selectedLat,+selectedLng], targetZ, {duration:0.6}); }catch{ map.setView([+selectedLat,+selectedLng], targetZ); }
-      mk.openPopup();
-
-      // Mostrar botón azul fijo y ocultar controles para “modo compartir”
+      // Ocultar controles → modo compartir
+      controls.style.display='none'; slist.style.display='none';
       shareFixed.style.display='inline-block';
-      controls.style.display='none';
-      slist.style.display='none';
-
       closeSheet();
       toast('Flor plantada 🌸');
       await refetch(true);
@@ -565,7 +541,7 @@ async function saveFlower(){
 }
 saveBtn.addEventListener('click', saveFlower);
 
-/* Popups (compartir) */
+/* Popups (solo botón Compartir) */
 function shareText(url){ return `He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`; }
 function popupHtml(from,to,msg,dtStr,shareUrl){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
@@ -594,17 +570,7 @@ shareFixed.addEventListener('click', async ()=>{
   }catch{}
 });
 
-/* Compartir desde sheet (por si el usuario se queda ahí) */
-mShare.addEventListener('click', async ()=>{
-  const url = lastShareUrl || location.href;
-  try{
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:shareText(url), url}); }
-    else{ await navigator.clipboard.writeText(shareText(url)); toast('Enlace copiado'); }
-  }catch{}
-  closeSheet();
-});
-
-/* Deep link: ?id=... ó ?lat/lng... */
+/* Deep link: ?id=... ó fallback ?lat/lng... (mensaje abierto) */
 async function tryOpenShared(){
   const u=new URL(location.href);
   const id=u.searchParams.get('id');
@@ -615,36 +581,35 @@ async function tryOpenShared(){
         const it=data.item;
         const lat=Number(it.lat), lng=Number(it.lng);
         const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
-        setSelectedPoint(lat,lng,true);
         const dtStr = fmtDateTime(new Date(Number(it.timestamp)||Date.now()));
         const html = popupHtml(from,to,msg,dtStr, location.origin+location.pathname+'?id='+encodeURIComponent(id));
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
+        map.setView([lat,lng], 17);
         mk.openPopup();
-        lastShareUrl = location.origin+location.pathname+'?id='+encodeURIComponent(id);
-        shareFixed.style.display='inline-block';
-        // En modo compartir: oculta controles
+        // Modo compartir
         controls.style.display='none';
+        shareFixed.style.display='inline-block';
+        lastShareUrl = location.origin+location.pathname+'?id='+encodeURIComponent(id);
         return;
       }
-    }catch(e){ /* cae a lat/lng si no existe action=get */ }
+    }catch(e){ /* fallback a lat/lng si no existe 'get' */ }
   }
-  // Fallback a lat/lng + from/to/msg (versión anterior)
+  // Fallback versión larga
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
   const from=u.searchParams.get('from')||'', to=u.searchParams.get('to')||'', msg=u.searchParams.get('msg')||'';
   if(lat && lng){
-    userInteracted=true;
-    setSelectedPoint(+lat,+lng,true);
     const dtStr = fmtDateTime(new Date());
     const html = popupHtml(unescAttr(from), unescAttr(to), unescAttr(msg), dtStr, location.href);
     const mk=L.marker([+lat,+lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
+    map.setView([+lat,+lng], 17);
     mk.openPopup();
-    lastShareUrl = location.href;
-    shareFixed.style.display='inline-block';
     controls.style.display='none';
+    shareFixed.style.display='inline-block';
+    lastShareUrl = location.href;
   }
 }
 
-/* Todas las flores */
+/* Todas las flores (para que el mapa se vea “vivo”) */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
