@@ -15,20 +15,19 @@
 <meta property="og:image" content='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="100%" height="100%" fill="%23f6fff9"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="300">🌸</text></svg>'>
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://basemaps.cartocdn.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet (jsDelivr estable) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- MarkerCluster -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
   :root{
@@ -55,12 +54,17 @@
 
   /* MAPA full pantalla */
   #mapWrap{ position:fixed; inset:0; }
-  #map{ position:absolute; inset:0; width:100%; height:100dvh; min-height:100vh; }
+  #map{
+    position:absolute; inset:0; width:100%;
+    height:100vh;      /* fallback universal */
+    height:100dvh;     /* si el navegador soporta dvh */
+    min-height:100vh;
+  }
 
-  /* Controles pegados abajo: fila de 2 botones + barra de búsqueda debajo */
+  /* Controles ABAJO: fila de 2 botones + barra de búsqueda debajo */
   .controls{
     position:fixed; z-index:1201; left:50%; transform:translateX(-50%);
-    bottom:calc(24px + var(--safe-b));  /* ABAJO */
+    bottom:calc(24px + var(--safe-b));  /* pegado abajo */
     width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
   }
   .controls .row{ display:flex; gap:10px; }
@@ -83,7 +87,7 @@
     flex:0 0 auto; background:var(--blue); color:#fff; border:0; border-radius:10px; padding:12px 14px; font-size:1rem; cursor:pointer;
   }
 
-  /* Sugerencias aparece justo encima de controles */
+  /* Sugerencias aparece encima de controles */
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(24px + var(--safe-b) + 60px);
@@ -108,7 +112,7 @@
     transform:translate(-50%, 8px);
   }
 
-  /* Compartir fijo (azul) — siempre visible tras plantar */
+  /* Compartir fijo (azul) — visible tras plantar o al abrir enlace */
   .share-fixed{
     position:fixed; right:14px; bottom:calc(18px + var(--safe-b)); z-index:1204;
     background:var(--blue); color:#fff; border:0; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
@@ -243,6 +247,17 @@ function jsonp(url, timeoutMs=12000){
   });
 }
 
+/* === ESPERAR LEAFLET (evita L is not defined) === */
+function waitForLeaflet(cb, tries=40){
+  if (window.L && L.map) return cb();
+  if (tries <= 0){
+    const el = document.getElementById('map');
+    if (el) el.innerHTML = '<div style="position:absolute;inset:0;display:grid;place-items:center;font:14px system-ui;background:#fff">No se pudo cargar el mapa. Recarga la página.</div>';
+    return;
+  }
+  setTimeout(()=>waitForLeaflet(cb, tries-1), 150);
+}
+
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let flowersLayer=null, useCluster=null;
@@ -251,6 +266,7 @@ let saving=false, lastShareUrl='';
 let lastTs=0; window._lastItems=[];
 let userInteracted=false;
 let abortRev=null, abortCtrl=null, currentSuggest=[];
+let plantingLocked=false; // tras plantar o desde enlace, bloquea nuevos plantados
 const dragRing = document.getElementById('dragRing');
 const pinCta = document.getElementById('pinCta');
 
@@ -293,6 +309,7 @@ function initMap(){
   ensureFlowersLayer(false);
 
   map.on('click', e=>{
+    if(plantingLocked) return; // tras plantar, no permitir nuevas selecciones
     userInteracted=true;
     setSelectedPoint(e.latlng.lat, e.latlng.lng, true);
   });
@@ -327,7 +344,6 @@ function setSelectedPoint(lat,lng,animate=false){
       const p=e.target.getLatLng();
       selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
       reverseAt(selectedLat, selectedLng);
-      // Mantener zoom
       try{ map.setView([+selectedLat,+selectedLng], Math.max(map.getZoom(), 15), {animate:false}); }catch{}
       positionRingFromMarker();
       positionPinCtaFromMarker();
@@ -393,15 +409,16 @@ async function reverseAt(lat,lng){
 }
 
 /* === Controles === */
-tapBtn.addEventListener('click', ()=>{ toast('Toca el mapa para plantar la flor'); });
+tapBtn.addEventListener('click', ()=>{ if(!plantingLocked) toast('Toca el mapa para plantar la flor'); });
 gpsBtn.addEventListener('click', ()=>{
+  if(plantingLocked) return;
   if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
   navigator.geolocation.getCurrentPosition(pos=>{
     setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* === Búsqueda robusta === */
+/* === Búsqueda === */
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -437,14 +454,17 @@ function renderSuggest(list){
 async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
   slist.style.display='none';
+  if(plantingLocked) return;
   setSelectedPoint(Number(it.lat), Number(it.lon), true);
 }
 searchInput.addEventListener('input', (e)=>{
+  if(plantingLocked) return;
   const q=e.target.value.trim();
   if(!q){ slist.style.display='none'; return; }
   runSuggest(q);
 });
 searchInput.addEventListener('keydown', (e)=>{
+  if(plantingLocked) return;
   if(e.key==='Enter'){
     e.preventDefault();
     if(currentSuggest.length){ selectSuggest(0); }
@@ -452,6 +472,7 @@ searchInput.addEventListener('keydown', (e)=>{
   }
 });
 goBtn.addEventListener('click', async ()=>{
+  if(plantingLocked) return;
   const q=searchInput.value.trim();
   if(!q){ toast('Escribe una dirección o lugar', false); return; }
   try{
@@ -511,23 +532,23 @@ async function saveFlower(){
       const dtStr=fmtDateTime(new Date());
       const html = popupHtml(from,to,msg,dtStr,lastShareUrl);
 
-      /* Convertimos el marcador de selección en definitivo:
-         - quitar arrastre/anillo/cta/tooltip
-         - añadir al layer de flores
-      */
+      // Convertir el marcador de selección en definitivo
       if(selectedMarker){
         try{ selectedMarker.dragging.disable(); }catch{}
         try{ selectedMarker.unbindTooltip(); }catch{}
         hideRing(); hidePinCta();
         selectedMarker.off('drag'); selectedMarker.off('dragstart'); selectedMarker.off('dragend');
         selectedMarker.bindPopup(html).on('click', ()=>selectedMarker.openPopup());
-        flowersLayer.addLayer(selectedMarker); // lo mueve al cluster/layer
+        flowersLayer.addLayer(selectedMarker);
+        selectedMarker.openPopup();
         selectedMarker = null; selectedLat = null; selectedLng = null;
       }
 
-      // Ocultar controles → modo compartir
+      // Modo compartir: oculta controles y bloquear nuevos plantados
       controls.style.display='none'; slist.style.display='none';
       shareFixed.style.display='inline-block';
+      plantingLocked = true;
+
       closeSheet();
       toast('Flor plantada 🌸');
       await refetch(true);
@@ -570,7 +591,7 @@ shareFixed.addEventListener('click', async ()=>{
   }catch{}
 });
 
-/* Deep link: ?id=... ó fallback ?lat/lng... (mensaje abierto) */
+/* Deep link: ?id=... ó fallback ?lat/lng... (mensaje abierto y bloqueado) */
 async function tryOpenShared(){
   const u=new URL(location.href);
   const id=u.searchParams.get('id');
@@ -586,13 +607,14 @@ async function tryOpenShared(){
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         map.setView([lat,lng], 17);
         mk.openPopup();
-        // Modo compartir
+        // Modo compartir y bloqueo
         controls.style.display='none';
         shareFixed.style.display='inline-block';
         lastShareUrl = location.origin+location.pathname+'?id='+encodeURIComponent(id);
+        plantingLocked = true;
         return;
       }
-    }catch(e){ /* fallback a lat/lng si no existe 'get' */ }
+    }catch(e){ /* fallback */ }
   }
   // Fallback versión larga
   const lat=u.searchParams.get('lat'), lng=u.searchParams.get('lng');
@@ -606,6 +628,7 @@ async function tryOpenShared(){
     controls.style.display='none';
     shareFixed.style.display='inline-block';
     lastShareUrl = location.href;
+    plantingLocked = true;
   }
 }
 
@@ -634,7 +657,6 @@ function renderAllMarkers(list){
   const wantCluster = list.length >= 10;
   ensureFlowersLayer(wantCluster);
   try{ flowersLayer.clearLayers(); }catch{}
-  const bounds=L.latLngBounds();
   let i=0, n=list.length;
   (function chunk(){
     const t0=performance.now();
@@ -646,7 +668,7 @@ function renderAllMarkers(list){
       const shareUrl = `${location.origin}${location.pathname}?id=${escAttr(f.id)}`;
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
-      batch.push(mk); bounds.extend([lat,lng]);
+      batch.push(mk);
     }
     if(batch.length){ if(useCluster) flowersLayer.addLayers(batch); else batch.forEach(m=>flowersLayer.addLayer(m)); }
     if(i<n){ requestAnimationFrame(chunk); }
@@ -683,14 +705,16 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
 /* Inicio */
 document.addEventListener('DOMContentLoaded', ()=>{
-  initMap();
-  refetch(false);
-  setInterval(()=>refetch(true), 15000);
-  tryOpenShared();
+  waitForLeaflet(()=>{
+    initMap();
+    refetch(false);
+    setInterval(()=>refetch(true), 15000);
+    tryOpenShared();
 
-  // ESC cierra sugerencias
-  document.addEventListener('keydown', e=>{
-    if(e.key==='Escape'){ slist.style.display='none'; }
+    // ESC cierra sugerencias
+    document.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ slist.style.display='none'; }
+    });
   });
 });
 </script>
