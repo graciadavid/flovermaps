@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Flovermaps — Estable (Leaflet + Apps Script)</title>
+  <title>Flovermaps — Estable (Apps Script + OSM)</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <style>
     :root{
@@ -16,7 +16,8 @@
     .wrap{display:grid;grid-template-columns:1.5fr 1fr;gap:0;min-height:100vh}
     #map{height:100vh;width:100%}
     .panel{background:linear-gradient(180deg, #0e1420 0%, #0b0f14 100%);border-left:1px solid var(--border);display:flex;flex-direction:column}
-    header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+    header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px}
     .badge{background:#0f1a28;border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
     form{padding:16px;display:grid;gap:12px}
     label{font-size:12px;color:var(--muted)}
@@ -27,6 +28,8 @@
     .btn{appearance:none;border:0;border-radius:12px;padding:12px 14px;background:var(--accent);color:#041215;font-weight:700;cursor:pointer}
     .btn.secondary{background:#142031;color:var(--text);border:1px solid var(--border)}
     .hint{color:var(--muted);font-size:12px}
+    .donation{background:#0f1826;border-top:1px solid var(--border);padding:12px 16px;color:#b9c8d9}
+    .donation strong{color:var(--text)}
     .list{padding:12px 16px 18px 16px;border-top:1px solid var(--border);}
     .item{padding:10px 0;border-bottom:1px dashed var(--border);cursor:pointer}
     .item:last-child{border-bottom:0}
@@ -39,8 +42,22 @@
 
     <aside class="panel">
       <header>
-        <div style="width:10px;height:10px;border-radius:999px;background:var(--accent)"></div>
-        <div style="font-weight:700">Flovermaps</div>
+        <div class="brand">
+          <!-- LOGO inline (puedes sustituirlo por tu PNG/SVG cuando quieras) -->
+          <img alt="Flovermaps" width="28" height="28"
+               src="data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?>
+               <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>
+                 <circle cx='24' cy='24' r='20' fill='%2326c281'/>
+                 <g transform='translate(24,24)'>
+                   <circle r='3.2' fill='%23ffd7e6'/>
+                   <path d='M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z' fill='%23ff6fa9'/>
+                   <path d='M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z' fill='%23ff6fa9'/>
+                   <path d='M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z' fill='%23ff6fa9'/>
+                   <path d='M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z' fill='%23ff6fa9'/>
+                 </g>
+               </svg>"/>
+          <div style="font-weight:800;letter-spacing:.2px">Flovermaps</div>
+        </div>
         <div class="badge">Plant Love Forever</div>
       </header>
 
@@ -97,11 +114,17 @@
         <input type="hidden" id="city" name="city" />
 
         <button type="submit" class="btn" id="btnPlant">🌸 Plantar flor</button>
-        <div class="hint">Tras plantar, verás la tarjeta en el mapa y se añadirá a la lista.</div>
+        <div class="hint">Se abre la tarjeta en el mapa y se añade a “Últimas flores”.</div>
       </form>
 
+      <div class="donation">
+        <div><strong>Donación</strong></div>
+        <div>El <strong>100% de tu aportación</strong> va a la ONG elegida <strong>menos 0,90 €</strong> de mantenimiento web.</div>
+        <div class="hint">Ejemplo: si aportas 10 €, la ONG recibe 9,10 €.</div>
+      </div>
+
       <div class="list" id="recent">
-        <div class="hint" style="margin-bottom:8px">Últimas flores plantadas</div>
+        <div class="hint" style="margin-bottom:8px">Últimas flores plantadas (cerca de ti)</div>
         <div id="items"></div>
       </div>
     </aside>
@@ -111,40 +134,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script>
-    // ====== CONFIG ======
+    // ========= CONFIG =========
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec';
     const NOMINATIM = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=';
+    const MIN_ZOOM_STREET = 17;
+    const FIXED_FEE = 0.90;
 
-    // ====== MAPA (Leaflet) ======
-    const map = L.map('map').setView([40.4168, -3.7038], 12); // Madrid por defecto
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    // ========= MAPA =========
+    const map = L.map('map').setView([40.4168, -3.7038], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
 
     const flowerIcon = L.icon({
       iconUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-          <defs>
-            <filter id="s" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/>
-            </filter>
-          </defs>
+          <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/></filter></defs>
           <circle cx="24" cy="24" r="18" fill="#1bc27a" filter="url(#s)"/>
-          <g transform="translate(24,24)">
-            <g transform="scale(0.85)">
-              <circle cx="0" cy="0" r="3.2" fill="#ffd7e6"/>
-              <path d="M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z" fill="#ff6fa9"/>
-              <path d="M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z" fill="#ff6fa9"/>
-              <path d="M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z" fill="#ff6fa9"/>
-              <path d="M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z" fill="#ff6fa9"/>
-            </g>
-          </g>
+          <g transform="translate(24,24)"><g transform="scale(0.85)">
+            <circle cx="0" cy="0" r="3.2" fill="#ffd7e6"/>
+            <path d="M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z" fill="#ff6fa9"/>
+            <path d="M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z" fill="#ff6fa9"/>
+            <path d="M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z" fill="#ff6fa9"/>
+            <path d="M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z" fill="#ff6fa9"/>
+          </g></g>
         </svg>
       `),
-      iconSize: [40,40],
-      iconAnchor: [20,20],
-      popupAnchor: [0,-20]
+      iconSize: [40,40], iconAnchor: [20,20], popupAnchor: [0,-20]
     });
 
     let marker = null;
@@ -153,14 +167,14 @@
       if(!marker){
         marker = L.marker([lat, lng], { draggable:true, icon: flowerIcon }).addTo(map);
         marker.on('dragend', () => {
-          const {lat, lng} = marker.getLatLng();
-          setLatLngInputs(lat, lng);
+          const m = marker.getLatLng();
+          setLatLngInputs(m.lat, m.lng);
         });
       } else {
         marker.setLatLng([lat, lng]);
       }
       setLatLngInputs(lat, lng);
-      if(map.getZoom() < 17) map.setZoom(17);
+      if(map.getZoom() < MIN_ZOOM_STREET) map.setZoom(MIN_ZOOM_STREET);
       map.panTo([lat, lng]);
     }
 
@@ -169,11 +183,9 @@
       document.getElementById('lng').value = (+lng).toFixed(6);
     }
 
-    // ====== BÚSQUEDA DIRECCIÓN (Nominatim) ======
+    // ========= BÚSQUEDA DIRECCIÓN =========
     async function geocodeAddress(query){
-      const res = await fetch(NOMINATIM + encodeURIComponent(query), {
-        headers: { 'Accept': 'application/json' }
-      });
+      const res = await fetch(NOMINATIM + encodeURIComponent(query), { headers: { 'Accept': 'application/json' }});
       if(!res.ok) throw new Error('No se pudo geocodificar');
       const arr = await res.json();
       if(!arr || !arr.length) throw new Error('Sin resultados');
@@ -185,10 +197,10 @@
     }
 
     function extractCityFromDisplayName(hit){
-      // Nominatim devuelve un display_name largo; intentamos extraer ciudad a grandes rasgos
       if(hit && hit.display_name){
         const parts = hit.display_name.split(',').map(s=>s.trim());
-        if(parts.length >= 3) return parts[parts.length - 4] || parts[parts.length - 3] || '';
+        // heurística simple: penúltimo o antepenúltimo elemento suele ser ciudad/municipio
+        return parts[parts.length - 3] || parts[parts.length - 4] || parts[parts.length - 2] || '';
       }
       return '';
     }
@@ -199,7 +211,7 @@
       try{ await geocodeAddress(q); } catch(e){ alert('No se pudo confirmar esa dirección.'); }
     }
 
-    // ====== UBICACIÓN DEL USUARIO ======
+    // ========= UBICACIÓN DEL USUARIO =========
     function useMyLocation(){
       if(!navigator.geolocation){ alert('Tu navegador no permite geolocalización.'); return; }
       navigator.geolocation.getCurrentPosition(pos => {
@@ -208,24 +220,30 @@
       }, _ => alert('No se pudo obtener tu ubicación.'), { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
     }
 
-    // ====== INFO POPUP ======
+    // ========= POPUP =========
     function openPopup(lat, lng, data){
+      const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
       const html = `
         <div style="max-width:260px">
           <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escapeHtml(data.to||'ALGUIEN')}</div>
           <div style="margin-bottom:6px;color:#b9c8d9">${escapeHtml(data.message||'')}</div>
           <div class="hint">Por ${escapeHtml(data.from||'Anónimo')} en ${escapeHtml(data.city||'')}</div>
-          <div style="margin-top:8px"><a target="_blank" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}">Abrir en OSM</a></div>
+          <hr style="border:none;border-top:1px solid #234; margin:8px 0" />
+          <div style="font-size:13px">Donación: <strong>${(+data.amount||0).toFixed(2)} €</strong><br>
+            ONG recibe: <strong>${net} €</strong> <span class="hint">(−0,90 € de mantenimiento web)</span>
+          </div>
+          <div style="margin-top:8px"><a target="_blank" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}">Abrir en el mapa</a></div>
         </div>`;
       if(!marker){ setMarker(lat, lng); }
       marker.setPopupContent(html).openPopup();
     }
 
-    // ====== LISTA UI ======
+    // ========= LISTA =========
     function addListItem(data){
       const el = document.createElement('div');
       el.className = 'item';
-      el.innerHTML = `<div><strong>${escapeHtml(data.to||'ALGUIEN')}</strong> — ${escapeHtml(data.city||'')}</div>
+      const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
+      el.innerHTML = `<div><strong>${escapeHtml(data.to||'ALGUIEN')}</strong> en ${escapeHtml(data.city||'')} — <span style="color:#86f3be">+${net}€ a ONG</span></div>
                       <div class="hint">${new Date(data.timestamp||Date.now()).toLocaleString()}</div>`;
       el.addEventListener('click', ()=>{
         if(data.lat && data.lng){
@@ -237,15 +255,14 @@
       document.getElementById('items').prepend(el);
     }
 
-    // ====== APPS SCRIPT (tu URL) ======
+    // ========= APPS SCRIPT =========
     async function saveFlower(payload){
-      // header text/plain evita preflight; Apps Script leerá JSON del body
       const res = await fetch(WEB_APP_URL + '?action=create', {
         method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
         body: JSON.stringify(payload)
       });
-      if(!res.ok) throw new Error('Error al guardar (red)');
+      if(!res.ok) throw new Error('Error al guardar');
       return res.json();
     }
 
@@ -276,7 +293,7 @@
       }catch(e){ console.warn(e); }
     }
 
-    // ====== EVENTOS UI ======
+    // ========= EVENTOS =========
     const escapeHtml = s => (s+"").replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 
     document.addEventListener('click', (e)=>{
@@ -302,16 +319,13 @@
       const payload = { from, to, message, address, city, lat, lng, ngo, amount };
 
       try{
-        // Plantar visualmente
         setMarker(lat, lng);
         openPopup(lat, lng, payload);
-
-        // Guardar en la hoja (Apps Script)
         const out = await saveFlower(payload);
         if(out && (out.ok || out.timestamp)){
           addListItem({ ...payload, timestamp: out.timestamp || Date.now() });
         } else {
-          alert('Guardado parcial: se ve en el mapa, pero no quedó en la hoja.');
+          alert('Guardado parcial: visible en mapa, pero no quedó en la hoja.');
         }
       }catch(err){
         console.error(err);
@@ -319,7 +333,7 @@
       }
     });
 
-    // ====== INICIO ======
+    // ========= INICIO =========
     tryLoadNearby();
   </script>
 </body>
