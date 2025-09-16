@@ -3,275 +3,203 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Flovermaps — Estable (Apps Script + OSM)</title>
+  <title>Flovermaps — 14/09 (formulario flotante)</title>
+
+  <!-- Leaflet (fallback automático si no hay Google Maps) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <style>
     :root{
-      --bg:#0b0f14; --panel:#111823; --accent:#26c281; --accent-2:#ff6fa9; --text:#e6eef7; --muted:#9fb3c8; --border:#1f2a3a;
+      --bg:#0b0f14; --panel:#0e1622; --accent:#26c281; --accent-2:#ff6fa9;
+      --text:#e6eef7; --muted:#9fb3c8; --border:#1f2a3a;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--text);font:500 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial}
-    a{color:var(--accent)}
-    .wrap{display:grid;grid-template-columns:1.5fr 1fr;gap:0;min-height:100vh}
-    #map{height:100vh;width:100%}
-    .panel{background:linear-gradient(180deg, #0e1420 0%, #0b0f14 100%);border-left:1px solid var(--border);display:flex;flex-direction:column}
-    header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-    .brand{display:flex;align-items:center;gap:10px}
+
+    #map{position:fixed; inset:0}
+    .float{
+      position:fixed; right:18px; top:18px; width:420px; max-width:calc(100% - 24px);
+      background:linear-gradient(180deg, #121a29 0%, #0c121c 100%);
+      border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow);
+      display:flex; flex-direction:column; overflow:hidden; z-index:1000;
+    }
+    header{
+      padding:12px 14px; display:flex; align-items:center; justify-content:space-between;
+      border-bottom:1px solid var(--border); gap:10px;
+      background:linear-gradient(180deg, #0f1725 0%, #0b111b 100%);
+    }
+    .brand{display:flex; align-items:center; gap:10px}
     .badge{background:#0f1a28;border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
-    form{padding:16px;display:grid;gap:12px}
+    form{padding:14px; display:grid; gap:10px}
     label{font-size:12px;color:var(--muted)}
-    input,select,textarea{width:100%;background:#0e1622;border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:12px;outline:none}
-    input::placeholder,textarea::placeholder{color:#6b7f96}
-    textarea{min-height:84px;resize:vertical}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .btn{appearance:none;border:0;border-radius:12px;padding:12px 14px;background:var(--accent);color:#041215;font-weight:700;cursor:pointer}
-    .btn.secondary{background:#142031;color:var(--text);border:1px solid var(--border)}
-    .hint{color:var(--muted);font-size:12px}
-    .donation{background:#0f1826;border-top:1px solid var(--border);padding:12px 16px;color:#b9c8d9}
-    .donation strong{color:var(--text)}
-    .list{padding:12px 16px 18px 16px;border-top:1px solid var(--border);}
-    .item{padding:10px 0;border-bottom:1px dashed var(--border);cursor:pointer}
+    input,select,textarea{
+      width:100%; background:#0e1622; border:1px solid var(--border); color:var(--text);
+      padding:10px 12px; border-radius:12px; outline:none
+    }
+    textarea{min-height:84px; resize:vertical}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .hint{color:var(--muted); font-size:12px}
+    .btn{appearance:none;border:0;border-radius:12px;padding:11px 12px;background:var(--accent);color:#041215;font-weight:800;cursor:pointer}
+    .btn.secondary{background:#142031;color:var(--text);border:1px solid var(--border);font-weight:600}
+
+    .section{border-top:1px solid var(--border); padding:10px 14px}
+    .item{padding:10px 0; border-bottom:1px dashed var(--border); cursor:pointer}
     .item:last-child{border-bottom:0}
-    @media (max-width: 960px){ .wrap{grid-template-columns:1fr; } #map{height:56vh} }
+    a{color:var(--accent); text-decoration:none}
+    @media (max-width: 680px){
+      .float{left:12px; right:12px; width:auto; top:auto; bottom:12px}
+    }
+
+    /* Leaflet fallback tiles underlay styling */
+    .leaflet-control-attribution { background: rgba(0,0,0,.35); color:#cfe3f9; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div id="map"></div>
+  <div id="map"></div>
 
-    <aside class="panel">
-      <header>
-        <div class="brand">
-          <!-- LOGO inline (puedes sustituirlo por tu PNG/SVG cuando quieras) -->
-          <img alt="Flovermaps" width="28" height="28"
-               src="data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?>
-               <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>
-                 <circle cx='24' cy='24' r='20' fill='%2326c281'/>
-                 <g transform='translate(24,24)'>
-                   <circle r='3.2' fill='%23ffd7e6'/>
-                   <path d='M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z' fill='%23ff6fa9'/>
-                   <path d='M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z' fill='%23ff6fa9'/>
-                   <path d='M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z' fill='%23ff6fa9'/>
-                   <path d='M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z' fill='%23ff6fa9'/>
-                 </g>
-               </svg>"/>
-          <div style="font-weight:800;letter-spacing:.2px">Flovermaps</div>
-        </div>
-        <div class="badge">Plant Love Forever</div>
-      </header>
+  <div class="float" id="panel">
+    <header>
+      <div class="brand">
+        <!-- LOGO inline -->
+        <img alt="Flovermaps" width="26" height="26"
+             src="data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?>
+             <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>
+               <circle cx='24' cy='24' r='20' fill='%2326c281'/>
+               <g transform='translate(24,24)'>
+                 <circle r='3.2' fill='%23ffd7e6'/>
+                 <path d='M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z' fill='%23ff6fa9'/>
+                 <path d='M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z' fill='%23ff6fa9'/>
+                 <path d='M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z' fill='%23ff6fa9'/>
+                 <path d='M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z' fill='%23ff6fa9'/>
+               </g>
+             </svg>"/>
+        <div style="font-weight:900;letter-spacing:.2px">Flovermaps</div>
+      </div>
+      <div class="badge">Plant Love Forever</div>
+    </header>
 
-      <form id="flowerForm" autocomplete="off">
-        <div>
-          <label for="address">Ubicación</label>
-          <div class="row">
-            <input id="address" name="address" placeholder="Calle, ciudad…" />
-            <button type="button" class="btn secondary" id="btnSearch">Buscar</button>
-          </div>
-          <div class="row" style="margin-top:8px">
-            <button type="button" class="btn secondary" id="btnUseLocation">Usar mi ubicación</button>
-            <button type="button" class="btn secondary" id="btnConfirmAddress">Confirmar dirección</button>
-          </div>
-          <div class="hint">Mueve el pin si necesitas ajustar unos metros.</div>
-        </div>
-
+    <form id="flowerForm" autocomplete="off">
+      <div>
+        <label for="address">Ubicación</label>
         <div class="row">
-          <div>
-            <label for="from">¿Quién envía?</label>
-            <input id="from" name="from" placeholder="Tu nombre" />
-          </div>
-          <div>
-            <label for="to">¿Para quién?</label>
-            <input id="to" name="to" placeholder="Nombre del destinatario" />
-          </div>
+          <input id="address" name="address" placeholder="Calle, ciudad…" />
+          <button type="button" class="btn secondary" id="btnSearch">Buscar</button>
         </div>
-
-        <div>
-          <label for="message">Mensaje</label>
-          <textarea id="message" name="message" placeholder="Escribe unas palabras bonitas…"></textarea>
+        <div class="row" style="margin-top:6px">
+          <button type="button" class="btn secondary" id="btnUseLocation">Usar mi ubicación</button>
+          <button type="button" class="btn secondary" id="btnConfirmAddress">Confirmar dirección</button>
         </div>
-
-        <div class="row">
-          <div>
-            <label for="ngo">ONG</label>
-            <select id="ngo" name="ngo">
-              <option value="">— Elige una ONG —</option>
-              <option>CRUZ ROJA</option>
-              <option>MÉDICOS SIN FRONTERAS</option>
-              <option>UNICEF</option>
-              <option>WWF</option>
-              <option>ACNUR</option>
-            </select>
-          </div>
-          <div>
-            <label for="amount">Donación (€)</label>
-            <input id="amount" name="amount" type="number" inputmode="decimal" min="0" step="0.5" placeholder="5" />
-          </div>
-        </div>
-
-        <input type="hidden" id="lat" name="lat" />
-        <input type="hidden" id="lng" name="lng" />
-        <input type="hidden" id="city" name="city" />
-
-        <button type="submit" class="btn" id="btnPlant">🌸 Plantar flor</button>
-        <div class="hint">Se abre la tarjeta en el mapa y se añade a “Últimas flores”.</div>
-      </form>
-
-      <div class="donation">
-        <div><strong>Donación</strong></div>
-        <div>El <strong>100% de tu aportación</strong> va a la ONG elegida <strong>menos 0,90 €</strong> de mantenimiento web.</div>
-        <div class="hint">Ejemplo: si aportas 10 €, la ONG recibe 9,10 €.</div>
+        <div class="hint">Mueve el pin si necesitas ajustar unos metros.</div>
       </div>
 
-      <div class="list" id="recent">
-        <div class="hint" style="margin-bottom:8px">Últimas flores plantadas (cerca de ti)</div>
-        <div id="items"></div>
+      <div class="row">
+        <div>
+          <label for="from">¿Quién envía?</label>
+          <input id="from" name="from" placeholder="Tu nombre" />
+        </div>
+        <div>
+          <label for="to">¿Para quién?</label>
+          <input id="to" name="to" placeholder="Nombre del destinatario" />
+        </div>
       </div>
-    </aside>
+
+      <div>
+        <label for="message">Mensaje</label>
+        <textarea id="message" name="message" placeholder="Escribe unas palabras bonitas…"></textarea>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="ngo">ONG</label>
+          <select id="ngo" name="ngo">
+            <option value="">— Elige una ONG —</option>
+            <option>CRUZ ROJA</option>
+            <option>MÉDICOS SIN FRONTERAS</option>
+            <option>UNICEF</option>
+            <option>WWF</option>
+            <option>ACNUR</option>
+          </select>
+        </div>
+        <div>
+          <label for="amount">Donación (€)</label>
+          <input id="amount" name="amount" type="number" inputmode="decimal" min="0" step="0.5" placeholder="5" />
+        </div>
+      </div>
+
+      <input type="hidden" id="lat" name="lat" />
+      <input type="hidden" id="lng" name="lng" />
+      <input type="hidden" id="city" name="city" />
+
+      <button type="submit" class="btn" id="btnPlant">🌸 Plantar flor</button>
+      <div class="hint">Se abre la tarjeta en el mapa y se añade a “Últimas flores”.</div>
+    </form>
+
+    <div class="section">
+      <div class="hint" style="margin-bottom:8px">Últimas flores plantadas (cerca de ti)</div>
+      <div id="items"></div>
+    </div>
   </div>
 
-  <!-- Leaflet -->
+  <!-- Leaflet (por si hay fallback) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script>
-    // ========= CONFIG =========
-    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec';
-    const NOMINATIM = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=';
-    const MIN_ZOOM_STREET = 17;
+    /*************** CONFIG ***************/
+    // Si añades tu key de Google Maps, esta versión usará Google + Places (como el 14/09)
+    // Si la key no está, activamos automáticamente el fallback con Leaflet (misma UX)
+    const MAPS_KEY = ""; // opcional: tu API key de Google Maps. Si queda vacío, se usa Leaflet automáticamente.
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
+    const NOMINATIM = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q="; // para fallback
+    const MIN_STREET_ZOOM = 17;
     const FIXED_FEE = 0.90;
 
-    // ========= MAPA =========
-    const map = L.map('map').setView([40.4168, -3.7038], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    /*************** STATE ***************/
+    let engine = "gmaps"; // "gmaps" o "leaflet"
+    let gMap, gMarker, gInfo, gAutocomplete;
+    let lMap, lMarker, lFlowerIcon;
 
-    const flowerIcon = L.icon({
-      iconUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-          <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/></filter></defs>
-          <circle cx="24" cy="24" r="18" fill="#1bc27a" filter="url(#s)"/>
-          <g transform="translate(24,24)"><g transform="scale(0.85)">
-            <circle cx="0" cy="0" r="3.2" fill="#ffd7e6"/>
-            <path d="M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z" fill="#ff6fa9"/>
-            <path d="M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z" fill="#ff6fa9"/>
-            <path d="M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z" fill="#ff6fa9"/>
-            <path d="M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z" fill="#ff6fa9"/>
-          </g></g>
-        </svg>
-      `),
-      iconSize: [40,40], iconAnchor: [20,20], popupAnchor: [0,-20]
-    });
+    const elAddress = document.getElementById("address");
+    const elLat = document.getElementById("lat");
+    const elLng = document.getElementById("lng");
+    const elCity = document.getElementById("city");
 
-    let marker = null;
+    /*************** COMMON HELPERS ***************/
+    const escapeHtml = s => (s+"").replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    function setLatLngInputs(lat, lng){ elLat.value = (+lat).toFixed(6); elLng.value = (+lng).toFixed(6); }
 
-    function setMarker(lat, lng){
-      if(!marker){
-        marker = L.marker([lat, lng], { draggable:true, icon: flowerIcon }).addTo(map);
-        marker.on('dragend', () => {
-          const m = marker.getLatLng();
-          setLatLngInputs(m.lat, m.lng);
-        });
-      } else {
-        marker.setLatLng([lat, lng]);
-      }
-      setLatLngInputs(lat, lng);
-      if(map.getZoom() < MIN_ZOOM_STREET) map.setZoom(MIN_ZOOM_STREET);
-      map.panTo([lat, lng]);
-    }
-
-    function setLatLngInputs(lat, lng){
-      document.getElementById('lat').value = (+lat).toFixed(6);
-      document.getElementById('lng').value = (+lng).toFixed(6);
-    }
-
-    // ========= BÚSQUEDA DIRECCIÓN =========
-    async function geocodeAddress(query){
-      const res = await fetch(NOMINATIM + encodeURIComponent(query), { headers: { 'Accept': 'application/json' }});
-      if(!res.ok) throw new Error('No se pudo geocodificar');
-      const arr = await res.json();
-      if(!arr || !arr.length) throw new Error('Sin resultados');
-      const hit = arr[0];
-      const lat = parseFloat(hit.lat), lng = parseFloat(hit.lon);
-      document.getElementById('address').value = hit.display_name;
-      document.getElementById('city').value = extractCityFromDisplayName(hit);
-      setMarker(lat, lng);
-    }
-
-    function extractCityFromDisplayName(hit){
-      if(hit && hit.display_name){
-        const parts = hit.display_name.split(',').map(s=>s.trim());
-        // heurística simple: penúltimo o antepenúltimo elemento suele ser ciudad/municipio
-        return parts[parts.length - 3] || parts[parts.length - 4] || parts[parts.length - 2] || '';
-      }
-      return '';
-    }
-
-    async function confirmAddress(){
-      const q = document.getElementById('address').value.trim();
-      if(!q){ alert('Escribe una dirección.'); return; }
-      try{ await geocodeAddress(q); } catch(e){ alert('No se pudo confirmar esa dirección.'); }
-    }
-
-    // ========= UBICACIÓN DEL USUARIO =========
-    function useMyLocation(){
-      if(!navigator.geolocation){ alert('Tu navegador no permite geolocalización.'); return; }
-      navigator.geolocation.getCurrentPosition(pos => {
-        const {latitude, longitude} = pos.coords;
-        setMarker(latitude, longitude);
-      }, _ => alert('No se pudo obtener tu ubicación.'), { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
-    }
-
-    // ========= POPUP =========
-    function openPopup(lat, lng, data){
-      const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
-      const html = `
-        <div style="max-width:260px">
-          <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escapeHtml(data.to||'ALGUIEN')}</div>
-          <div style="margin-bottom:6px;color:#b9c8d9">${escapeHtml(data.message||'')}</div>
-          <div class="hint">Por ${escapeHtml(data.from||'Anónimo')} en ${escapeHtml(data.city||'')}</div>
-          <hr style="border:none;border-top:1px solid #234; margin:8px 0" />
-          <div style="font-size:13px">Donación: <strong>${(+data.amount||0).toFixed(2)} €</strong><br>
-            ONG recibe: <strong>${net} €</strong> <span class="hint">(−0,90 € de mantenimiento web)</span>
-          </div>
-          <div style="margin-top:8px"><a target="_blank" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}">Abrir en el mapa</a></div>
-        </div>`;
-      if(!marker){ setMarker(lat, lng); }
-      marker.setPopupContent(html).openPopup();
-    }
-
-    // ========= LISTA =========
     function addListItem(data){
-      const el = document.createElement('div');
-      el.className = 'item';
+      const el = document.createElement("div");
+      el.className = "item";
       const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
-      el.innerHTML = `<div><strong>${escapeHtml(data.to||'ALGUIEN')}</strong> en ${escapeHtml(data.city||'')} — <span style="color:#86f3be">+${net}€ a ONG</span></div>
+      el.innerHTML = `<div><strong>${escapeHtml(data.to||"ALGUIEN")}</strong> en ${escapeHtml(data.city||"")} — <span style="color:#86f3be">+${net}€ a ONG</span></div>
                       <div class="hint">${new Date(data.timestamp||Date.now()).toLocaleString()}</div>`;
-      el.addEventListener('click', ()=>{
+      el.onclick = () => {
         if(data.lat && data.lng){
           const lat = +data.lat, lng = +data.lng;
           setMarker(lat, lng);
-          openPopup(lat, lng, data);
+          openInfo({lat, lng}, data);
         }
-      });
-      document.getElementById('items').prepend(el);
+      };
+      document.getElementById("items").prepend(el);
     }
 
-    // ========= APPS SCRIPT =========
     async function saveFlower(payload){
-      const res = await fetch(WEB_APP_URL + '?action=create', {
-        method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
+      const res = await fetch(WEB_APP_URL + "?action=create", {
+        method:"POST",
+        headers:{ "Content-Type":"text/plain;charset=utf-8" }, // evita preflight CORS
         body: JSON.stringify(payload)
       });
-      if(!res.ok) throw new Error('Error al guardar');
+      if(!res.ok) throw new Error("Error al guardar");
       return res.json();
     }
 
     async function listFlowersNear(lat, lng){
       const url = new URL(WEB_APP_URL);
-      url.searchParams.set('action','list');
-      if(!isNaN(lat) && !isNaN(lng)){ url.searchParams.set('lat', lat); url.searchParams.set('lng', lng); }
+      url.searchParams.set("action","list");
+      if(!isNaN(lat) && !isNaN(lng)){ url.searchParams.set("lat", lat); url.searchParams.set("lng", lng); }
       const res = await fetch(url.toString());
-      if(!res.ok) throw new Error('Error al listar');
+      if(!res.ok) throw new Error("Error al listar");
       return res.json();
     }
 
@@ -293,48 +221,229 @@
       }catch(e){ console.warn(e); }
     }
 
-    // ========= EVENTOS =========
-    const escapeHtml = s => (s+"").replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    function getFlowerSVG(){
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+          <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/></filter></defs>
+          <circle cx="24" cy="24" r="18" fill="#1bc27a" filter="url(#s)"/>
+          <g transform="translate(24,24)"><g transform="scale(0.85)">
+            <circle cx="0" cy="0" r="3.2" fill="#ffd7e6"/>
+            <path d="M0,-11 C5,-11 6,-7 0,-6 C-6,-7 -5,-11 0,-11z" fill="#ff6fa9"/>
+            <path d="M11,0 C11,5 7,6 6,0 C7,-6 11,-5 11,0z" fill="#ff6fa9"/>
+            <path d="M0,11 C-5,11 -6,7 0,6 C6,7 5,11 0,11z" fill="#ff6fa9"/>
+            <path d="M-11,0 C-11,-5 -7,-6 -6,0 C-7,6 -11,5 -11,0z" fill="#ff6fa9"/>
+          </g></g>
+        </svg>
+      `);
+    }
 
-    document.addEventListener('click', (e)=>{
-      if(e.target.id==='btnUseLocation'){ e.preventDefault(); useMyLocation(); }
-      if(e.target.id==='btnConfirmAddress'){ e.preventDefault(); confirmAddress(); }
-      if(e.target.id==='btnSearch'){ e.preventDefault(); confirmAddress(); }
+    /*************** GOOGLE MAPS MODE ***************/
+    function gmaps_init(){
+      gMap = new google.maps.Map(document.getElementById("map"), {
+        center: {lat:40.4168, lng:-3.7038}, zoom:12, disableDefaultUI:false
+      });
+      gInfo = new google.maps.InfoWindow();
+
+      // Places Autocomplete
+      gAutocomplete = new google.maps.places.Autocomplete(elAddress, { fields:["address_components","geometry","formatted_address","name"] });
+      gAutocomplete.addListener("place_changed", ()=>{
+        const place = gAutocomplete.getPlace();
+        if(!place || !place.geometry) return;
+        const loc = place.geometry.location;
+        const latLng = { lat: loc.lat(), lng: loc.lng() };
+        setMarker(latLng.lat, latLng.lng);
+        elAddress.value = place.formatted_address || place.name || elAddress.value;
+        elCity.value = g_extractCity(place.address_components);
+      });
+
+      tryLoadNearby();
+    }
+
+    function g_extractCity(components){
+      if(!components) return "";
+      for(const c of components){
+        if(c.types.includes("locality")) return c.long_name;
+        if(c.types.includes("postal_town")) return c.long_name;
+        if(c.types.includes("administrative_area_level_2")) return c.long_name;
+      }
+      return "";
+    }
+
+    function g_setMarker(lat, lng){
+      if(!gMarker){
+        gMarker = new google.maps.Marker({
+          map: gMap, position:{lat,lng}, draggable:true,
+          icon: { url:getFlowerSVG(), scaledSize:new google.maps.Size(40,40), anchor:new google.maps.Point(20,20) }
+        });
+        gMarker.addListener("dragend", ()=>{
+          const p = gMarker.getPosition();
+          setLatLngInputs(p.lat(), p.lng());
+        });
+      } else {
+        gMarker.setPosition({lat,lng});
+      }
+      setLatLngInputs(lat, lng);
+      if(gMap.getZoom() < MIN_STREET_ZOOM) gMap.setZoom(MIN_STREET_ZOOM);
+      gMap.panTo({lat,lng});
+    }
+
+    function g_openInfo(latLng, data){
+      const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
+      const html = `
+        <div style="max-width:260px">
+          <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escapeHtml(data.to||"ALGUIEN")}</div>
+          <div style="margin-bottom:6px;color:#b9c8d9">${escapeHtml(data.message||"")}</div>
+          <div class="hint">Por ${escapeHtml(data.from||"Anónimo")} en ${escapeHtml(data.city||"")}</div>
+          <hr style="border:none;border-top:1px solid #234; margin:8px 0" />
+          <div style="font-size:13px">Donación: <strong>${(+data.amount||0).toFixed(2)} €</strong><br>
+            ONG recibe: <strong>${net} €</strong> <span class="hint">(−0,90 € de mantenimiento web)</span>
+          </div>
+          <div style="margin-top:8px"><a target="_blank" href="https://www.google.com/maps?q=${latLng.lat},${latLng.lng}">Abrir en Google Maps</a></div>
+        </div>`;
+      gInfo.setContent(html);
+      gInfo.open({map:gMap, anchor:gMarker});
+    }
+
+    /*************** LEAFLET MODE (fallback) ***************/
+    function leaflet_init(){
+      engine = "leaflet";
+      lMap = L.map("map").setView([40.4168, -3.7038], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"&copy; OpenStreetMap"}).addTo(lMap);
+      lFlowerIcon = L.icon({ iconUrl:getFlowerSVG(), iconSize:[40,40], iconAnchor:[20,20], popupAnchor:[0,-20] });
+      tryLoadNearby();
+    }
+
+    function l_setMarker(lat, lng){
+      if(!lMarker){
+        lMarker = L.marker([lat,lng], { draggable:true, icon:lFlowerIcon }).addTo(lMap);
+        lMarker.on("dragend", ()=>{
+          const p = lMarker.getLatLng();
+          setLatLngInputs(p.lat, p.lng);
+        });
+      } else {
+        lMarker.setLatLng([lat,lng]);
+      }
+      setLatLngInputs(lat, lng);
+      if(lMap.getZoom() < MIN_STREET_ZOOM) lMap.setZoom(MIN_STREET_ZOOM);
+      lMap.panTo([lat,lng]);
+    }
+
+    function l_openInfo(latLng, data){
+      const net = Math.max(0, (+data.amount||0) - FIXED_FEE).toFixed(2);
+      const html = `
+        <div style="max-width:260px">
+          <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escapeHtml(data.to||"ALGUIEN")}</div>
+          <div style="margin-bottom:6px;color:#b9c8d9">${escapeHtml(data.message||"")}</div>
+          <div class="hint">Por ${escapeHtml(data.from||"Anónimo")} en ${escapeHtml(data.city||"")}</div>
+          <hr style="border:none;border-top:1px solid #234; margin:8px 0" />
+          <div style="font-size:13px">Donación: <strong>${(+data.amount||0).toFixed(2)} €</strong><br>
+            ONG recibe: <strong>${net} €</strong> <span class="hint">(−0,90 € de mantenimiento web)</span>
+          </div>
+          <div style="margin-top:8px"><a target="_blank" href="https://www.openstreetmap.org/?mlat=${latLng.lat}&mlon=${latLng.lng}#map=18/${latLng.lat}/${latLng.lng}">Abrir en el mapa</a></div>
+        </div>`;
+      if(!lMarker){ l_setMarker(latLng.lat, latLng.lng); }
+      lMarker.bindPopup(html).openPopup();
+    }
+
+    /*************** UNIFIED API ***************/
+    function setMarker(lat, lng){ engine==="gmaps" ? g_setMarker(lat,lng) : l_setMarker(lat,lng); }
+    function openInfo(latLng, data){ engine==="gmaps" ? g_openInfo(latLng, data) : l_openInfo(latLng, data); }
+
+    async function confirmAddress(){
+      const q = elAddress.value.trim();
+      if(!q){ alert("Escribe una dirección."); return; }
+      if(engine==="gmaps"){
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address:q }, (res, status)=>{
+          if(status!=="OK" || !res || !res[0]){ alert("No se pudo confirmar esa dirección."); return; }
+          const r = res[0];
+          elAddress.value = r.formatted_address;
+          elCity.value = g_extractCity(r.address_components);
+          const loc = r.geometry.location;
+          setMarker(loc.lat(), loc.lng());
+        });
+      } else {
+        // Fallback: Nominatim
+        try{
+          const res = await fetch(NOMINATIM + encodeURIComponent(q), { headers:{Accept:"application/json"} });
+          if(!res.ok) throw 0;
+          const arr = await res.json();
+          if(!arr || !arr.length) throw 0;
+          const hit = arr[0];
+          const lat = parseFloat(hit.lat), lng = parseFloat(hit.lon);
+          elAddress.value = hit.display_name;
+          // heurística simple de ciudad
+          const parts = (hit.display_name||"").split(",").map(s=>s.trim());
+          elCity.value = parts[parts.length-3] || parts[parts.length-4] || parts[parts.length-2] || "";
+          setMarker(lat, lng);
+        }catch{ alert("No se pudo confirmar esa dirección."); }
+      }
+    }
+
+    function useMyLocation(){
+      if(!navigator.geolocation){ alert("Tu navegador no permite geolocalización."); return; }
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const {latitude, longitude} = pos.coords;
+        setMarker(latitude, longitude);
+      }, _=> alert("No se pudo obtener tu ubicación."), { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+    }
+
+    /*************** UI EVENTS ***************/
+    document.addEventListener("click", (e)=>{
+      if(e.target.id==="btnUseLocation"){ e.preventDefault(); useMyLocation(); }
+      if(e.target.id==="btnConfirmAddress"){ e.preventDefault(); confirmAddress(); }
+      if(e.target.id==="btnSearch"){ e.preventDefault(); confirmAddress(); }
     });
 
-    document.getElementById('flowerForm').addEventListener('submit', async (e)=>{
+    document.getElementById("flowerForm").addEventListener("submit", async (e)=>{
       e.preventDefault();
-      const from = document.getElementById('from').value.trim();
-      const to   = document.getElementById('to').value.trim();
-      const message = document.getElementById('message').value.trim();
-      const address = document.getElementById('address').value.trim();
-      const ngo = document.getElementById('ngo').value.trim();
-      const amount = parseFloat(document.getElementById('amount').value || '0') || 0;
-      const lat = parseFloat(document.getElementById('lat').value);
-      const lng = parseFloat(document.getElementById('lng').value);
-      const city= document.getElementById('city').value.trim();
+      const from = document.getElementById("from").value.trim();
+      const to   = document.getElementById("to").value.trim();
+      const message = document.getElementById("message").value.trim();
+      const address = elAddress.value.trim();
+      const ngo = document.getElementById("ngo").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value || "0") || 0;
+      const lat = parseFloat(elLat.value);
+      const lng = parseFloat(elLng.value);
+      const city= elCity.value.trim();
 
-      if(!address || Number.isNaN(lat) || Number.isNaN(lng)) { alert('Selecciona o confirma una ubicación válida.'); return; }
+      if(!address || Number.isNaN(lat) || Number.isNaN(lng)){ alert("Selecciona o confirma una ubicación válida."); return; }
 
       const payload = { from, to, message, address, city, lat, lng, ngo, amount };
 
       try{
         setMarker(lat, lng);
-        openPopup(lat, lng, payload);
+        openInfo({lat, lng}, payload);
         const out = await saveFlower(payload);
         if(out && (out.ok || out.timestamp)){
           addListItem({ ...payload, timestamp: out.timestamp || Date.now() });
         } else {
-          alert('Guardado parcial: visible en mapa, pero no quedó en la hoja.');
+          alert("Guardado parcial: visible en mapa, pero no quedó en la hoja.");
         }
       }catch(err){
         console.error(err);
-        alert('No se pudo guardar en la hoja. La flor se ha plantado localmente en el mapa.');
+        alert("No se pudo guardar en la hoja. La flor se ha plantado localmente en el mapa.");
       }
     });
 
-    // ========= INICIO =========
-    tryLoadNearby();
+    /*************** BOOT ***************/
+    function bootLeaflet(){ leaflet_init(); }
+    function bootGoogle(){ gmaps_init(); }
+
+    // Intento de Google Maps (si hay key); si falla o no hay key -> Leaflet
+    (function mount(){
+      if(!MAPS_KEY){
+        engine = "leaflet";
+        bootLeaflet();
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=places`;
+      s.async = true; s.defer = true;
+      s.onload = ()=>{ engine="gmaps"; bootGoogle(); };
+      s.onerror = ()=>{ engine="leaflet"; bootLeaflet(); };
+      document.head.appendChild(s);
+    })();
   </script>
 </body>
 </html>
