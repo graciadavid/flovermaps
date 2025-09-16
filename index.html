@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flovermaps — Planta una flor solidaria</title>
+<title>Flovermaps - Plant a Flower Change the World</title>
 
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de la flor para siempre." />
 
 <!-- OG/Twitter -->
-<meta property="og:title" content="Planta una flor solidaria — Flovermaps">
+<meta property="og:title" content="Flovermaps - Plant a Flower Change the World">
 <meta property="og:description" content="Elige un lugar, dedica tu mensaje y comparte una flor para siempre.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/og_flovermaps.jpg">
@@ -741,29 +741,38 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 /* ======= ARRANQUE A PRUEBA DE BALAS ======= */
 (function ensureLeafletReady(){
   const start = ()=>{
+    if(!window.L){ alert('No se pudo cargar Leaflet. Revisa si tu red o el CSP bloquean los CDNs.'); return; }
     initMap();
     refetch(false);
-    setInterval(()=>refetch(true), 15000);
+    setInterval(()=>refetch(true),15000);
     tryOpenShared();
     document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
   };
-  function injectLeafletFallback(){
-    if(document.getElementById('leaflet-fallback')) return;
-    // Cargar CSS y JS desde jsDelivr si unpkg falla
-    const css=document.createElement('link'); css.rel='stylesheet'; css.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
-    const s=document.createElement('script'); s.id='leaflet-fallback'; s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'; s.onload=()=>start(); s.onerror=()=>alert('No se pudo cargar el mapa (Leaflet).'); document.head.appendChild(s);
+
+  const cssCDN=[
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'
+  ];
+  const jsCDN=[
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'
+  ];
+  function loadCSS(href){
+    return new Promise((res,rej)=>{ const l=document.createElement('link'); l.rel='stylesheet'; l.href=href; l.onload=res; l.onerror=rej; document.head.appendChild(l); setTimeout(()=>rej(new Error('css timeout')),15000); });
   }
-  if (window.L){ start(); }
-  else {
-    window.addEventListener('load', ()=>{
-      if (window.L) { start(); return; }
-      injectLeafletFallback();
-      let tries=0; const iv=setInterval(()=>{
-        if (window.L){ clearInterval(iv); start(); }
-        else if(++tries>80){ clearInterval(iv); alert('No se pudo cargar el mapa.'); }
-      }, 150);
-    });
+  function loadJS(src){
+    return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=res; s.onerror=rej; document.head.appendChild(s); setTimeout(()=>rej(new Error('js timeout')),15000); });
   }
+  async function boot(){
+    if(window.L){ start(); return; }
+    // intenta cargar CSS/JS de forma secuencial desde 3 CDNs
+    for(const href of cssCDN){ try{ await loadCSS(href); break; }catch(e){} }
+    for(const src of jsCDN){ try{ await loadJS(src); if(window.L) break; }catch(e){} }
+    start();
+  }
+  if(document.readyState==='complete') boot(); else window.addEventListener('load', boot);
 })();
 </script>
 </body>
