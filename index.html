@@ -11,60 +11,134 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 
   <style>
+    /* ======= BASE ======= */
     :root{
-      --bg:#f3f6fb; --text:#0b0f14; --accent:#26c281; --pink:#ff6fa9;
+      --bg:#ffffff;
+      --panel:#ffffff;
+      --panel-2:#f7f9fc;
+      --text:#0b0f14;
+      --muted:#6f8196;
+      --border:#e6ecf3;
+      --shadow:0 10px 30px rgba(0,0,0,.18);
+      --accent:#26c281;
+      --pink:#ff6fa9;
+      --pill-shadow:0 8px 24px rgba(0,0,0,.12);
+      --radius:16px;
     }
     html,body{height:100%}
-    body{margin:0;background:#fff;color:var(--text);font:500 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial}
-    #map{position:fixed; inset:0}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font:500 16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    a{color:#2aa0ff;text-decoration:none}
 
-    /* Logo flotante centrado arriba */
+    /* ======= MAP ======= */
+    #map{position:fixed; inset:0}
+    .leaflet-control-attribution { background: rgba(255,255,255,.75); backdrop-filter: blur(6px); border-radius: 8px; padding: 0 6px; }
+
+    /* ======= BRAND (superior centrado) ======= */
     .brand {
       position:fixed; left:50%; top:14px; transform:translateX(-50%);
-      background:#fff; border-radius:16px; padding:10px 18px; box-shadow:0 10px 30px rgba(0,0,0,.18);
-      display:flex; align-items:center; gap:12px; z-index:1000; border:1px solid #e6ecf3;
+      background:#fff; border:1px solid var(--border);
+      border-radius:20px; padding:10px 18px; box-shadow:var(--shadow);
+      display:flex; align-items:center; gap:12px; z-index:1000;
     }
-    .brand h1 {
-      margin:0; font-weight:900; letter-spacing:.3px; font-size:26px; color:#57c06f;
-    }
-    .brand .sub {
-      margin:0; font-weight:800; font-size:14px; color:#ff5fa0;
-    }
+    .brand h1 { margin:0; font-weight:900; letter-spacing:.3px; font-size:26px; color:#57c06f;}
+    .brand .sub { margin:0; font-weight:800; font-size:14px; color:#ff5fa0; white-space:nowrap;}
 
-    /* Barra de acciones inferior (píldoras) */
+    /* ======= ACCIONES (píldoras inferiores) ======= */
     .actions {
-      position:fixed; left:50%; bottom:110px; transform:translateX(-50%); z-index:1000;
-      display:grid; grid-template-columns:1fr 1fr; gap:14px; width:min(920px, 92vw);
+      position:fixed; left:50%; bottom:108px; transform:translateX(-50%); z-index:1000;
+      display:grid; grid-template-columns:1fr 1fr; gap:14px; width:min(980px, 92vw);
     }
     .pill {
-      background:#fff; border:1px solid #e6ecf3; border-radius:999px; padding:14px 18px;
-      box-shadow:0 8px 24px rgba(0,0,0,.12); font-weight:800; cursor:pointer; text-align:center;
+      background:#fff; border:1px solid var(--border); border-radius:999px;
+      padding:14px 18px; box-shadow:var(--pill-shadow);
+      font-weight:800; text-align:center; cursor:pointer; user-select:none;
     }
+    .pill:hover{ filter:brightness(1.02) }
     .pill:active{ transform:scale(.995) }
+    .pill.active{ outline: 3px solid #e8faf1 }
 
-    /* Barra de búsqueda */
+    /* ======= SEARCH BAR (inferior) ======= */
     .searchwrap{
       position:fixed; left:50%; bottom:50px; transform:translateX(-50%); z-index:1000;
-      width:min(920px, 92vw);
+      width:min(980px, 92vw);
     }
     .search{
-      display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #e6ecf3;
-      border-radius:999px; padding:12px 16px; box-shadow:0 8px 24px rgba(0,0,0,.12);
+      position:relative;
+      display:flex; align-items:center; gap:10px;
+      background:#fff; border:1px solid var(--border); border-radius:999px; padding:12px 16px;
+      box-shadow:var(--pill-shadow);
     }
     .search input{
       flex:1; border:0; outline:none; font:inherit; color:#22313f; background:transparent;
     }
+    .search .clear{
+      background:#f1f5fb; border:1px solid var(--border); border-radius:999px; padding:6px 10px; cursor:pointer; font-weight:700; font-size:12px;
+    }
+    .suggest{
+      position:absolute; left:0; right:0; top:calc(100% + 8px);
+      background:#fff; border:1px solid var(--border); border-radius:14px; box-shadow:var(--pill-shadow); overflow:hidden;
+      display:none;
+    }
+    .suggest .row{
+      padding:10px 14px; border-bottom:1px solid #f0f4f9; cursor:pointer; display:flex; gap:10px; align-items:center;
+    }
+    .suggest .row:last-child{ border-bottom:0 }
+    .suggest .row:hover{ background:#f7fbff }
 
-    /* Toast guía */
+    /* ======= TOAST ======= */
     .toast{
       position:fixed; left:50%; bottom:10px; transform:translateX(-50%); z-index:1000;
       background:#101826; color:#e9f3ff; padding:10px 14px; border-radius:10px; font-size:14px; display:none;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
     }
 
-    @media (max-width:680px){
-      .brand h1{font-size:22px}
-      .brand .sub{font-size:12px}
-      .actions{bottom:120px; grid-template-columns:1fr; }
+    /* ======= MODAL (formulario sin prompts) ======= */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,12,26,.35); backdrop-filter: blur(2px);
+      display:none; align-items:center; justify-content:center; z-index:1100;
+    }
+    .modal{
+      width:min(720px, 92vw);
+      background:#fff; border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow);
+      overflow:hidden;
+      animation: pop .15s ease-out;
+    }
+    @keyframes pop{ from{ transform: translateY(8px); opacity:0 } to{ transform: translateY(0); opacity:1 } }
+    .modal header{
+      padding:14px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border);
+    }
+    .modal header .title{ font-weight:900; letter-spacing:.2px }
+    .modal header button{ border:0; background:#f2f6fb; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700 }
+    .modal .body{ padding:16px; display:grid; gap:14px; background:linear-gradient(180deg, #fbfdff 0%, #ffffff 100%) }
+    .modal .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .modal label{ font-size:12px; color:#5f738b; margin-bottom:4px; display:block }
+    .modal input[type="text"],
+    .modal input[type="number"],
+    .modal textarea,
+    .modal select{
+      width:100%; background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px 12px; outline:none;
+      font:inherit; color:#142029;
+    }
+    .modal textarea{ min-height:96px; resize:vertical }
+    .modal .help{ font-size:12px; color:#6f8196 }
+    .modal .actions{ display:flex; justify-content:flex-end; gap:10px; padding:14px 16px; border-top:1px solid var(--border); background:#fff }
+    .btn{ appearance:none; border:0; border-radius:12px; padding:12px 14px; font-weight:800; cursor:pointer }
+    .btn.secondary{ background:#f1f5fb; color:#0b1624; border:1px solid var(--border) }
+    .btn.primary{ background:#26c281; color:#041215 }
+    .btn:disabled{ opacity:.6; cursor:not-allowed }
+
+    @media (max-width:720px){
+      .actions{ grid-template-columns:1fr; bottom:120px }
+      .brand h1{ font-size:22px }
+      .brand .sub{ font-size:12px }
+      .modal .row{ grid-template-columns:1fr }
     }
   </style>
 </head>
@@ -85,34 +159,104 @@
 
   <!-- Búsqueda -->
   <div class="searchwrap">
-    <div class="search">
+    <div class="search" id="searchBox">
       <span>🔎</span>
-      <input id="search" placeholder="Buscar un lugar (calle, ciudad…)" />
+      <input id="searchInput" placeholder="Buscar un lugar (calle, ciudad…)" autocomplete="off"/>
+      <button class="clear" id="searchClear" title="Limpiar">ESC</button>
+      <div class="suggest" id="suggest"></div>
     </div>
   </div>
 
   <!-- Toast -->
-  <div class="toast" id="toast">Toca en el mapa para plantar la flor. Se guardará tras completar los datos.</div>
+  <div class="toast" id="toast"></div>
 
-  <!-- Scripts -->
+  <!-- Modal de Formulario -->
+  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header>
+        <div class="title" id="modalTitle">🌸 Plantar flor</div>
+        <button id="btnCloseModal">Cerrar</button>
+      </header>
+      <div class="body">
+        <div class="row">
+          <div>
+            <label for="to">¿Para quién?</label>
+            <input type="text" id="to" placeholder="Nombre del destinatario"/>
+          </div>
+          <div>
+            <label for="from">¿Quién envía?</label>
+            <input type="text" id="from" placeholder="Tu nombre"/>
+          </div>
+        </div>
+
+        <div>
+          <label for="message">Mensaje</label>
+          <textarea id="message" placeholder="Escribe unas palabras bonitas…"></textarea>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="ngo">ONG</label>
+            <select id="ngo">
+              <option value="">— Elige una ONG —</option>
+              <option>CRUZ ROJA</option>
+              <option>MÉDICOS SIN FRONTERAS</option>
+              <option>UNICEF</option>
+              <option>WWF</option>
+              <option>ACNUR</option>
+            </select>
+            <div class="help">El 100% llega a la ONG menos 0,90 € de mantenimiento.</div>
+          </div>
+          <div>
+            <label for="amount">Donación (€)</label>
+            <input type="number" id="amount" min="0" step="0.5" placeholder="5"/>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="address">Dirección</label>
+            <input type="text" id="address" readonly/>
+          </div>
+          <div>
+            <label for="city">Ciudad</label>
+            <input type="text" id="city" placeholder="(auto)"/>
+          </div>
+        </div>
+
+        <input type="hidden" id="lat">
+        <input type="hidden" id="lng">
+      </div>
+      <div class="actions">
+        <button class="btn secondary" id="btnCancel">Cancelar</button>
+        <button class="btn primary" id="btnSave">Plantar flor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libraries -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <script>
-    /* ====== CONFIG ====== */
+    /* ============================================================
+       CONFIG
+    ============================================================ */
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxhGMS7D1i76f59sBjHim9P6PaNuCibePYkkXk297nQ_7asT0LJxPmIC_mKx8B5G3UhDQ/exec";
-    const NOMINATIM = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=";
+    const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search?format=json&limit=5&q=";
+    const NOMINATIM_REVERSE = (lat,lng)=>`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
     const MIN_STREET_ZOOM = 17;
-    const FIXED_FEE = 0.90; // info de popup
+    const FIXED_FEE = 0.90;
 
-    /* ====== MAPA (CARTO Positron) ====== */
+    /* ============================================================
+       MAPA + CLUSTERS
+    ============================================================ */
     const map = L.map("map", { zoomControl:true }).setView([42.5, 2.5], 5);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap &copy; CARTO'
     }).addTo(map);
 
-    /* ====== ICONOS ====== */
     const flowerSVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
         <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/></filter></defs>
@@ -128,32 +272,47 @@
     `);
     const flowerIcon = L.icon({ iconUrl: flowerSVG, iconSize:[40,40], iconAnchor:[20,20], popupAnchor:[0,-20] });
 
-    /* ====== CLUSTERS ====== */
     const clusters = L.markerClusterGroup({ showCoverageOnHover:false, spiderfyOnMaxZoom:true });
     map.addLayer(clusters);
 
-    /* ====== UTIL ====== */
-    const toast = (msg, ms=2500)=>{
-      const t = document.getElementById('toast'); t.textContent = msg; t.style.display='block';
-      setTimeout(()=> t.style.display='none', ms);
-    };
-    const escapeHtml = s => (s+"").replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    /* ============================================================
+       STATE + HELPERS
+    ============================================================ */
+    let placing = false;      // modo "plantar desde el mapa"
+    let tempMarker = null;    // marcador temporal durante la edición
 
-    function popupHtml(data){
+    const $ = (id)=>document.getElementById(id);
+    const toast = (msg, ms=2200)=>{
+      const t = $("toast"); t.textContent = msg; t.style.display='block';
+      clearTimeout(toast._t); toast._t = setTimeout(()=> t.style.display='none', ms);
+    };
+    const escHtml = s => (s+"").replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+
+    const popupHtml = (data)=>{
       const net = Math.max(0, (+data.amount||0)-FIXED_FEE).toFixed(2);
       return `
         <div style="max-width:260px">
-          <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escapeHtml(data.to||'ALGUIEN')}</div>
-          <div style="margin-bottom:6px;color:#556a80">${escapeHtml(data.message||'')}</div>
-          <div style="font-size:12px;color:#7a8ea3">Por ${escapeHtml(data.from||'Anónimo')} en ${escapeHtml(data.city||'')}</div>
+          <div style="font-weight:800;margin-bottom:6px">🌸 Flor para ${escHtml(data.to||'ALGUIEN')}</div>
+          <div style="margin-bottom:6px;color:#556a80">${escHtml(data.message||'')}</div>
+          <div style="font-size:12px;color:#7a8ea3">Por ${escHtml(data.from||'Anónimo')} en ${escHtml(data.city||'')}</div>
           <hr style="border:none;border-top:1px solid #e7eef6; margin:8px 0" />
           <div style="font-size:13px">Donación: <strong>${(+data.amount||0).toFixed(2)} €</strong><br>
             ONG recibe: <strong>${net} €</strong> <span style="color:#8aa0b7">(−0,90 € mantenimiento)</span>
           </div>
         </div>`;
+    };
+
+    function addFlowerMarker(item){
+      if(!item.lat || !item.lng) return null;
+      const m = L.marker([+item.lat, +item.lng], { icon: flowerIcon });
+      m.bindPopup(popupHtml(item));
+      clusters.addLayer(m);
+      return m;
     }
 
-    /* ====== APPS SCRIPT ====== */
+    /* ============================================================
+       APPS SCRIPT (list + create)
+    ============================================================ */
     async function listFlowersNear(lat, lng){
       const url = new URL(WEB_APP_URL);
       url.searchParams.set('action','list');
@@ -170,14 +329,6 @@
       });
       if(!res.ok) throw new Error('Error al guardar');
       return res.json();
-    }
-
-    function addFlowerMarker(item){
-      if(!item.lat || !item.lng) return;
-      const m = L.marker([+item.lat, +item.lng], { icon: flowerIcon });
-      m.bindPopup(popupHtml(item));
-      clusters.addLayer(m);
-      return m;
     }
 
     async function bootstrap(){
@@ -198,85 +349,198 @@
       }catch(e){ console.warn(e); }
     }
 
-    /* ====== BÚSQUEDA ====== */
-    async function geocode(q){
-      const res = await fetch(NOMINATIM + encodeURIComponent(q), { headers:{Accept:'application/json'} });
-      if(!res.ok) throw new Error('No geocode');
-      const arr = await res.json();
-      if(!arr || !arr.length) throw new Error('Sin resultados');
-      const hit = arr[0];
-      return { lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), display: hit.display_name };
+    /* ============================================================
+       SEARCH (Nominatim con sugerencias)
+    ============================================================ */
+    const suggest = $("suggest");
+    const searchInput = $("searchInput");
+    const searchClear = $("searchClear");
+    let searchTimer = null;
+
+    function showSuggest(rows){
+      suggest.innerHTML = "";
+      if(!rows || !rows.length){ suggest.style.display="none"; return; }
+      rows.forEach(r=>{
+        const div = document.createElement("div");
+        div.className="row";
+        div.innerHTML = `<span>📍</span><div>${escHtml(r.display_name)}</div>`;
+        div.onclick = ()=>{
+          suggest.style.display="none";
+          searchInput.value = r.display_name;
+          map.setView([+r.lat, +r.lon], 14);
+        };
+        suggest.appendChild(div);
+      });
+      suggest.style.display="block";
     }
 
-    document.getElementById('search').addEventListener('keydown', async (e)=>{
-      if(e.key === 'Enter'){
-        const q = e.currentTarget.value.trim();
-        if(!q) return;
+    async function querySuggest(q){
+      try{
+        const res = await fetch(NOMINATIM_SEARCH + encodeURIComponent(q), { headers:{Accept:'application/json'} });
+        if(!res.ok) return showSuggest([]);
+        const arr = await res.json();
+        showSuggest(arr || []);
+      }catch{ showSuggest([]); }
+    }
+
+    searchInput.addEventListener("input", ()=>{
+      const q = searchInput.value.trim();
+      clearTimeout(searchTimer);
+      if(!q){ showSuggest([]); return; }
+      searchTimer = setTimeout(()=> querySuggest(q), 250);
+    });
+
+    searchInput.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape"){ searchInput.value=""; showSuggest([]); }
+      if(e.key === "Enter"){
+        e.preventDefault();
+        if(suggest.children.length){ suggest.children[0].click(); }
+      }
+    });
+    searchClear.addEventListener("click", ()=>{ searchInput.value=""; showSuggest([]); toast("Búsqueda limpiada"); });
+
+    /* ============================================================
+       FORM MODAL (sin prompts)
+    ============================================================ */
+    const modalBackdrop = $("modalBackdrop");
+    const btnCloseModal = $("btnCloseModal");
+    const btnCancel = $("btnCancel");
+    const btnSave = $("btnSave");
+
+    function openModal(){
+      modalBackdrop.style.display="flex";
+      modalBackdrop.setAttribute("aria-hidden", "false");
+      // Prefill desde localStorage
+      const memory = JSON.parse(localStorage.getItem("flover.profile") || "{}");
+      if(memory.from){ $("from").value = memory.from; }
+      if(memory.ngo){ $("ngo").value = memory.ngo; }
+    }
+    function closeModal(){
+      modalBackdrop.style.display="none";
+      modalBackdrop.setAttribute("aria-hidden", "true");
+    }
+
+    btnCloseModal.onclick = closeModal;
+    btnCancel.onclick = closeModal;
+    modalBackdrop.addEventListener("click", (e)=>{ if(e.target === modalBackdrop) closeModal(); });
+
+    // Teclas rápidas
+    document.addEventListener("keydown", (e)=>{
+      if(e.key === "Escape"){ showSuggest([]); closeModal(); }
+    });
+
+    /* ============================================================
+       PLANTAR DESDE EL MAPA (flujo UX)
+    ============================================================ */
+    const btnPlant = $("btnPlant");
+    btnPlant.addEventListener("click", ()=>{
+      placing = !placing;
+      btnPlant.classList.toggle("active", placing);
+      toast(placing ? "Toca en el mapa para plantar" : "Plantación cancelada");
+    });
+
+    map.on("click", async (ev)=>{
+      if(!placing) return;
+      placing = false;
+      btnPlant.classList.remove("active");
+      // Coordenadas -> reverse geocode
+      const lat = ev.latlng.lat, lng = ev.latlng.lng;
+      $("lat").value = (+lat).toFixed(6);
+      $("lng").value = (+lng).toFixed(6);
+
+      try{
+        const r = await fetch(NOMINATIM_REVERSE(lat,lng), { headers:{Accept:'application/json'} });
+        if(r.ok){
+          const j = await r.json();
+          $("address").value = j.display_name || `(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+          const a = j.address || {};
+          $("city").value = a.city || a.town || a.village || a.county || a.state || "";
+        } else {
+          $("address").value = `(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+          $("city").value = "";
+        }
+      }catch{
+        $("address").value = `(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+        $("city").value = "";
+      }
+
+      // Marcador temporal para dar contexto durante la edición
+      if(tempMarker){ clusters.removeLayer(tempMarker); tempMarker = null; }
+      tempMarker = L.marker([lat, lng], { icon: flowerIcon, draggable:true }).addTo(map);
+      tempMarker.on("dragend", async ()=>{
+        const p = tempMarker.getLatLng();
+        $("lat").value = p.lat.toFixed(6);
+        $("lng").value = p.lng.toFixed(6);
         try{
-          const g = await geocode(q);
-          map.setView([g.lat, g.lng], 14);
-        }catch{ toast('No se encontró esa ubicación'); }
+          const r = await fetch(NOMINATIM_REVERSE(p.lat,p.lng), { headers:{Accept:'application/json'} });
+          if(r.ok){
+            const j = await r.json();
+            $("address").value = j.display_name || `(${p.lat.toFixed(5)}, ${p.lng.toFixed(5)})`;
+            const a = j.address || {};
+            $("city").value = a.city || a.town || a.village || a.county || a.state || "";
+          }
+        }catch{}
+      });
+
+      // Abrir formulario
+      openModal();
+    });
+
+    // Guardar (crear flor)
+    btnSave.addEventListener("click", async ()=>{
+      const from = $("from").value.trim();
+      const to = $("to").value.trim();
+      const message = $("message").value.trim();
+      const ngo = $("ngo").value.trim();
+      const amount = parseFloat($("amount").value || "0") || 0;
+      const address = $("address").value.trim();
+      const city = $("city").value.trim();
+      const lat = parseFloat($("lat").value);
+      const lng = parseFloat($("lng").value);
+
+      if(Number.isNaN(lat) || Number.isNaN(lng) || !address){
+        toast("Selecciona una ubicación válida"); return;
+      }
+
+      // Persistir perfil básico
+      localStorage.setItem("flover.profile", JSON.stringify({ from, ngo }));
+
+      const payload = { from, to, message, address, city, lat, lng, ngo, amount };
+
+      btnSave.disabled = true;
+      btnSave.textContent = "Guardando…";
+      try{
+        const out = await saveFlower(payload);
+        const stamp = out?.timestamp || Date.now();
+        // Añadir marcador definitivo
+        const mk = addFlowerMarker({ ...payload, timestamp: stamp });
+        if(mk){ mk.openPopup(); }
+        // limpiar marcador temporal si existía
+        if(tempMarker){ map.removeLayer(tempMarker); tempMarker=null; }
+        toast("🌸 ¡Flor plantada!");
+        closeModal();
+      }catch(e){
+        console.error(e);
+        toast("No se pudo guardar. Inténtalo de nuevo.");
+      }finally{
+        btnSave.disabled = false;
+        btnSave.textContent = "Plantar flor";
       }
     });
 
-    /* ====== PLANTAR DESDE EL MAPA ====== */
-    let plantMode = false;
-    let clickOnceHandler = null;
-
-    document.getElementById('btnPlant').addEventListener('click', ()=>{
-      plantMode = true;
-      toast('Toca en el mapa para plantar');
-      if(clickOnceHandler) { map.off('click', clickOnceHandler); }
-      clickOnceHandler = async (ev)=>{
-        map.off('click', clickOnceHandler);
-        plantMode = false;
-        const lat = ev.latlng.lat, lng = ev.latlng.lng;
-
-        // Datos rápidos con prompts (como la versión simple)
-        const to   = prompt('¿Para quién es la flor? (TO)') || '';
-        const from = prompt('¿Quién envía? (FROM)') || '';
-        const message = prompt('Mensaje (opcional)') || '';
-        const ngo = prompt('ONG (CRUZ ROJA / MSF / UNICEF / WWF / ACNUR)') || '';
-        const amount = parseFloat(prompt('Donación en € (opcional, ej. 5)') || '0') || 0;
-
-        // Ciudad aproximada por Nominatim (reverse simple)
-        let address = `(${lat.toFixed(5)}, ${lng.toFixed(5)})`, city = '';
-        try{
-          const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, { headers:{Accept:'application/json'} });
-          if(rev.ok){
-            const j = await rev.json();
-            address = j.display_name || address;
-            city = j.address?.city || j.address?.town || j.address?.village || j.address?.county || '';
-          }
-        }catch{}
-
-        const payload = { from, to, message, address, city, lat, lng, ngo, amount };
-
-        try{
-          const out = await saveFlower(payload);
-          const stamp = out?.timestamp || Date.now();
-          const marker = addFlowerMarker({ ...payload, timestamp: stamp });
-          if(marker){ marker.openPopup(); }
-          toast('🌸 ¡Flor plantada!');
-        }catch(e){
-          console.error(e);
-          const marker = addFlowerMarker(payload);
-          if(marker){ marker.openPopup(); }
-          toast('Guardado local. No se pudo escribir en la hoja.');
-        }
-      };
-      map.once('click', clickOnceHandler);
-    });
-
-    /* ====== MI UBICACIÓN ====== */
-    document.getElementById('btnLocate').addEventListener('click', ()=>{
-      if(!navigator.geolocation){ toast('Tu navegador no permite geolocalización'); return; }
+    /* ============================================================
+       MI UBICACIÓN
+    ============================================================ */
+    $("btnLocate").addEventListener("click", ()=>{
+      if(!navigator.geolocation){ toast("Tu navegador no permite geolocalización"); return; }
       navigator.geolocation.getCurrentPosition(pos=>{
         map.setView([pos.coords.latitude, pos.coords.longitude], 14);
-      }, _=> toast('No se pudo obtener tu ubicación'), { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+      }, _=> toast("No se pudo obtener tu ubicación"), { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
     });
 
-    /* ====== INICIO ====== */
+    /* ============================================================
+       ARRANQUE
+    ============================================================ */
     bootstrap();
   </script>
 </body>
