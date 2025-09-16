@@ -109,7 +109,7 @@
 
   /* Marcador emoji + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-22px,-44px) }
+  .emoji-marker{ background:transparent; }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
 
   .drag-ring{
@@ -791,21 +791,31 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
 /* ======= ARRANQUE A PRUEBA DE BALAS ======= */
 (function ensureLeafletReady(){
-  const start = ()=>{
+  function start(){
     initMap();
     refetch(false);
     setInterval(()=>refetch(true), 15000);
     tryOpenShared();
     document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
-  };
+  }
+  function injectLeafletFallback(){
+    if(document.getElementById('leaflet-fallback')) return;
+    const s=document.createElement('script');
+    s.id='leaflet-fallback';
+    s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+    s.onload=()=>start();
+    s.onerror=()=>alert('No se pudo cargar el mapa (Leaflet).');
+    document.head.appendChild(s);
+  }
   if (window.L){ start(); }
   else {
     window.addEventListener('load', ()=>{
       if (window.L) { start(); return; }
+      injectLeafletFallback();
       let tries=0; const iv=setInterval(()=>{
         if (window.L){ clearInterval(iv); start(); }
-        else if(++tries>60){ clearInterval(iv); alert('No se pudo cargar el mapa. Reintenta más tarde.'); }
-      }, 100);
+        else if(++tries>80){ clearInterval(iv); alert('No se pudo cargar el mapa.'); }
+      }, 150);
     });
   }
 })();
