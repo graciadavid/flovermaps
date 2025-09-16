@@ -109,7 +109,7 @@
 
   /* Marcador emoji + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-22px,-44px) }
+  .emoji-marker{ background:transparent; }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
 
   .drag-ring{
@@ -299,8 +299,8 @@ function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<
 
 /* === CENTRADO PRECISO DEL ANILLO === */
 const RING_OFFSET_X = 0;
-const RING_OFFSET_Y = -22;  // centrado óptico sobre el emoji 44px
-const CTA_OFFSET_Y  = 58;
+const RING_OFFSET_Y = 0;
+const CTA_OFFSET_Y  = 44;
 
 /* === MAP === */
 function initMap(){
@@ -484,7 +484,9 @@ function closeSheet(){
 
 /* Mensaje 1 línea / 30 chars */
 const chars=$("#chars");
-msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
+msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/
+?
+/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* Importe + copy split */
@@ -530,6 +532,8 @@ async function actuallySaveFlower(from,to,msg){
   const amountFm = +(MAINTENANCE_FEE_EUR).toFixed(2);
   const amountOng = Math.max(0, +(total - amountFm).toFixed(2));
   try{
+    const splitOng = total>0 ? (amountOng/total) : 0;
+    const splitFm  = total>0 ? (amountFm/total)  : 0;
     const url = SCRIPT_URL + '?action=add'
       + '&fromName='+encodeURIComponent(from)
       + '&toName='  +encodeURIComponent(to)
@@ -541,6 +545,8 @@ async function actuallySaveFlower(from,to,msg){
       + '&amount_total=' + encodeURIComponent(total)
       + '&amount_ong='   + encodeURIComponent(amountOng)
       + '&amount_fm='    + encodeURIComponent(amountFm)
+      + '&split_ong='    + encodeURIComponent(splitOng)
+      + '&split_fm='     + encodeURIComponent(splitFm)
       + '&paymentRef='   + encodeURIComponent(paymentRef||'demo');
     const data = await jsonp(url);
 
@@ -555,24 +561,27 @@ async function actuallySaveFlower(from,to,msg){
     lastShareUrl = shareUrl;
 
     // Feedback visual inmediato (🌱 → 🌸)
-    plantingAnimationAtLatLng([+selectedLat, +selectedLng]);
+    /* planting animation removed */
 
-    // Mostrar flor inmediatamente (sin esperar refetch)
+    // Registrar la flor en memoria inmediata y re-renderizar (para que NO desaparezca)
     const lat=+selectedLat, lng=+selectedLng;
-    if(selectedMarker){
-      try{ selectedMarker.dragging.disable(); }catch{}
-      try{ selectedMarker.unbindTooltip(); }catch{}
-      hideRing(); hidePinCta(); addrBadge.style.display='none';
+    const dt = (data && data.ts) ? Number(data.ts) : Date.now();
+    const newId = (data && data.id) ? String(data.id) : `${selectedLat},${selectedLng},${dt}`;
+    try{
+      const newItem = { id:newId, lat, lng, fromName:from, toName:to, message:msg, timestamp:dt, amount_total: total, amount_fm: amountFm };
+      window._lastItems = mergeUniqueById(window._lastItems||[], [newItem]);
+      renderAllMarkers(window._lastItems);
+    }catch{}
 
-      const ts = (data && data.ts) ? Number(data.ts) : Date.now();
-      const dtStr=fmtDateTimeFromTs(ts);
-      const html = popupHtml(from,to,msg,dtStr,shareUrl,total, amountFm);
-      selectedMarker.bindPopup(html).on('click', ()=>selectedMarker.openPopup());
-      selectedMarker.addTo(map);
-      selectedMarker.openPopup();
-      try{ map.flyTo([lat,lng], FINAL_ZOOM, {duration:0.5}); }catch{}
-      flowersLayer.addLayer(selectedMarker);
-      selectedMarker = null; selectedLat=null; selectedLng=null;
+    // Limpieza de UI y enfoque
+    if(selectedMarker){ try{ selectedMarker.dragging.disable(); }catch{} try{ selectedMarker.unbindTooltip(); }catch{} }
+    hideRing(); hidePinCta(); addrBadge.style.display='none';
+    try{ map.flyTo([lat,lng], FINAL_ZOOM, {duration:0.5}); }catch{}
+
+    // Abrir el popup del marcador recién creado
+    setTimeout(()=>{ try{ flowersLayer && flowersLayer.eachLayer(l=>{ try{ const p=l.getLatLng&&l.getLatLng(); if(p && Math.abs(p.lat-lat)<1e-8 && Math.abs(p.lng-lng)<1e-8){ l.openPopup(); } }catch{} }); }catch{} }, 60);
+
+    selectedMarker = null; selectedLat=null; selectedLng=null;
     }
 
     // Refetch en background
@@ -620,31 +629,7 @@ window.plantAnother = function(){
   try{ map.flyTo([40.4168, -3.7038], 5, {duration:0.5}); }catch{}
 };
 
-/* Animación de plantado (🌱…🌸 + ping) */
-function plantingAnimationAtLatLng(latlng){
-  try{
-    const p = map.latLngToContainerPoint(latlng);
-    const wrap = document.getElementById('mapWrap');
-    const seq = document.createElement('div');
-    seq.className='plant-seq';
-    seq.style.left = p.x+'px';
-    seq.style.top  = (p.y-26)+'px';
-    wrap.appendChild(seq);
-
-    const ring = document.createElement('div');
-    ring.className='ping';
-    ring.style.left = p.x+'px';
-    ring.style.top  = p.y+'px';
-    wrap.appendChild(ring);
-
-    const stages=['🌱','🌱🌱','🌱🌱🌱','🌸'];
-    let i=0; seq.textContent=stages[i++];
-    const iv=setInterval(()=>{
-      if(i<stages.length){ seq.textContent=stages[i++]; }
-      else{ clearInterval(iv); setTimeout(()=>{ try{ seq.remove(); ring.remove(); }catch{} }, 280); }
-    }, 220);
-  }catch{}
-}
+/* Animación de plantado eliminada por simplicidad UX */
 
 /* Deep link: /f/{id} ó ?id=... */
 async function tryOpenShared(){
