@@ -91,10 +91,10 @@
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Etiqueta de dirección */
+  /* Etiqueta de dirección (pill con flecha) */
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880;
-    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:600; color:#0e1935;
+    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; color:#0e1935;
     max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none;
   }
   .addr-badge::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)); }
@@ -109,11 +109,11 @@
 
   /* Marcador emoji + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; transform:translate(-14px,-28px) }
-  .emoji-marker .e{ font-size:36px; line-height:36px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
+  .emoji-marker{ background:transparent; transform:translate(-22px,-44px) }
+  .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
 
   .drag-ring{
-    position:absolute; width:58px; height:58px; border-radius:999px; border:3px solid #22c55e;
+    position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid #22c55e;
     box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9); pointer-events:none; z-index:850; display:none;
     transform:translate(-50%, -50%); background:radial-gradient(circle at 50% 50%, rgba(34,197,94,.12), rgba(34,197,94,.06) 60%, rgba(34,197,94,0) 70%);
   }
@@ -263,6 +263,10 @@ function jsonp(url, timeoutMs=12000){
   });
 }
 
+function qs(obj){
+  return Object.entries(obj).map(([k,v])=>`&${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('');
+}
+
 /* === STATE === */
 let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
 let flowersLayer=null, useCluster=null;
@@ -270,7 +274,9 @@ let selectedMarker=null, selectedLat=null, selectedLng=null;
 let lastTs=0; window._lastItems=[];
 let abortRev=null, abortCtrl=null, currentSuggest=[];
 let saving=false, lastShareUrl='', paymentRef='';
-let amount=5.9; let userClicked=false;
+let amount=5.9;
+let hasUserInteracted=false; // evita recentrados automáticos
+let hasCenteredInitially=false; // solo para la primera carga
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -289,21 +295,30 @@ const ACCEPT_LANG = (()=>{
     return set.join(',');
   }catch{ return 'es,en'; }
 })();
-function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1800); }
+function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),2200); }
 function fmt(n){ return (Number(n)||0).toFixed(2).replace('.',','); }
 function parseAmountInput(v){ return Number(String(v||'').replace(',','.')); }
 function fmtDateTimeFromTs(ts){
   const n=Number(ts); if(!isFinite(n)) return '';
   try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date(n)).replace(',', ''); }
   catch{return '';} }
-function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-30]}); }
+function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
 function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function escHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+function ngoFullLabel(code){
+  switch(String(code||'').toLowerCase()){
+    case 'msf': return 'Médicos Sin Fronteras';
+    case 'stc': return 'Save the Children';
+    case 'aecc': return 'Asociación Española contra el Cáncer';
+    case 'unicef': return 'UNICEF';
+    default: return 'ONG';
+  }
+}
 
-/* === CENTRADO PRECISO DEL ANILLO === */
+/* === CENTRADO PRECISO DEL ANILLO/CTA === */
 const RING_OFFSET_X = 0;
-const RING_OFFSET_Y = -17;  // centrado óptico sobre el emoji
-const CTA_OFFSET_Y  = 54;
+const RING_OFFSET_Y = -22; // mitad de 44px para centrar
+const CTA_OFFSET_Y  = 58;
 
 /* === MAP === */
 function initMap(){
@@ -315,10 +330,11 @@ function initMap(){
   ensureFlowersLayer(false);
 
   map.on('click', e=>{
-    userClicked=true;
+    hasUserInteracted=true;
     setSelectedPoint(e.latlng.lat, e.latlng.lng, true); // zoom según SELECT_ZOOM
   });
 
+  map.on('movestart', ()=>{ hasUserInteracted=true; });
   map.on('move zoom', ()=>{
     if(selectedMarker){ positionRingFromMarker(); positionPinCtaFromMarker(); }
   });
@@ -340,7 +356,7 @@ function ensureFlowersLayer(wantCluster){
 function setSelectedPoint(lat,lng,animate=false, forceZoom=null){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-34], className:'drag-tip'}).openTooltip();
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-50], className:'drag-tip'}).openTooltip();
     selectedMarker.on('drag', ()=>{ positionRingFromMarker(); positionPinCtaFromMarker(); });
     selectedMarker.on('dragend', e=>{
       const p=e.target.getLatLng();
@@ -404,6 +420,7 @@ async function reverseAt(lat,lng){
  gpsBtn.addEventListener('click', ()=>{
   if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
   navigator.geolocation.getCurrentPosition(pos=>{
+    hasUserInteracted=true;
     setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true, 17); // nivel calle al usar GPS
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
@@ -446,6 +463,7 @@ async function runSuggest(q){
 async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
   slist.style.display='none';
+  hasUserInteracted=true;
   setSelectedPoint(Number(it.lat), Number(it.lon), true);
 }
 searchInput.addEventListener('input', (e)=>{
@@ -483,7 +501,9 @@ function closeSheet(){
 
 /* Mensaje 1 línea / 30 chars */
 const chars=$("#chars");
-msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
+msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/
+?
+/g,'').slice(0,30); chars.textContent='(' + msgInput.value.length + '/30)'; });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* Importe + copy split */
@@ -528,19 +548,20 @@ async function actuallySaveFlower(from,to,msg){
   const total = amount;
   const amountFm = +(MAINTENANCE_FEE_EUR).toFixed(2);
   const amountOng = Math.max(0, +(total - amountFm).toFixed(2));
+  const ngoCode = (ngoSel.value||'msf');
+  const payload = {
+    action:'add',
+    fromName:from, toName:to, message:msg, place:placeText,
+    lat:selectedLat, lng:selectedLng,
+    ngo: ngoCode, ngo_label: ngoFullLabel(ngoCode),
+    amount_total: total, amount_total_cents: Math.round(total*100),
+    amount_ong: amountOng, amount_ong_cents: Math.round(amountOng*100),
+    amount_fm: amountFm, amount_fm_cents: Math.round(amountFm*100),
+    paymentRef: paymentRef||'demo'
+  };
   try{
-    const url = SCRIPT_URL + '?action=add'
-      + '&fromName='+encodeURIComponent(from)
-      + '&toName='  +encodeURIComponent(to)
-      + '&message=' +encodeURIComponent(msg)
-      + '&place='   +encodeURIComponent(placeText)
-      + '&lat='     +encodeURIComponent(selectedLat)
-      + '&lng='     +encodeURIComponent(selectedLng)
-      + '&ngo='     +encodeURIComponent(ngoSel.value||'msf')
-      + '&amount_total=' + encodeURIComponent(total)
-      + '&amount_ong='   + encodeURIComponent(amountOng)
-      + '&amount_fm='    + encodeURIComponent(amountFm)
-      + '&paymentRef='   + encodeURIComponent(paymentRef||'demo');
+    const url = SCRIPT_URL + '?' + 'action=add' + qs(payload);
+    console.log('[Flovermaps][send]', payload);
     const data = await jsonp(url);
 
     // URL de compartir corta: /f/{id}
@@ -560,7 +581,7 @@ async function actuallySaveFlower(from,to,msg){
     // Crear marcador final independiente y mostrarlo al instante
     const dt = (data && data.ts) ? Number(data.ts) : Date.now();
     const dtStr=fmtDateTimeFromTs(dt);
-    const html = popupHtml(from,to,msg,dtStr,shareUrl,total, amountFm);
+    const html = popupHtml(from,to,msg,dtStr,shareUrl,total, amountFm, ngoFullLabel(ngoCode));
     const pos = L.latLng(lat,lng);
 
     // Eliminar el marcador arrastrable
@@ -580,28 +601,38 @@ async function actuallySaveFlower(from,to,msg){
     // Reset estado de selección
     selectedMarker = null; selectedLat=null; selectedLng=null;
   }catch(e){
+    console.error(e);
     toast('Error al plantar', false);
   }
   saving=false;
 }
 
-/* Popup con importes dentro (mismo estilo tipográfico) */
-function popupHtml(from,to,msg,dtStr,shareUrl,total,fmOverride){
+/* Popup tarjeta (estética unificada) */
+function popupHtml(from,to,msg,dtStr,shareUrl,total,fmOverride, ngoLabelStr){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
   const t = Number(total)||0; const fm = isFinite(Number(fmOverride)) ? Number(fmOverride) : MAINTENANCE_FEE_EUR; const ongVal = Math.max(0, t - fm);
   const ong = ongVal.toFixed(2).replace('.',','); const fmStr = fm.toFixed(2).replace('.',','); const tt = t.toFixed(2).replace('.',',');
-  const dateLine = dtStr ? `<div style="margin-bottom:6px">${dtStr} <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>` : `<div style="margin-bottom:6px"><strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>`;
+  const ngoText = escHtml(ngoLabelStr||'ONG');
   return `
-    <div style="min-width:240px;max-width:280px; font: inherit; color: inherit;">
-      ${dateLine}
-      <div style="margin-bottom:8px">${safeMsg}</div>
-      <div style="margin-bottom:10px">Donación total: ${tt} € · ONG: ${ong} € · Mantenimiento: ${fmStr} €</div>
-      <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
-      <div style="margin-top:8px; text-align:center">
-        <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button>
-      </div>
-    </div>`;
+  <div style="min-width:260px;max-width:300px;font:inherit;color:inherit;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="font-size:18px">🌸</div>
+      <div style="font-weight:700">${safeFrom}</div>
+      <div class="muted" style="opacity:.8">→</div>
+      <div style="font-weight:700">${safeTo}</div>
+    </div>
+    ${dtStr?`<div class="muted" style="margin-bottom:6px">${dtStr}</div>`:''}
+    <div style="margin-bottom:10px">${safeMsg}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin:8px 0 10px">
+      <span style="padding:.25rem .55rem;border-radius:999px;border:1px solid #e6e6e6;background:#f7f7f7;font-size:.85rem">ONG: ${ngoText}</span>
+    </div>
+    <div style="margin-bottom:10px">Donación total: ${tt} € · ONG: ${ong} € · Mantenimiento: ${fmStr} €</div>
+    <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
+    <div style="margin-top:8px; text-align:center">
+      <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button>
+    </div>
+  </div>`;
 }
 async function shareAny(url){
   try{
@@ -616,7 +647,7 @@ window.plantAnother = function(){
   controls.style.display='';
   slist.style.display='none';
   hideRing(); hidePinCta(); addrBadge.style.display='none';
-  selectedMarker=null; selectedLat=null; selectedLng=null; userClicked=false;
+  selectedMarker=null; selectedLat=null; selectedLng=null; 
   try{ map.flyTo([40.4168, -3.7038], 5, {duration:0.5}); }catch{}
 };
 
@@ -668,7 +699,8 @@ async function tryOpenShared(){
         const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
         const dtStr = fmtDateTimeFromTs(it.timestamp);
         const fm = isFinite(Number(it.amount_fm)) ? Number(it.amount_fm) : MAINTENANCE_FEE_EUR;
-        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0, fm);
+        const ngoLbl = it.ngo_label || ngoFullLabel(it.ngo);
+        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0, fm, ngoLbl);
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         map.setView([lat,lng], FINAL_ZOOM);
         mk.openPopup();
@@ -694,7 +726,9 @@ function normalizeItems(items){
     const timestamp= f.timestamp?? '';
     const amount_total = Number(f.amount_total)||0;
     const amount_fm = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : null;
-    out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total, amount_fm });
+    const ngo = f.ngo || '';
+    const ngo_label = f.ngo_label || ngoFullLabel(ngo);
+    out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total, amount_fm, ngo, ngo_label });
   }
   return out;
 }
@@ -716,7 +750,8 @@ function renderAllMarkers(list){
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr = f.timestamp ? fmtDateTimeFromTs(f.timestamp) : '';
       const shareUrl = `${location.origin}/f/${escAttr(f.id)}`;
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0, f.amount_fm);
+      const fmVal = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : MAINTENANCE_FEE_EUR;
+      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0, fmVal, f.ngo_label);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
       batch.push(mk);
     }
@@ -724,7 +759,8 @@ function renderAllMarkers(list){
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      if(!userClicked){ try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{} }
+      // No recentrar automáticamente: respetar la interacción del usuario
+      if(!hasCenteredInitially){ hasCenteredInitially=true; }
     }
   })();
 }
