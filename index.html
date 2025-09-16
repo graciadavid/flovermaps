@@ -256,6 +256,7 @@ let lastTs=0; window._lastItems=[];
 let abortRev=null, abortCtrl=null, currentSuggest=[];
 let saving=false, lastShareUrl='', paymentRef='';
 let amount=5.9; let userClicked=false;
+let stickyPopupId=null; // mantener abierto popup de la última flor plantada
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -286,11 +287,49 @@ function escHtml(s){
   const MAP={"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"};
   return String(s||'').replace(new RegExp("[&<>\"']","g"), m=>MAP[m]);
 }
+function ngoFullLabel(v){
+  const m={msf:'Médicos Sin Fronteras', stc:'Save the Children', aecc:'Asociación Española contra el Cáncer', unicef:'UNICEF'};
+  return m[v]||'ONG';
+}
+function toCents(x){ return Math.round((Number(x)||0)*100); }
 
-/* === CENTRADO PRECISO DEL ANILLO === */
-const RING_OFFSET_X = 0;
-const RING_OFFSET_Y = 0;
-const CTA_OFFSET_Y  = 44;
+/* === CENTRADO PRECISO DEL ANILLO (dinámico) === */
+function positionRingFromMarker(){
+  if(!selectedMarker) return;
+  try{
+    const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
+    const iconEl = (selectedMarker.getElement && selectedMarker.getElement()) || selectedMarker._icon;
+    const mapEl = document.getElementById('map');
+    if(iconEl && mapEl){
+      const r = iconEl.getBoundingClientRect();
+      const rm = mapEl.getBoundingClientRect();
+      const centerX = (r.left + r.width/2) - rm.left;
+      const centerY = (r.top + r.height/2) - rm.top;
+      dragRing.style.left = centerX + 'px';
+      dragRing.style.top  = centerY + 'px';
+      return;
+    }
+    // Fallback: desplazar aprox a mitad del emoji
+    dragRing.style.left = p.x + 'px';
+    dragRing.style.top  = (p.y - 22) + 'px';
+  }catch{
+    // Fallback duro
+    const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
+    dragRing.style.left = p.x + 'px';
+    dragRing.style.top  = (p.y - 22) + 'px';
+  }
+}
+const CTA_OFFSET_Y = 52;
+function positionPinCtaFromMarker(){
+  if(!selectedMarker) return;
+  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
+  pinCta.style.left = (p.x) + 'px';
+  pinCta.style.top  = (p.y + CTA_OFFSET_Y) + 'px';
+}
+function showRing(){ dragRing.style.display='block'; }
+function hideRing(){ dragRing.style.display='none'; }
+function showPinCtaFromMarker(){ positionPinCtaFromMarker(); pinCta.style.display='inline-block'; }
+function hidePinCta(){ pinCta.style.display='none'; }
 
 /* === MAP === */
 function initMap(){
@@ -349,24 +388,6 @@ function setSelectedPoint(lat,lng,animate=false){
   showRing(); positionRingFromMarker();
   showPinCtaFromMarker();
 }
-
-/* Centrado anillo/CTA desde containerPoint */
-function positionRingFromMarker(){
-  if(!selectedMarker) return;
-  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  dragRing.style.left = (p.x + RING_OFFSET_X) + 'px';
-  dragRing.style.top  = (p.y + RING_OFFSET_Y) + 'px';
-}
-function positionPinCtaFromMarker(){
-  if(!selectedMarker) return;
-  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  pinCta.style.left = (p.x) + 'px';
-  pinCta.style.top  = (p.y + CTA_OFFSET_Y) + 'px';
-}
-function showRing(){ dragRing.style.display='block'; }
-function hideRing(){ dragRing.style.display='none'; }
-function showPinCtaFromMarker(){ positionPinCtaFromMarker(); pinCta.style.display='inline-block'; }
-function hidePinCta(){ pinCta.style.display='none'; }
 
 /* Reverse geocoding */
 async function reverseAt(lat,lng){
@@ -475,7 +496,7 @@ function closeSheet(){
 /* Mensaje 1 línea / 30 chars */
 const chars=document.getElementById('chars');
 msgInput.addEventListener('input', ()=>{
-  msgInput.value = msgInput.value.replace(new RegExp("\\r?\\n","g"), '').slice(0,30);
+  msgInput.value = msgInput.value.replace(new RegExp("\r?\n","g"), '').slice(0,30);
   chars.textContent='(' + msgInput.value.length + '/30)';
 });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
@@ -533,11 +554,20 @@ async function actuallySaveFlower(from,to,msg){
       + '&lat='     +encodeURIComponent(selectedLat)
       + '&lng='     +encodeURIComponent(selectedLng)
       + '&ngo='     +encodeURIComponent(ngoSel.value||'msf')
+      + '&ngo_label='+encodeURIComponent(ngoFullLabel(ngoSel.value||'msf'))
       + '&amount_total=' + encodeURIComponent(total)
       + '&amount_ong='   + encodeURIComponent(amountOng)
       + '&amount_fm='    + encodeURIComponent(amountFm)
       + '&split_ong='    + encodeURIComponent(splitOng)
       + '&split_fm='     + encodeURIComponent(splitFm)
+      + '&amountTotal='  + encodeURIComponent(total)
+      + '&amountOng='    + encodeURIComponent(amountOng)
+      + '&amountFm='     + encodeURIComponent(amountFm)
+      + '&splitOng='     + encodeURIComponent(splitOng)
+      + '&splitFm='      + encodeURIComponent(splitFm)
+      + '&amount_total_cents=' + encodeURIComponent(toCents(total))
+      + '&amount_ong_cents='   + encodeURIComponent(toCents(amountOng))
+      + '&amount_fm_cents='    + encodeURIComponent(toCents(amountFm))
       + '&paymentRef='   + encodeURIComponent(paymentRef||'demo');
     const data = await jsonp(url);
 
@@ -551,28 +581,35 @@ async function actuallySaveFlower(from,to,msg){
     }
     lastShareUrl = shareUrl;
 
-    // Registrar la flor en memoria inmediata y re-renderizar (para que NO desaparezca)
+    // Usar el propio marcador seleccionado como marcador final para no cerrar el popup
     const lat=+selectedLat, lng=+selectedLng;
-    const dt = (data && data.ts) ? Number(data.ts) : Date.now();
-    const newId = (data && data.id) ? String(data.id) : `${selectedLat},${selectedLng},${dt}`;
+    const ts = (data && data.ts) ? Number(data.ts) : Date.now();
+    const newId = (data && data.id) ? String(data.id) : `${selectedLat},${selectedLng},${ts}`;
+    stickyPopupId = newId;
+
+    const html = popupHtml(from,to,msg,fmtDateTimeFromTs(ts), shareUrl, total, amountFm);
+
+    if(selectedMarker){
+      try{ selectedMarker.dragging.disable(); }catch{}
+      try{ selectedMarker.unbindTooltip(); }catch{}
+      selectedMarker.bindPopup(html);
+      flowersLayer.addLayer(selectedMarker);
+      selectedMarker.openPopup();
+    }
+
+    // Añadir al estado en memoria
     try{
-      const newItem = { id:newId, lat, lng, fromName:from, toName:to, message:msg, timestamp:dt, amount_total: total, amount_fm: amountFm, ngo:(ngoSel.value||'msf') };
+      const newItem = { id:newId, lat, lng, fromName:from, toName:to, message:msg, timestamp:ts, amount_total: total, amount_fm: amountFm };
       window._lastItems = mergeUniqueById(window._lastItems||[], [newItem]);
-      renderAllMarkers(window._lastItems);
     }catch{}
 
-    // Limpieza de UI y enfoque
-    if(selectedMarker){ try{ selectedMarker.dragging.disable(); }catch{} try{ selectedMarker.unbindTooltip(); }catch{} }
     hideRing(); hidePinCta(); addrBadge.style.display='none';
     try{ map.flyTo([lat,lng], FINAL_ZOOM, {duration:0.5}); }catch{}
 
-    // Abrir el popup del marcador recién creado
-    setTimeout(()=>{ try{ flowersLayer && flowersLayer.eachLayer(l=>{ try{ const p=l.getLatLng&&l.getLatLng(); if(p && Math.abs(p.lat-lat)<1e-8 && Math.abs(p.lng-lng)<1e-8){ l.openPopup(); } }catch{} }); }catch{} }, 60);
-
     selectedMarker = null; selectedLat=null; selectedLng=null;
 
-    // Refetch en background
-    setTimeout(()=>refetch(true), 50);
+    // Refetch en background: mantengo el popup abierto tras re-render
+    setTimeout(()=>refetch(true), 600);
     closeSheet();
     toast('Flor plantada 🌸');
   }catch(e){
@@ -604,7 +641,10 @@ async function shareAny(url){
   try{
     if(navigator.share){ await navigator.share({title:'Flovermaps', text:`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`, url}); }
     else{ await navigator.clipboard.writeText(`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`); toast('Enlace copiado'); }
-  }catch{}
+  }catch{} finally {
+    // Re-abrir el popup "pegado" si se cerró al volver del share sheet
+    if(stickyPopupId){ try{ flowersLayer && flowersLayer.eachLayer(l=>{ if(l && l._fid===stickyPopupId){ try{ l.openPopup(); }catch{} } }); }catch{} }
+  }
 }
 window.shareAny = shareAny;
 
@@ -614,6 +654,7 @@ window.plantAnother = function(){
   slist.style.display='none';
   hideRing(); hidePinCta(); addrBadge.style.display='none';
   selectedMarker=null; selectedLat=null; selectedLng=null; 
+  stickyPopupId=null;
   try{ map.flyTo([40.4168, -3.7038], 5, {duration:0.5}); }catch{}
 };
 
@@ -621,7 +662,7 @@ window.plantAnother = function(){
 async function tryOpenShared(){
   const path = location.pathname;
   let id = null;
-  const m = path.match(new RegExp("\\/f\\/([^\\/?#]+)"));
+  const m = path.match(new RegExp("\/f\/([^\/?#]+)"));
   if(m && m[1]) id = decodeURIComponent(m[1]);
   if(!id){
     const u=new URL(location.href);
@@ -640,6 +681,7 @@ async function tryOpenShared(){
         const dtStr = fmtDateTimeFromTs(it.timestamp);
         const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0, Number(it.amount_fm)||0.90);
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
+        mk._fid = String(it.id||id);
         map.setView([lat,lng], FINAL_ZOOM);
         mk.openPopup();
         return;
@@ -662,8 +704,9 @@ function normalizeItems(items){
     const toName   = f.toName   ?? '';
     const message  = f.message  ?? '';
     const timestamp= f.timestamp?? '';
-    const amount_total = Number(f.amount_total)||0;
-    const amount_fm = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : null;
+    // soportar backends distintos: snake_case y camelCase
+    const amount_total = isFinite(Number(f.amount_total)) ? Number(f.amount_total) : (isFinite(Number(f.amountTotal)) ? Number(f.amountTotal) : 0);
+    const amount_fm = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : (isFinite(Number(f.amountFm)) ? Number(f.amountFm) : null);
     out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total, amount_fm });
   }
   return out;
@@ -689,12 +732,14 @@ function renderAllMarkers(list){
       const fmVal = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : 0.90;
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0, fmVal);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
+      mk._fid = String(f.id);
       batch.push(mk);
     }
     if(batch.length){ if(useCluster) flowersLayer.addLayers(batch); else batch.forEach(m=>flowersLayer.addLayer(m)); }
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
+      if(stickyPopupId){ try{ flowersLayer && flowersLayer.eachLayer(l=>{ if(l && l._fid===stickyPopupId){ try{ l.openPopup(); }catch{} } }); }catch{} }
       if(!userClicked){ try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{} }
     }
   })();
