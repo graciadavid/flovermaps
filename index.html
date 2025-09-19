@@ -17,20 +17,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="/og_flovermaps.jpg">
 
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://basemaps.cartocdn.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-
-<!-- Leaflet (principal) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- MarkerCluster -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
   :root{
@@ -43,10 +35,9 @@
   body{
     margin:0; font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink);
     background: linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
-    overflow:hidden; /* sin scroll de página */
+    overflow:hidden;
   }
 
-  /* Header minimal */
   .site-header{
     position:fixed; z-index:1000; inset:auto 0 auto 0; top:0;
     display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none;
@@ -55,11 +46,9 @@
   .brand img{ height:84px; display:block }
   @media (min-width:900px){ .brand img{ height:96px } }
 
-  /* Mapa full */
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100vh; height:100dvh; }
 
-  /* Controles inferiores (sobre el mapa) */
   .controls{
     position:fixed; z-index:900; left:50%; transform:translateX(-50%);
     bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
@@ -81,7 +70,6 @@
     border:0; outline:none; width:100%; font: inherit; background:transparent; color:var(--ink);
   }
 
-  /* Lista de sugerencias */
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(84px + var(--safe-b));
@@ -91,7 +79,6 @@
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
 
-  /* Etiqueta de dirección */
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880;
     background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; color:#0e1935;
@@ -99,7 +86,6 @@
   }
   .addr-badge::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)); }
 
-  /* CTA pegado al pin (más estético) */
   .pin-cta{
     position:absolute; z-index:930; display:none;
     background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px; padding:14px 18px; font-size:1.05rem; font-weight:700; letter-spacing:.2px;
@@ -107,7 +93,6 @@
   }
   .pin-cta:active{ transform:translate(-50%, 12px); }
 
-  /* Marcador emoji + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
   .emoji-marker{ background:transparent; }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
@@ -123,7 +108,6 @@
   }
   .leaflet-tooltip.drag-tip::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)); }
 
-  /* Sheet (formulario) */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1001; transform:translateY(100%); transition:transform .25s ease;
           background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column; }
   .sheet.open{ transform:translateY(0) }
@@ -137,12 +121,10 @@
   .btn-green{ background:var(--green); color:#fff }
   .muted{ color:var(--muted); font-size:.95rem }
 
-  /* Chips de importe */
   .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
   .chip{ padding:8px 10px; border:1px solid #e6e6e6; border-radius:999px; cursor:pointer; }
   .chip.active{ background:var(--green); color:#fff; border-color:var(--green) }
 
-  /* Toast */
   .toast{
     position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%);
     background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s
@@ -162,7 +144,6 @@
   <button id="pinCta" class="pin-cta">Continuar</button>
 </main>
 
-<!-- Controles inferiores -->
 <div class="controls" id="controls" aria-label="Controles">
   <div class="row">
     <button id="tapBtn" class="tool-btn">🌸 Plantar desde el mapa</button>
@@ -176,11 +157,9 @@
   </div>
 </div>
 
-<!-- Sugerencias y dirección -->
 <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
-<!-- Hoja inferior (formulario) -->
 <section id="sheet" class="sheet" aria-modal="true" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div id="sheetBody" class="body">
@@ -193,7 +172,6 @@
       <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
       <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
 
-      <!-- ONG -->
       <label for="ngo" style="margin-top:10px">ONG</label>
       <select id="ngo">
         <option value="msf" selected>Médicos Sin Fronteras</option>
@@ -202,7 +180,6 @@
         <option value="unicef">UNICEF</option>
       </select>
 
-      <!-- Importe -->
       <div style="margin-top:10px">
         <div class="chips" id="chips">
           <button class="chip" data-amount="1.9">1,90 €</button>
@@ -228,13 +205,13 @@
 
 <script>
 /* === CONFIG === */
-const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec"; // tu Apps Script v2 (list/get)
-const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com"; // tu backend en Render
-const MAINTENANCE_FEE_EUR = 0.90; // info de copy (el guardado real lo hace el webhook)
-const SELECT_ZOOM = 10;   // zoom al elegir punto (map click / búsqueda)
-const FINAL_ZOOM  = 17;   // zoom al plantar para ver el punto exacto
+const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec"; // Apps Script v2
+const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com"; // Render
+const MAINTENANCE_FEE_EUR = 0.90;
+const SELECT_ZOOM = 10;
+const FINAL_ZOOM  = 17;
 
-/* === JSONP helper (para Apps Script list/get) === */
+/* === JSONP helper (Apps Script list/get) === */
 function jsonp(url, timeoutMs=12000){
   return new Promise((resolve, reject)=>{
     const cb='__fp_cb_'+Math.random().toString(36).slice(2);
@@ -290,7 +267,7 @@ function ngoFullLabel(v){
   return m[v]||'ONG';
 }
 
-/* === CENTRADO PRECISO DEL ANILLO (dinámico) === */
+/* === Anillo/CTA centrados === */
 function positionRingFromMarker(){
   if(!selectedMarker) return;
   try{
@@ -331,7 +308,7 @@ function initMap(){
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([40.4168,-3.7038],5); // España por defecto
+  map.setView([40.4168,-3.7038],5);
 
   ensureFlowersLayer(false);
 
@@ -344,10 +321,12 @@ function initMap(){
     if(selectedMarker){ positionRingFromMarker(); positionPinCtaFromMarker(); }
   });
 
-  window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),100));
-  setTimeout(()=>map.invalidateSize(),150);
+  window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),120));
+  setTimeout(()=>map.invalidateSize(),200);
 }
 function ensureFlowersLayer(wantCluster){
+  const clusterAvail = !!(window.L && L.markerClusterGroup);
+  if(!clusterAvail) wantCluster = false; // fallback sin cluster
   if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
   if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
   flowersLayer = wantCluster
@@ -357,7 +336,7 @@ function ensureFlowersLayer(wantCluster){
   useCluster=wantCluster;
 }
 
-/* === Selección de punto === */
+/* === Seleccionar punto === */
 function setSelectedPoint(lat,lng,animate=false){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
@@ -384,7 +363,7 @@ function setSelectedPoint(lat,lng,animate=false){
   showPinCtaFromMarker();
 }
 
-/* Reverse geocoding */
+/* === Reverse geocode === */
 async function reverseAt(lat,lng){
   if(abortRev){ try{ abortRev.abort(); }catch{} }
   const ctl=new AbortController(); abortRev=ctl;
@@ -402,7 +381,7 @@ async function reverseAt(lat,lng){
   }catch{ addrBadge.textContent='Ubicación aproximada'; }
 }
 
-/* Controles */
+/* === Controles === */
 tapBtn.addEventListener('click', ()=>{ toast('Toca el mapa para continuar'); });
 gpsBtn.addEventListener('click', ()=>{
   if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
@@ -413,8 +392,8 @@ gpsBtn.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* Búsqueda incremental */
-let suggestTimer=null, abortCtrl=null, currentSuggest=[];
+/* === Búsqueda incremental === */
+let suggestTimer=null;
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -470,13 +449,11 @@ document.addEventListener('click', e=>{
   if(!slist.contains(e.target) && e.target!==searchInput) slist.style.display='none';
 });
 
-/* CTA del pin → abrir hoja */
+/* === Sheet === */
 pinCta.addEventListener('click', ()=>{
   if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero', false);
   openSheet();
 });
-
-/* Sheet */
 function openSheet(){
   sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
   try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
@@ -487,7 +464,7 @@ function closeSheet(){
   try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
 }
 
-/* Mensaje 1 línea / 30 chars */
+/* === Mensaje (1 línea) === */
 const chars=$("#chars");
 msgInput.addEventListener('input', ()=>{
   msgInput.value = msgInput.value.replace(new RegExp("\r?\n","g"), '').slice(0,30);
@@ -495,7 +472,7 @@ msgInput.addEventListener('input', ()=>{
 });
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
-/* Importe + copy split */
+/* === Importe + copy === */
 chips.addEventListener('click', (e)=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -516,13 +493,12 @@ function updateSplitCopy(){
 }
 ngoSel.addEventListener('change', updateSplitCopy);
 
-/* === PAGO CON STRIPE (via backend) === */
+/* === PAGO CON STRIPE === */
 payBtn.addEventListener('click', async ()=>{
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
 
-  // Bloquea botón y crea sesión de pago en backend
   payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Abriendo pago…';
   try{
     const body = {
@@ -543,7 +519,6 @@ payBtn.addEventListener('click', async ()=>{
     });
     const j = await r.json().catch(()=>null);
     if(!j || !j.ok || !j.url){ toast('Error creando pago', false); return; }
-    // Redirige a Stripe (modo prueba)
     location.href = j.url;
   }catch(e){
     toast('Fallo de red', false);
@@ -552,9 +527,7 @@ payBtn.addEventListener('click', async ()=>{
   }
 });
 
-/* === DESPUÉS DE VOLVER DE STRIPE ===
-   Si hay ?success=1&session_id=cs_xxx => centra el mapa en la flor que guardó el webhook y refresca.
-*/
+/* === Post-Stripe focus === */
 async function tryFocusAfterStripe(){
   const u = new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -566,10 +539,8 @@ async function tryFocusAfterStripe(){
         try{ map.flyTo([Number(j.lat), Number(j.lng)], FINAL_ZOOM, {duration:0.6}); }catch{}
       }
     }catch{}
-    // Limpia los params para no repetir
     u.searchParams.delete('success'); u.searchParams.delete('session_id');
     history.replaceState({}, '', u.toString());
-    // Refresca datos del mapa (la flor ya está en Sheets por el webhook)
     setTimeout(()=>refetch(true), 300);
     toast('¡Gracias! Flor plantada 🌸');
   }else if(u.searchParams.get('canceled')==='1'){
@@ -579,7 +550,7 @@ async function tryFocusAfterStripe(){
   }
 }
 
-/* === Todas las flores (mapa vivo) === */
+/* === Render de flores === */
 function popupHtml(from,to,msg,dtStr,shareUrl,total,amountFm){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
@@ -614,7 +585,7 @@ window.plantAnother = function(){
   try{ map.flyTo([40.4168, -3.7038], 5, {duration:0.5}); }catch{}
 };
 
-/* Deep link: /f/{id} ó ?id=... */
+/* === Deep link === */
 async function tryOpenShared(){
   const path = location.pathname;
   let id = null;
@@ -622,7 +593,7 @@ async function tryOpenShared(){
   if(m && m[1]) id = decodeURIComponent(m[1]);
   if(!id){
     const u=new URL(location.href);
-    id=u.searchParams.get('id'); // compat
+    id=u.searchParams.get('id');
   }
   const u2 = new URL(location.href);
   const latParam=u2.searchParams.get('lat'), lngParam=u2.searchParams.get('lng');
@@ -642,14 +613,14 @@ async function tryOpenShared(){
         mk.openPopup();
         return;
       }
-    }catch(e){ /* fallback abajo */ }
+    }catch(e){}
   } else if(latParam && lngParam){
     const lat=+latParam, lng=+lngParam;
     map.setView([lat,lng], FINAL_ZOOM);
   }
 }
 
-/* Normalización + render general */
+/* === Normaliza + render === */
 function normalizeItems(items){
   const out=[];
   for(const f of (items||[])){
@@ -699,7 +670,7 @@ function renderAllMarkers(list){
   })();
 }
 
-/* Refetch periódico */
+/* === Refetch periódico === */
 async function refetch(incremental=false){
   try{
     const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
@@ -720,44 +691,62 @@ async function refetch(incremental=false){
   }
 }
 
-/* Logo → refrescar */
+/* === Logo → refresh === */
 $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
-/* ======= ARRANQUE ======= */
-(function ensureLeafletReady(){
-  const start = async ()=>{
-    if(!window.L){ alert('No se pudo cargar Leaflet. Revisa si tu red o el CSP bloquean los CDNs.'); return; }
-    initMap();
-    await refetch(false);
-    setInterval(()=>refetch(true),15000);
-    tryOpenShared();
-    tryFocusAfterStripe(); // <— centra después de Stripe si viene de éxito
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
-  };
-
-  const cssCDN=[
+/* === Cargador robusto de Leaflet + MarkerCluster === */
+(async function bootAll(){
+  const leafletCSS = [
     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'
   ];
-  const jsCDN=[
+  const leafletJS = [
     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'
   ];
-  function loadCSS(href){
-    return new Promise((res,rej)=>{ const l=document.createElement('link'); l.rel='stylesheet'; l.href=href; l.onload=res; l.onerror=rej; document.head.appendChild(l); setTimeout(()=>rej(new Error('css timeout')),15000); });
+  const mcCSS = [
+    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
+    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css'
+  ];
+  const mcCSS2 = [
+    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
+    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css'
+  ];
+  const mcJS = [
+    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js'
+  ];
+
+  function loadCSS(url){ return new Promise((res,rej)=>{ const l=document.createElement('link'); l.rel='stylesheet'; l.href=url; l.onload=()=>res(true); l.onerror=()=>rej(); document.head.appendChild(l); setTimeout(()=>rej(),15000); }); }
+  async function loadFirstCSS(list){ for(const u of list){ try{ await loadCSS(u); return true; }catch{} } return false; }
+  function loadJS(url){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=url; s.async=true; s.onload=()=>res(true); s.onerror=()=>rej(); document.head.appendChild(s); setTimeout(()=>rej(),15000); }); }
+  async function loadFirstJS(list){ for(const u of list){ try{ await loadJS(u); return true; }catch{} } return false; }
+
+  // Leaflet primero
+  await loadFirstCSS(leafletCSS);
+  const leafletOk = await loadFirstJS(leafletJS);
+  if(!leafletOk || !window.L){ alert('No se pudo cargar Leaflet. Revisa tu red o CSP.'); return; }
+
+  // MarkerCluster (opcional)
+  const mcCssOk1 = await loadFirstCSS(mcCSS).catch(()=>false);
+  const mcCssOk2 = await loadFirstCSS(mcCSS2).catch(()=>false);
+  const mcJsOk  = await loadFirstJS(mcJS).catch(()=>false);
+  if(!(mcCssOk1 && mcCssOk2 && mcJsOk) || !L.markerClusterGroup){
+    console.warn('[Flovermaps] MarkerCluster no disponible; seguimos sin clustering.');
   }
-  function loadJS(src){
-    return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=res; s.onerror=rej; document.head.appendChild(s); setTimeout(()=>rej(new Error('js timeout')),15000); });
-  }
-  async function boot(){
-    if(window.L){ start(); return; }
-    for(const href of cssCDN){ try{ await loadCSS(href); break; }catch(e){} }
-    for(const src of jsCDN){ try{ await loadJS(src); if(window.L) break; }catch(e){} }
-    start();
-  }
-  if(document.readyState==='complete') boot(); else window.addEventListener('load', boot);
+
+  // Arranque app
+  initMap();
+  await refetch(false);
+  setInterval(()=>refetch(true),15000);
+  tryOpenShared();
+  tryFocusAfterStripe();
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
 })();
 </script>
 </body>
