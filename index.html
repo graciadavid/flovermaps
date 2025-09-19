@@ -141,7 +141,7 @@
 <main id="mapWrap" aria-label="Mapa">
   <div id="map"></div>
   <div id="dragRing" class="drag-ring"></div>
-  <button id="pinCta" class="pin-cta">Continuar</button>
+  <button id="pinCta" class="pin-cta">Plantar</button>
 </main>
 
 <div class="controls" id="controls" aria-label="Controles">
@@ -251,18 +251,18 @@ const ACCEPT_LANG = (()=>{
     return set.join(',');
   }catch{ return 'es,en'; }
 })();
-function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),1800); }
+function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),2000); }
 function fmt(n){ return (Number(n)||0).toFixed(2).replace('.',','); }
 function fmtDateTimeFromTs(ts){
   const n=Number(ts); if(!isFinite(n)) return '';
   try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date(n)).replace(',', ''); }
   catch{return '';} }
 function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
-function escAttr(s){ return encodeURIComponent(String(s||'')); }
 function escHtml(s){
   const MAP={"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"};
   return String(s||'').replace(new RegExp("[&<>\"']","g"), m=>MAP[m]);
 }
+function jsStr(s){ return JSON.stringify(String(s||'')); } // para pasar URL cruda a onclick sin romperla
 function ngoFullLabel(v){
   const m={msf:'Médicos Sin Fronteras', stc:'Save the Children', aecc:'Asociación Española contra el Cáncer', unicef:'UNICEF'};
   return m[v]||'ONG';
@@ -272,7 +272,6 @@ function ngoFullLabel(v){
 function positionRingFromMarker(){
   if(!selectedMarker) return;
   try{
-    const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
     const iconEl = (selectedMarker.getElement && selectedMarker.getElement()) || selectedMarker._icon;
     const mapEl = document.getElementById('map');
     if(iconEl && mapEl){
@@ -284,13 +283,10 @@ function positionRingFromMarker(){
       dragRing.style.top  = centerY + 'px';
       return;
     }
-    dragRing.style.left = p.x + 'px';
-    dragRing.style.top  = (p.y - 22) + 'px';
-  }catch{
-    const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-    dragRing.style.left = p.x + 'px';
-    dragRing.style.top  = (p.y - 22) + 'px';
-  }
+  }catch{}
+  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
+  dragRing.style.left = p.x + 'px';
+  dragRing.style.top  = (p.y - 22) + 'px';
 }
 const CTA_OFFSET_Y = 52;
 function positionPinCtaFromMarker(){
@@ -394,7 +390,7 @@ gpsBtn.addEventListener('click', ()=>{
 });
 
 /* === Búsqueda === */
-let suggestTimer=null;
+let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -482,14 +478,10 @@ chips.addEventListener('click', (e)=>{
   const v=b.dataset.amount;
   if(v==='other'){
     otherRow.style.display='block';
-    // preset al mínimo permitido si estaba vacío o fuera de rango
+    // preset al mínimo si vacío
     const cur = Number(String(otherAmount.value||'').replace(',','.'));
-    if(!isFinite(cur) || cur<MIN_OTHER || cur>MAX_OTHER){
-      otherAmount.value = MIN_OTHER.toFixed(2);
-      amount = MIN_OTHER;
-    } else {
-      amount = cur;
-    }
+    if(!isFinite(cur)) { otherAmount.value = MIN_OTHER.toFixed(2); amount = MIN_OTHER; }
+    else { amount = Math.min(Math.max(cur, MIN_OTHER), MAX_OTHER); otherAmount.value = amount.toFixed(2); }
     otherAmount.focus();
   } else {
     otherRow.style.display='none';
@@ -497,13 +489,17 @@ chips.addEventListener('click', (e)=>{
   }
   updatePayBtn(); updateSplitCopy();
 });
-otherAmount.addEventListener('input', ()=>{
-  // normaliza coma/punto, clamp a [1.9, 24.9]
+otherAmount.addEventListener('blur', ()=>{
   let val = Number(String(otherAmount.value||'').replace(',','.'));
   if(!isFinite(val)) val = MIN_OTHER;
-  if(val<MIN_OTHER) val = MIN_OTHER;
-  if(val>MAX_OTHER) val = MAX_OTHER;
-  amount = val;
+  if(val<MIN_OTHER){ toast(`El mínimo es ${MIN_OTHER.toFixed(2)} €`, false); val = MIN_OTHER; }
+  if(val>MAX_OTHER){ toast(`El máximo es ${MAX_OTHER.toFixed(2)} €`, false); val = MAX_OTHER; }
+  amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn(); updateSplitCopy();
+});
+otherAmount.addEventListener('input', ()=>{
+  let val = Number(String(otherAmount.value||'').replace(',','.'));
+  if(!isFinite(val)) return;
+  amount = val; // actualiza en vivo (validamos al blur o al pagar)
   updatePayBtn(); updateSplitCopy();
 });
 function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
@@ -513,19 +509,19 @@ function updateSplitCopy(){
 }
 ngoSel.addEventListener('change', updateSplitCopy);
 
-/* === PAGO CON STRIPE (valida rango en “Otro”) === */
+/* === PAGO CON STRIPE === */
 payBtn.addEventListener('click', async ()=>{
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
 
-  // Validación estricta si “Otro” está visible
+  // Validación final de “Otro”
   if(otherRow.style.display!=='none'){
-    if(!(amount>=MIN_OTHER && amount<=MAX_OTHER)){
-      toast(`El importe "Otro" debe estar entre ${MIN_OTHER.toFixed(2)} € y ${MAX_OTHER.toFixed(2)} €`, false);
-      otherAmount.focus();
-      return;
-    }
+    let val = Number(String(otherAmount.value||'').replace(',','.'));
+    if(!isFinite(val)) val = MIN_OTHER;
+    if(val<MIN_OTHER){ toast(`El mínimo es ${MIN_OTHER.toFixed(2)} €`, false); val = MIN_OTHER; }
+    if(val>MAX_OTHER){ toast(`El máximo es ${MAX_OTHER.toFixed(2)} €`, false); val = MAX_OTHER; }
+    amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn();
   }
 
   payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Abriendo pago…';
@@ -539,7 +535,7 @@ payBtn.addEventListener('click', async ()=>{
       message: msg,
       ngo: String(ngoSel.value||''),
       ngo_label: ngoFullLabel(ngoSel.value||''),
-      amount_total: Number(amount.toFixed(2))
+      amount_total: Number(Number(amount).toFixed(2))
     };
     const r = await fetch(`${BACKEND_URL}/create-checkout-session`, {
       method:'POST',
@@ -556,7 +552,7 @@ payBtn.addEventListener('click', async ()=>{
   }
 });
 
-/* === Post-Stripe: mantener zoom calle + abrir popup === */
+/* === Post-Stripe: mantener zoom calle + abrir popup con FECHA === */
 async function tryFocusAfterStripe(){
   const u = new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -581,21 +577,25 @@ async function tryFocusAfterStripe(){
   }
 }
 
-/* === Render de flores === */
+/* === Popup === */
 function popupHtml(from,to,msg,dtStr,shareUrl,total,amountFm){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
   const t = Number(total)||0, fm = Number(amountFm)||0.90, ongVal = Math.max(0, t - fm);
   const ong = ongVal.toFixed(2).replace('.',','), fmStr = fm.toFixed(2).replace('.',','), tt = t.toFixed(2).replace('.',',');
   const dateLine = dtStr ? `<div class="muted" style="margin-bottom:6px">${dtStr} · <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>` : `<div class="muted" style="margin-bottom:6px"><strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>`;
+  const urlStr = jsStr(url); // pasa la URL cruda a JS
   return `
     <div style="min-width:260px;max-width:300px">
       ${dateLine}
       <div style="margin-bottom:10px">${safeMsg}</div>
       <div class="muted" style="margin-bottom:10px">Donación total: ${tt} € · ONG: ${ong} € · Mantenimiento: ${fmStr} €</div>
-      <button onclick="shareAny('${escAttr(url)}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
+      <button onclick="shareAny(${urlStr})" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
+      <div style="margin-top:6px; text-align:center">
+        <a href=${urlStr} target="_blank" rel="noopener" class="muted" style="text-decoration:underline; font-size:.9rem">Abrir enlace</a>
+      </div>
       <div style="margin-top:8px; text-align:center">
-        <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra</button>
+        <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra 🌸</button>
       </div>
     </div>`;
 }
@@ -674,7 +674,7 @@ function mergeUniqueById(oldList, newList){
 }
 function renderAllMarkers(list){
   if(!map) return;
-  const wantCluster = list.length >= 30; // clustering sólo si hay bastantes
+  const wantCluster = list.length >= 30;
   ensureFlowersLayer(wantCluster);
   try{ flowersLayer.clearLayers(); }catch{}
   let i=0, n=list.length;
@@ -685,7 +685,7 @@ function renderAllMarkers(list){
       const f=list[i++]; const lat=f.lat, lng=f.lng;
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr = f.timestamp ? fmtDateTimeFromTs(f.timestamp) : '';
-      const shareUrl = `${location.origin}/f/${escAttr(f.id)}`;
+      const shareUrl = `${location.origin}/f/${encodeURIComponent(f.id)}`;
       const fmVal = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : 0.90;
       const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0, fmVal);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
@@ -696,19 +696,23 @@ function renderAllMarkers(list){
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      // Abrir popup de la última plantada si existe
+      // Si tenemos última plantada, re-abrimos su popup con datos (incluye fecha)
       if(lastPlanted){
         try{
           let opened=false;
           flowersLayer.eachLayer(l=>{
             if(opened) return;
             if(l && l._fid===lastPlanted.id){
-              l.openPopup(); opened=true;
-            }else if(!lastPlanted.id && l && l.getLatLng){
-              const p=l.getLatLng(); // fallback por coord
-              if(Math.abs(p.lat-lastPlanted.lat)<1e-6 && Math.abs(p.lng-lastPlanted.lng)<1e-6){
-                l.openPopup(); opened=true;
+              // Rebinda popup con el item exacto (para asegurar timestamp)
+              const item = (list||[]).find(x=>String(x.id)===String(lastPlanted.id));
+              if(item){
+                const dtStr = item.timestamp ? fmtDateTimeFromTs(item.timestamp) : '';
+                const shareUrl = `${location.origin}/f/${encodeURIComponent(item.id)}`;
+                const fmVal = isFinite(Number(item.amount_fm)) ? Number(item.amount_fm) : 0.90;
+                l.unbindPopup();
+                l.bindPopup(popupHtml(item.fromName||'', item.toName||'', item.message||'', dtStr, shareUrl, item.amount_total||0, fmVal));
               }
+              l.openPopup(); opened=true;
             }
           });
           if(opened){
