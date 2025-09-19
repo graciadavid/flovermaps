@@ -11,6 +11,12 @@
 <link rel="icon" type="image/svg+xml"
   href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="%23c73737" d="M32 57c-1.1 0-2.1-.3-3-.9C20.7 51.7 4 39.7 4 22.8 4 14 11 7 19.8 7c4.8 0 9.1 2.2 12.2 5.7C35.1 9.2 39.4 7 44.2 7 53 7 60 14 60 22.8c0 16.9-16.7 28.9-25 33.3-.9.6-1.9.9-3 .9z"/></svg>' />
 
+<!-- Perf -->
+<link rel="preconnect" href="https://api.stripe.com" crossorigin>
+<link rel="preconnect" href="https://js.stripe.com" crossorigin>
+<link rel="preconnect" href="https://flovermaps-stripe-backend.onrender.com" crossorigin>
+<link rel="preconnect" href="https://nominatim.openstreetmap.org">
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -20,25 +26,13 @@
   *{box-sizing:border-box} html,body{height:100%}
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
 
-  /* Header con logo + contador en columna */
-  .site-header{
-    position:fixed; z-index:1000; top:0; inset:auto 0 auto 0;
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-    padding:8px 10px; padding-top:calc(8px + var(--safe-t));
-    pointer-events:none;
-  }
+  /* Header */
+  .site-header{ position:fixed; z-index:1000; top:0; inset:auto 0 auto 0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
   .brand img{ height:84px; display:block }
   @media(min-width:900px){ .brand img{ height:96px } }
-
-  /* Contador 2 líneas */
-  .counter{
-    pointer-events:none; text-align:center; line-height:1.2;
-    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:8px 14px;
-    box-shadow:0 6px 14px rgba(0,0,0,.06); color:#0e1935;
-  }
+  .counter{ pointer-events:none; text-align:center; line-height:1.2; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:8px 14px; box-shadow:0 6px 14px rgba(0,0,0,.06); color:#0e1935; }
   .counter .big{ font-weight:700 }
-  .counter .cta{ color:#0e1935; opacity:.9 }
 
   /* Mapa */
   #mapWrap{ position:fixed; inset:0; }
@@ -53,13 +47,11 @@
   .searchRow .input{ flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04) }
   .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink) }
 
-  /* Sugerencias y dirección */
+  /* Sugerencias + dirección */
   .slist{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + var(--safe-b)); width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:920; box-shadow:0 6px 14px rgba(0,0,0,.06) }
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
   .sitem:last-child{ border-bottom:0 }
-
-  .addr-badge{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880; background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; color:#0e1935; max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none }
-  .addr-badge::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)) }
+  .addr-badge{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880; background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none }
 
   /* CTA del pin */
   .pin-cta{ position:absolute; z-index:930; display:none; background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px; padding:14px 18px; font-size:1.05rem; font-weight:700; letter-spacing:.2px; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer; transform:translate(-50%,10px) }
@@ -69,11 +61,8 @@
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
   .emoji-marker{ background:transparent }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
-
   .drag-ring{ position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid #22c55e; box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9); pointer-events:none; z-index:850; display:none; transform:translate(-50%,-50%); background:radial-gradient(circle at 50% 50%,rgba(34,197,94,.12),rgba(34,197,94,.06) 60%,rgba(34,197,94,0) 70%) }
-
   .leaflet-tooltip.drag-tip{ background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:6px 12px; box-shadow:0 8px 24px rgba(0,0,0,.12); font-size:1rem; font-weight:700 }
-  .leaflet-tooltip.drag-tip::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)) }
 
   /* Sheet */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1001; transform:translateY(100%); transition:transform .25s ease; background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column }
@@ -85,7 +74,7 @@
   input,.btn,select{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
   .btn{ border:0; cursor:pointer }
   .btn-green{ background:var(--green); color:#fff }
-  .muted{ color:var(--muted); font-size:.95rem }
+  .muted{ color:#64748b; font-size:.95rem }
 
   .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
   .chip{ padding:8px 10px; border:1px solid #e6e6e6; border-radius:999px; cursor:pointer }
@@ -93,6 +82,10 @@
 
   .toast{ position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
+
+  /* Overlay de carga para Stripe */
+  .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:2000; }
+  .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
 </style>
 </head>
 <body>
@@ -101,7 +94,7 @@
   <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
   <div id="counter" class="counter" aria-live="polite">
     <div class="big"><span id="countNum">0</span> Flores Solidarias Plantadas</div>
-    <div class="cta">¡Planta la Tuya Ahora!</div>
+    <div>¡Planta la Tuya Ahora!</div>
   </div>
 </header>
 
@@ -172,6 +165,9 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<!-- Overlay de carga -->
+<div id="veil" class="veil"><div class="box">Preparando la semilla…</div></div>
+
 <script>
 /* === CONFIG === */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
@@ -182,7 +178,7 @@ const STREET_ZOOM = 17;
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
 function fmtDate(ts){try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(Number(ts)||Date.now())).replace(',',''); }catch{return ''}}
-function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
+function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
 function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function cleanup(){clearTimeout(to);try{delete window[cb]}catch{};s.remove()}window[cb]=(d)=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('jsonp'))};document.head.appendChild(s);to=setTimeout(()=>{cleanup();reject(new Error('timeout'))},timeoutMs)})}
 
@@ -192,7 +188,7 @@ let flowersCache=[]; let plantMode=false;
 const slist=document.getElementById('slist'), addrBadge=document.getElementById('addrBadge'), dragRing=document.getElementById('dragRing'), pinCta=document.getElementById('pinCta');
 const fromInput=document.getElementById('fromName'), toInput=document.getElementById('toName'), msgInput=document.getElementById('message'), ngoSel=document.getElementById('ngo');
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
-const counterNum=document.getElementById('countNum');
+const counterNum=document.getElementById('countNum'); const veil=document.getElementById('veil');
 let amount=9;
 
 /* === MAPA === */
@@ -343,51 +339,52 @@ payBtn.addEventListener('click', async ()=>{
   if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
   if(otherRow.style.display!=='none'){ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
 
-  payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Abriendo pago…';
+  // Overlay visible ya (mejor feedback que "Abriendo pago" de Stripe)
+  veil.style.display='flex';
+
+  payBtn.disabled=true;
   try{
     const body={ lat:+selectedLat, lng:+selectedLng, place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
-    const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), cache:'no-store'});
     const j=await r.json().catch(()=>null);
-    if(!j||!j.ok||!j.url) return toast('Error creando pago', false);
-    location.href=j.url;
-  }catch{ toast('Fallo de red', false); } finally{ payBtn.disabled=false; payBtn.textContent=prev; }
+    if(!j||!j.ok||!j.url){ veil.style.display='none'; return toast('Error creando pago', false); }
+    window.location.assign(j.url); // salir rápido hacia Stripe
+  }catch{ veil.style.display='none'; toast('Fallo de red', false); } finally{ payBtn.disabled=false; }
 });
 
-/* === Volver de Stripe: pintar ya, mantener ZOOM 17 y compartir OK === */
+/* === Volver de Stripe: pintar YA, centrar zoom 17, abrir popup === */
 async function afterStripe(){
   const u=new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
     const sid=u.searchParams.get('session_id');
     try{
-      const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`);
+      const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
       const j=await r.json();
       if(j&&j.ok&&j.id){
         const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
         if(d&&d.ok&&d.item){
           const it=d.item; const dt=fmtDate(it.timestamp);
-          // URL limpia (sin encodeURIComponent para el path)
           const shareUrl=`${location.origin}/f/${String(it.id)}`;
-          const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0);
-          const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html);
+          const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
+            .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
           mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup();
-          try{ map.flyTo([+it.lat,+it.lng], STREET_ZOOM, {duration:.5}); }catch{}
+          try{ map.flyTo([+it.lat,+it.lng], STREET_ZOOM, {duration:.45}); }catch{}
           upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
-          persistCache(); updateCounter();
-          // Mantener vista: no cambiamos más el mapa.
+          persistCache(); render(flowersCache); updateCounter();
           plantMode=false; hideRing(); hideCta(); addrBadge.style.display='none'; selectedMarker=null; selectedLat=null; selectedLng=null;
+          setTimeout(()=>toast('¡Gracias! Flor plantada 🌸'), 150);
         }
       }
     }catch{}
+    // limpiar query sin recargar
     u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
-    // No llamamos a refetch(false) inmediatamente para NO mover la vista. Solo incremental.
     setTimeout(()=>refetch(true), 1200);
-    toast('¡Gracias! Flor plantada 🌸');
   } else if(u.searchParams.get('canceled')==='1'){
     u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado', false);
   }
 }
 
-/* === Popup (solo botón Compartir) === */
+/* === Popup (estructura solicitada) === */
 function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url=shareUrl||`${location.origin}${location.pathname}`;
@@ -412,7 +409,6 @@ window.shareAny = shareAny;
 
 window.plantAnother=function(){
   try{ map.closePopup(); }catch{}
-  // El usuario decide dónde ir; no forzamos zoom país aquí.
   document.getElementById('controls').style.display='';
   slist.style.display='none'; hideRing(); hideCta(); addrBadge.style.display='none';
   plantMode=false; selectedMarker=null; selectedLat=null; selectedLng=null;
@@ -443,7 +439,7 @@ function render(list){
   toRemove.forEach(l=>map.removeLayer(l));
   for(const f of data){
     const dt=f.timestamp?fmtDate(f.timestamp):'';
-    const shareUrl=`${location.origin}/f/${String(f.id||'')}`; // URL limpia
+    const shareUrl=`${location.origin}/f/${String(f.id||'')}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200});
     mk._isFlower=true; mk._fid=String(f.id||'');
     mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,shareUrl,f.amount_total));
@@ -485,8 +481,9 @@ async function deepLink(){
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
       if(d&&d.ok&&d.item){
         const it=d.item; const dt=fmtDate(it.timestamp);
-        const shareUrl=`${location.origin}/f/${String(id)}`; // limpio
-        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
+        const shareUrl=`${location.origin}/f/${String(id)}`;
+        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
+          .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup(); map.setView([+it.lat,+it.lng], STREET_ZOOM); return;
       }
     }catch{}
