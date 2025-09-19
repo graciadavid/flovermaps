@@ -6,14 +6,12 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='6' y='54' font-size='52'>🌸</text></svg>">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='6' y='54' font-size='52'>🌸</text></svg>'>
 
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="preconnect" href="https://basemaps.cartocdn.com">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-
-<!-- Leaflet CSS (se inyecta también por fallback si falla este) -->
 <link id="leaflet-css" rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <style>
@@ -126,7 +124,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* ====== CONFIG BÁSICA ====== */
+/* ====== CONFIG ====== */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const STREET_ZOOM = 17;
@@ -146,16 +144,14 @@ const fromInput=document.getElementById('fromName'), toInput=document.getElement
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
 let amount=9;
 
-/* ====== MAPA (con fallback CDN) ====== */
+/* ====== LEAFLET (fallback CDNs) ====== */
 (async function ensureLeaflet(){
   if(window.L){boot();return;}
   const cssCDN=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"];
   const jsCDN =["https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"];
   async function addCSS(h){return new Promise((r,e)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=h;l.onload=r;l.onerror=e;document.head.appendChild(l);setTimeout(()=>e(),12000)})}
   async function addJS(s){return new Promise((r,e)=>{const x=document.createElement('script');x.src=s;x.async=true;x.onload=r;x.onerror=e;document.head.appendChild(x);setTimeout(()=>e(),12000)})}
-  // si el <link> inicial falla, recargamos otro
-  let cssOk = !!document.getElementById('leaflet-css');
-  if(!cssOk){for(const h of cssCDN){try{await addCSS(h);break;}catch{}}}
+  if(!document.getElementById('leaflet-css')){for(const h of cssCDN){try{await addCSS(h);break;}catch{}}}
   for(const s of jsCDN){try{await addJS(s);if(window.L)break;}catch{}}
   if(!window.L){alert('No se pudo cargar el mapa (Leaflet).');return;}
   boot();
@@ -173,7 +169,7 @@ function boot(){
   bindUI(); refetch(false); setInterval(()=>refetch(true),15000); deepLink(); afterStripe();
 }
 
-/* ====== UI BÁSICA ====== */
+/* ====== UI ====== */
 document.getElementById('logoBtn').addEventListener('click',()=>location.reload());
 document.getElementById('tapBtn').addEventListener('click',()=>toast('Toca el mapa para continuar'));
 document.getElementById('gpsBtn').addEventListener('click',()=>{
@@ -186,14 +182,11 @@ document.getElementById('gpsBtn').addEventListener('click',()=>{
 pinCta.addEventListener('click',()=>{if(!selectedLat||!selectedLng)return toast('Elige un punto del mapa primero',false); openSheet()});
 function openSheet(){const s=document.getElementById('sheet');s.classList.add('open');s.setAttribute('aria-hidden','false');try{map.dragging.disable();map.scrollWheelZoom.disable();map.doubleClickZoom.disable()}catch{};updateSplit()}
 function closeSheet(){const s=document.getElementById('sheet');s.classList.remove('open');s.setAttribute('aria-hidden','true');try{map.dragging.enable();map.scrollWheelZoom.enable();map.doubleClickZoom.enable()}catch{}}
+document.getElementById('chars').textContent='(0/30)'; msgInput.addEventListener('input',()=>{msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30);document.getElementById('chars').textContent='('+msgInput.value.length+'/30)'}); msgInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()}});
 
-document.getElementById('chars').textContent='(0/30)';
-msgInput.addEventListener('input',()=>{msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30);document.getElementById('chars').textContent='('+msgInput.value.length+'/30)'});
-msgInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()}});
-
-/* ====== BUSCAR ====== */
+/* ====== BÚSQUEDA ====== */
 let suggestTimer=null,abortCtrl=null,currentSuggest=[];
-const searchInput=document.getElementById('searchInput');
+const searchInput=document.getElementById('searchInput'), slist=document.getElementById('slist');
 searchInput.addEventListener('input',e=>{
   const q=e.target.value.trim(); clearTimeout(suggestTimer);
   if(!q){slist.style.display='none';return;}
@@ -244,17 +237,14 @@ function reverseAt(lat,lng){
     addrBadge.textContent=[[road,hn].filter(Boolean).join(' '),city].filter(Boolean).join(', ')||j.display_name||'Ubicación aproximada';
   }).catch(()=>addrBadge.textContent='Ubicación aproximada');
 }
-function positionRing(){
-  if(!selectedMarker)return;
-  const iconEl=selectedMarker.getElement?.()||selectedMarker._icon; const mapEl=document.getElementById('map');
+function positionRing(){ if(!selectedMarker)return; const iconEl=selectedMarker.getElement?.()||selectedMarker._icon; const mapEl=document.getElementById('map');
   if(iconEl&&mapEl){const r=iconEl.getBoundingClientRect(),rm=mapEl.getBoundingClientRect(); dragRing.style.left=(r.left+r.width/2-rm.left)+'px'; dragRing.style.top=(r.top+r.height/2-rm.top)+'px'; return;}
-  const p=map.latLngToContainerPoint(selectedMarker.getLatLng()); dragRing.style.left=p.x+'px'; dragRing.style.top=(p.y-22)+'px';
-}
+  const p=map.latLngToContainerPoint(selectedMarker.getLatLng()); dragRing.style.left=p.x+'px'; dragRing.style.top=(p.y-22)+'px';}
 function positionCta(){const p=map.latLngToContainerPoint(selectedMarker.getLatLng()); pinCta.style.left=p.x+'px'; pinCta.style.top=(p.y+52)+'px'}
 function showRing(){dragRing.style.display='block'} function hideRing(){dragRing.style.display='none'}
 function showCta(){positionCta(); pinCta.style.display='inline-block'} function hideCta(){pinCta.style.display='none'}
 
-/* ====== SPLIT COPY + IMPORTE ====== */
+/* ====== IMPORTE / COPY ====== */
 function updateSplit(){document.getElementById('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para el mantenimiento de tu flor para siempre.`}
 chips.addEventListener('click',e=>{
   const b=e.target.closest('.chip'); if(!b)return; chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); b.classList.add('active');
@@ -281,21 +271,38 @@ payBtn.addEventListener('click',async ()=>{
   }catch{ toast('Fallo de red',false) } finally{ payBtn.disabled=false; payBtn.textContent=prev; }
 });
 
-/* ====== Tras volver de Stripe ====== */
+/* ====== Tras volver de Stripe: forzar render inmediato + refetch completo ====== */
 async function afterStripe(){
   const u=new URL(location.href);
   if(u.searchParams.get('success')==='1'&&u.searchParams.get('session_id')){
     const sid=u.searchParams.get('session_id');
     try{
+      // 1) Preguntamos a nuestro backend por id/lat/lng
       const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`); const j=await r.json();
-      if(j&&j.ok&&isFinite(j.lat)&&isFinite(j.lng)){
-        userClicked=true; lastPlanted={id:String(j.id||''),lat:+j.lat,lng:+j.lng};
-        try{map.flyTo([lastPlanted.lat,lastPlanted.lng],STREET_ZOOM,{duration:.6})}catch{}
+      if(j&&j.ok&&j.id){
+        // 2) Pedimos al Apps Script el item completo por id y lo pintamos YA
+        try{
+          const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`);
+          if(d&&d.ok&&d.item){
+            const it=d.item;
+            const dt=fmtDate(it.timestamp);
+            const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(it.id)}`, +it.amount_total||+it.amountTotal||0);
+            const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html);
+            mk.openPopup(); try{map.flyTo([+it.lat,+it.lng],STREET_ZOOM,{duration:.5})}catch{}
+            lastPlanted={id:String(it.id),lat:+it.lat,lng:+it.lng};
+          }
+        }catch{}
       }
     }catch{}
+    // 3) Limpiamos la querystring
     u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
-    setTimeout(()=>refetch(true),300); toast('¡Gracias! Flor plantada 🌸');
-  }else if(u.searchParams.get('canceled')==='1'){u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado',false)}
+    // 4) Refresco COMPLETO (no incremental) para consolidar todo
+    lastTs = 0;           // importante: reiniciamos para no perder filas por desfase
+    await refetch(false); // full fetch
+    toast('¡Gracias! Flor plantada 🌸');
+  }else if(u.searchParams.get('canceled')==='1'){
+    u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado',false);
+  }
 }
 
 /* ====== POPUP ====== */
@@ -326,7 +333,11 @@ function normalize(items){
   } return out;
 }
 function render(list){
-  if(!map)return; try{map.eachLayer(l=>{if(l&&l._isFlower){map.removeLayer(l)}})}catch{}
+  if(!map)return;
+  // elimina solo marcadores de flores (no tiles)
+  const toRemove=[];
+  map.eachLayer(l=>{if(l&&l._isFlower) toRemove.push(l)});
+  toRemove.forEach(l=>map.removeLayer(l));
   for(const f of list){
     const dt=f.timestamp?fmtDate(f.timestamp):''; const shareUrl=`${location.origin}/f/${encodeURIComponent(f.id||'')}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200}); mk._isFlower=true; mk._fid=String(f.id||'');
@@ -353,6 +364,9 @@ async function deepLink(){
   if(id){ try{const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`); if(d&&d.ok&&d.item){const it=d.item; const dt=fmtDate(it.timestamp); const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(id)}`, +it.amount_total||+it.amountTotal||0); const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html); mk.openPopup(); map.setView([+it.lat,+it.lng],STREET_ZOOM); return; }}catch{} }
   if(u.searchParams.get('lat')&&u.searchParams.get('lng')){map.setView([+u.searchParams.get('lat'),+u.searchParams.get('lng')],STREET_ZOOM)}
 }
+
+/* ====== BIND UI EXTRA ====== */
+function bindUI(){ document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ slist.style.display='none'; } }); updateSplit(); }
 </script>
 </body>
 </html>
