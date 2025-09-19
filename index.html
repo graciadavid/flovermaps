@@ -45,12 +45,8 @@
     overflow:hidden;
   }
 
-  /* Barra de diagnóstico */
-  #dbg{position:fixed;top:0;left:0;right:0;z-index:2000;background:#111;color:#fff;font-size:12px;padding:6px 10px;display:none}
-  #dbg.ok{background:#0f5132}
-
   .site-header{
-    position:fixed; z-index:1000; inset:auto 0 auto 0; top:26px; /* deja hueco para debug */
+    position:fixed; z-index:1000; inset:auto 0 auto 0; top:0;
     display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none;
   }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
@@ -143,9 +139,6 @@
 </head>
 <body>
 
-<!-- Diagnóstico -->
-<div id="dbg">Cargando…</div>
-
 <header class="site-header">
   <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
 </header>
@@ -194,20 +187,20 @@
 
       <div style="margin-top:10px">
         <div class="chips" id="chips">
-          <button class="chip" data-amount="1.9">1,90 €</button>
-          <button class="chip active" data-amount="5.9">5,90 €</button>
-          <button class="chip" data-amount="24.9">24,90 €</button>
+          <button class="chip" data-amount="2">2 €</button>
+          <button class="chip active" data-amount="9">9 €</button>
+          <button class="chip" data-amount="10">10 €</button>
           <button class="chip" data-amount="other">Otro</button>
         </div>
         <div id="otherRow" style="display:none">
-          <label for="otherAmount" class="muted">Importe personalizado (entre 1,90 € y 24,90 €)</label>
-          <input id="otherAmount" type="number" min="1.9" max="24.9" step="0.01" placeholder="Ej. 3,50" inputmode="decimal" />
+          <label for="otherAmount" class="muted">Importe personalizado</label>
+          <input id="otherAmount" type="number" min="1" step="0.01" placeholder="Ej. 12,00" inputmode="decimal" />
         </div>
         <div id="splitCopy" class="muted" style="margin-top:6px"></div>
       </div>
 
       <div style="margin-top:12px">
-        <button id="payAndPlantBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Pagar y plantar — 5,90 €</button>
+        <button id="payAndPlantBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Pagar y plantar — 9,00 €</button>
       </div>
     </div>
   </div>
@@ -220,13 +213,9 @@
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const MAINTENANCE_FEE_EUR = 0.90;
-const SELECT_ZOOM = 10;
-const FINAL_ZOOM  = 17;
-
-/* === DEBUG BAR === */
-const dbg = document.getElementById('dbg');
-function dbgShow(msg, ok=false){ dbg.style.display='block'; dbg.textContent=msg; dbg.className = ok ? 'ok' : ''; }
-function dbgAdd(msg){ dbg.style.display='block'; dbg.textContent += ' | ' + msg; }
+const STREET_ZOOM = 17;      // nivel calle para todo
+const SELECT_ZOOM = STREET_ZOOM;
+const FINAL_ZOOM  = STREET_ZOOM;
 
 /* === JSONP helper === */
 function jsonp(url, timeoutMs=12000){
@@ -248,7 +237,7 @@ let flowersLayer=null, useCluster=null;
 let selectedMarker=null, selectedLat=null, selectedLng=null;
 let lastTs=0; window._lastItems=[];
 let abortRev=null, abortCtrl=null, currentSuggest=[];
-let amount=5.9; let userClicked=false;
+let amount=9; let userClicked=false;
 let lastPlanted=null;
 
 /* === DOM === */
@@ -319,19 +308,8 @@ function hidePinCta(){ pinCta.style.display='none'; }
 
 /* === MAP === */
 function initMap(){
-  if(!window.L){ dbgShow('Leaflet NO cargado (CSP/CDN?). Revisa que unpkg.com esté permitido en script-src.', false); return; }
-  dbgShow('Leaflet OK, iniciando mapa…', true);
-
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
-  baseTiles.on('tileerror', ()=>{ 
-    if(!tileFallbackUsed){
-      tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{}
-      fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19});
-      fallbackTiles.addTo(map);
-      dbgAdd('Tiles: fallback OSM');
-    }
-  });
-
+  baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
   map.setView([40.4168,-3.7038],5);
 
@@ -376,10 +354,10 @@ function setSelectedPoint(lat,lng,animate=false){
   } else { selectedMarker.setLatLng([lat,lng]); }
   selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
 
-  const z = Math.max(map.getZoom(), SELECT_ZOOM);
   try{
-    if(animate){ map.flyTo([lat,lng], z, {duration:0.5}); }
-    else{ map.setView([lat,lng], z, {animate:false}); }
+    const targetZoom = Math.max(map.getZoom(), STREET_ZOOM);
+    if(animate){ map.flyTo([lat,lng], targetZoom, {duration:0.5}); }
+    else{ map.setView([lat,lng], targetZoom, {animate:false}); }
   }catch{}
 
   reverseAt(selectedLat, selectedLng);
@@ -403,8 +381,7 @@ async function reverseAt(lat,lng){
     const city=a.city||a.town||a.village||a.municipality||a.state||"";
     const label=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", ");
     addrBadge.textContent = label || (j.display_name||'Ubicación aproximada');
-    dbgAdd('Nominatim OK');
-  }catch{ addrBadge.textContent='Ubicación aproximada'; dbgAdd('Nominatim BLOQUEADO'); }
+  }catch{ addrBadge.textContent='Ubicación aproximada'; }
 }
 
 /* === Controles === */
@@ -414,12 +391,12 @@ gpsBtn.addEventListener('click', ()=>{
   navigator.geolocation.getCurrentPosition(pos=>{
     userClicked=true;
     setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
-    try{ map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, {duration:0.5}); }catch{}
+    try{ map.flyTo([pos.coords.latitude, pos.coords.longitude], STREET_ZOOM, {duration:0.5}); }catch{}
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
 /* === Búsqueda === */
-let suggestTimer=null;
+let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -460,12 +437,7 @@ async function selectSuggest(i){
 
   const lat = Number(it.lat), lon = Number(it.lon);
   setSelectedPoint(lat, lon, true);
-
-  // ➜ EXTRA ZOOM +7 (máx 18)
-  try{
-    const targetZoom = Math.min((map.getZoom()||10) + 7, 18);
-    map.flyTo([lat, lon], targetZoom, {duration:0.55});
-  }catch{}
+  try{ map.flyTo([lat, lon], STREET_ZOOM, {duration:0.55}); }catch{}
 }
 searchInput.addEventListener('input', (e)=>{
   const q=e.target.value.trim();
@@ -507,7 +479,7 @@ msgInput.addEventListener('input', ()=>{
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* === Importe + copy === */
-const MIN_OTHER = 1.9, MAX_OTHER = 24.9;
+const MIN_OTHER = 1; // sin límite máximo
 chips.addEventListener('click', (e)=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -515,21 +487,19 @@ chips.addEventListener('click', (e)=>{
   const v=b.dataset.amount;
   if(v==='other'){
     otherRow.style.display='block';
-    const cur = Number(String(otherAmount.value||'').replace(',','.'));
-    if(!isFinite(cur)) { otherAmount.value = MIN_OTHER.toFixed(2); amount = MIN_OTHER; }
-    else { amount = Math.min(Math.max(cur, MIN_OTHER), MAX_OTHER); otherAmount.value = amount.toFixed(2); }
+    let cur = Number(String(otherAmount.value||'').replace(',','.'));
+    if(!isFinite(cur) || cur<MIN_OTHER){ cur = MIN_OTHER; }
+    amount = cur; otherAmount.value = amount.toFixed(2);
     otherAmount.focus();
   } else {
     otherRow.style.display='none';
-    amount = Number(v)||5.9;
+    amount = Number(v)||9;
   }
   updatePayBtn(); updateSplitCopy();
 });
 otherAmount.addEventListener('blur', ()=>{
   let val = Number(String(otherAmount.value||'').replace(',','.'));
-  if(!isFinite(val)) val = MIN_OTHER;
-  if(val<MIN_OTHER){ toast(`El mínimo es ${MIN_OTHER.toFixed(2)} €`, false); val = MIN_OTHER; }
-  if(val>MAX_OTHER){ toast(`El máximo es ${MAX_OTHER.toFixed(2)} €`, false); val = MAX_OTHER; }
+  if(!isFinite(val) || val<MIN_OTHER){ val = MIN_OTHER; }
   amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn(); updateSplitCopy();
 });
 otherAmount.addEventListener('input', ()=>{
@@ -553,9 +523,7 @@ payBtn.addEventListener('click', async ()=>{
 
   if(otherRow.style.display!=='none'){
     let val = Number(String(otherAmount.value||'').replace(',','.'));
-    if(!isFinite(val)) val = MIN_OTHER;
-    if(val<MIN_OTHER){ toast(`El mínimo es ${MIN_OTHER.toFixed(2)} €`, false); val = MIN_OTHER; }
-    if(val>MAX_OTHER){ toast(`El máximo es ${MAX_OTHER.toFixed(2)} €`, false); val = MAX_OTHER; }
+    if(!isFinite(val) || val<MIN_OTHER){ val = MIN_OTHER; }
     amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn();
   }
 
@@ -770,17 +738,13 @@ async function refetch(incremental=false){
       renderAllMarkers(window._lastItems);
       for (const it of data.items) { const t=Number(it.timestamp)||0; if(t>lastTs) lastTs=t; }
       try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
-      dbgAdd('List OK');
       return;
-    } else {
-      dbgAdd('List vacío/KO');
     }
-  } catch(e){ dbgAdd('List BLOQUEADO'); }
+  } catch(e){ /* usa cache si hay */ }
   const cached=localStorage.getItem('flowers_cache');
   if(cached){
     window._lastItems = JSON.parse(cached);
     renderAllMarkers(window._lastItems);
-    dbgAdd('Cache usada');
   }
 }
 
@@ -790,7 +754,7 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 /* === BOOT === */
 (function boot(){
   if(window.L){ initMap(); refetch(false); setInterval(()=>refetch(true),15000); tryOpenShared(); tryFocusAfterStripe(); document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }}); }
-  else { dbgShow('Leaflet NO cargado. ¿CSP bloquea https://unpkg.com en script-src y style-src?'); }
+  else { alert('No se pudo cargar Leaflet. Revisa si tu red o CSP bloquean el CDN.'); }
 })();
 </script>
 </body>
