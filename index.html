@@ -7,7 +7,7 @@
 
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
-<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de la flor para siempre." />
+<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre." />
 
 <!-- OG/Twitter -->
 <meta property="og:title" content="Flovermaps - Plant a Flower Change the World">
@@ -262,7 +262,7 @@ function escHtml(s){
   const MAP={"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"};
   return String(s||'').replace(new RegExp("[&<>\"']","g"), m=>MAP[m]);
 }
-function jsStr(s){ return JSON.stringify(String(s||'')); } // para pasar URL cruda a onclick sin romperla
+function jsStr(s){ return JSON.stringify(String(s||'')); }
 function ngoFullLabel(v){
   const m={msf:'Médicos Sin Fronteras', stc:'Save the Children', aecc:'Asociación Española contra el Cáncer', unicef:'UNICEF'};
   return m[v]||'ONG';
@@ -428,7 +428,15 @@ async function selectSuggest(i){
   const it=currentSuggest[i]; if(!it) return;
   slist.style.display='none';
   userClicked=true;
-  setSelectedPoint(Number(it.lat), Number(it.lon), true);
+
+  const lat = Number(it.lat), lon = Number(it.lon);
+  setSelectedPoint(lat, lon, true);
+
+  // ➜ EXTRA ZOOM +7 al elegir una dirección (capado a 18)
+  try{
+    const targetZoom = Math.min((map.getZoom()||10) + 7, 18);
+    map.flyTo([lat, lon], targetZoom, {duration:0.55});
+  }catch{}
 }
 searchInput.addEventListener('input', (e)=>{
   const q=e.target.value.trim();
@@ -478,7 +486,6 @@ chips.addEventListener('click', (e)=>{
   const v=b.dataset.amount;
   if(v==='other'){
     otherRow.style.display='block';
-    // preset al mínimo si vacío
     const cur = Number(String(otherAmount.value||'').replace(',','.'));
     if(!isFinite(cur)) { otherAmount.value = MIN_OTHER.toFixed(2); amount = MIN_OTHER; }
     else { amount = Math.min(Math.max(cur, MIN_OTHER), MAX_OTHER); otherAmount.value = amount.toFixed(2); }
@@ -499,7 +506,7 @@ otherAmount.addEventListener('blur', ()=>{
 otherAmount.addEventListener('input', ()=>{
   let val = Number(String(otherAmount.value||'').replace(',','.'));
   if(!isFinite(val)) return;
-  amount = val; // actualiza en vivo (validamos al blur o al pagar)
+  amount = val;
   updatePayBtn(); updateSplitCopy();
 });
 function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
@@ -515,7 +522,6 @@ payBtn.addEventListener('click', async ()=>{
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
 
-  // Validación final de “Otro”
   if(otherRow.style.display!=='none'){
     let val = Number(String(otherAmount.value||'').replace(',','.'));
     if(!isFinite(val)) val = MIN_OTHER;
@@ -561,7 +567,7 @@ async function tryFocusAfterStripe(){
       const r = await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`);
       const j = await r.json();
       if(j && j.ok && isFinite(j.lat) && isFinite(j.lng)){
-        userClicked = true; // evita auto-zoom país
+        userClicked = true;
         lastPlanted = { id: String(j.id||''), lat: Number(j.lat), lng: Number(j.lng) };
         try{ map.flyTo([lastPlanted.lat, lastPlanted.lng], FINAL_ZOOM, {duration:0.6}); }catch{}
       }
@@ -584,7 +590,7 @@ function popupHtml(from,to,msg,dtStr,shareUrl,total,amountFm){
   const t = Number(total)||0, fm = Number(amountFm)||0.90, ongVal = Math.max(0, t - fm);
   const ong = ongVal.toFixed(2).replace('.',','), fmStr = fm.toFixed(2).replace('.',','), tt = t.toFixed(2).replace('.',',');
   const dateLine = dtStr ? `<div class="muted" style="margin-bottom:6px">${dtStr} · <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>` : `<div class="muted" style="margin-bottom:6px"><strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>`;
-  const urlStr = jsStr(url); // pasa la URL cruda a JS
+  const urlStr = jsStr(url);
   return `
     <div style="min-width:260px;max-width:300px">
       ${dateLine}
@@ -696,14 +702,12 @@ function renderAllMarkers(list){
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      // Si tenemos última plantada, re-abrimos su popup con datos (incluye fecha)
       if(lastPlanted){
         try{
           let opened=false;
           flowersLayer.eachLayer(l=>{
             if(opened) return;
             if(l && l._fid===lastPlanted.id){
-              // Rebinda popup con el item exacto (para asegurar timestamp)
               const item = (list||[]).find(x=>String(x.id)===String(lastPlanted.id));
               if(item){
                 const dtStr = item.timestamp ? fmtDateTimeFromTs(item.timestamp) : '';
