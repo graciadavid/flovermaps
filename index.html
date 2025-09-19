@@ -213,7 +213,7 @@
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const MAINTENANCE_FEE_EUR = 0.90;
-const STREET_ZOOM = 17;      // nivel calle para todo
+const STREET_ZOOM = 17;      // mismo nivel calle para todo
 const SELECT_ZOOM = STREET_ZOOM;
 const FINAL_ZOOM  = STREET_ZOOM;
 
@@ -308,8 +308,11 @@ function hidePinCta(){ pinCta.style.display='none'; }
 
 /* === MAP === */
 function initMap(){
+  if(!window.L){ alert('No se pudo cargar Leaflet (CDN bloqueado).'); return; }
+
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
+
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
   map.setView([40.4168,-3.7038],5);
 
@@ -339,7 +342,7 @@ function ensureFlowersLayer(wantCluster){
   useCluster=wantCluster;
 }
 
-/* === Seleccionar punto === */
+/* === Selección de punto === */
 function setSelectedPoint(lat,lng,animate=false){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
@@ -366,7 +369,7 @@ function setSelectedPoint(lat,lng,animate=false){
   showPinCtaFromMarker();
 }
 
-/* === Reverse geocode === */
+/* === Reverse geocoding === */
 async function reverseAt(lat,lng){
   if(abortRev){ try{ abortRev.abort(); }catch{} }
   const ctl=new AbortController(); abortRev=ctl;
@@ -580,44 +583,32 @@ async function tryFocusAfterStripe(){
   }
 }
 
-/* === Popup === */
-function popupHtml(from,to,msg,dtStr,shareUrl,total,amountFm){
+/* === Popup (estilo nuevo) === */
+function popupHtml(from,to,msg,dtStr,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url = shareUrl || `${location.origin}${location.pathname}`;
-  const t = Number(total)||0, fm = Number(amountFm)||0.90, ongVal = Math.max(0, t - fm);
-  const ong = ongVal.toFixed(2).replace('.',','), fmStr = fm.toFixed(2).replace('.',','), tt = t.toFixed(2).replace('.',',');
-  const dateLine = dtStr ? `<div class="muted" style="margin-bottom:6px">${dtStr} · <strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>` : `<div class="muted" style="margin-bottom:6px"><strong>${safeFrom}</strong> para <strong>${safeTo}</strong></div>`;
-  const urlStr = jsStr(url);
+  const tt = (Number(total)||0).toFixed(2).replace('.',',');
+
+  // Estructura: 1) Fecha Hora  2) De X para Y  3) Mensaje  4) Donación: Importe total
+  const urlEsc = escHtml(url);
   return `
-    <div style="min-width:260px;max-width:300px">
-      ${dateLine}
+    <div style="min-width:260px;max-width:320px">
+      <div class="muted" style="margin-bottom:6px">${dtStr || ''}</div>
+      <div style="margin-bottom:6px"><strong>De ${safeFrom}</strong> para <strong>${safeTo}</strong></div>
       <div style="margin-bottom:10px">${safeMsg}</div>
-      <div class="muted" style="margin-bottom:10px">Donación total: ${tt} € · ONG: ${ong} € · Mantenimiento: ${fmStr} €</div>
-      <button onclick="shareAny(${urlStr})" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
-      <div style="margin-top:6px; text-align:center">
-        <a href=${urlStr} target="_blank" rel="noopener" class="muted" style="text-decoration:underline; font-size:.9rem">Abrir enlace</a>
-      </div>
+      <div class="muted" style="margin-bottom:12px">Donación: <strong>${tt} €</strong></div>
+
+      <!-- Botón-URL completa -->
+      <a href="${urlEsc}" target="_blank" rel="noopener"
+         style="display:block;width:100%;text-align:center;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;word-break:break-all;text-decoration:none;">
+         ${urlEsc}
+      </a>
+
       <div style="margin-top:8px; text-align:center">
         <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra 🌸</button>
       </div>
     </div>`;
 }
-async function shareAny(url){
-  try{
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`, url}); }
-    else{ await navigator.clipboard.writeText(`He plantado esta 🌸 en un lugar del Mundo, especialmente para ti. Mírala: ${url}`); toast('Enlace copiado'); }
-  }catch{}
-}
-window.shareAny = shareAny;
-
-window.plantAnother = function(){
-  try{ map.closePopup(); }catch{}
-  controls.style.display='';
-  slist.style.display='none';
-  hideRing(); hidePinCta(); addrBadge.style.display='none';
-  selectedMarker=null; selectedLat=null; selectedLng=null;
-  try{ map.flyTo([40.4168, -3.7038], 5, {duration:0.5}); }catch{}
-};
 
 /* === Deep link === */
 async function tryOpenShared(){
@@ -640,7 +631,7 @@ async function tryOpenShared(){
         const lat=Number(it.lat), lng=Number(it.lng);
         const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
         const dtStr = fmtDateTimeFromTs(it.timestamp);
-        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0, Number(it.amount_fm)||0.90);
+        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0);
         const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
         mk._fid = String(it.id||id);
         map.setView([lat,lng], FINAL_ZOOM);
@@ -666,8 +657,7 @@ function normalizeItems(items){
     const message  = f.message  ?? '';
     const timestamp= f.timestamp?? '';
     const amount_total = isFinite(Number(f.amount_total)) ? Number(f.amount_total) : (isFinite(Number(f.amountTotal)) ? Number(f.amountTotal) : 0);
-    const amount_fm = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : (isFinite(Number(f.amountFm)) ? Number(f.amountFm) : null);
-    out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total, amount_fm });
+    out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total });
   }
   return out;
 }
@@ -689,8 +679,7 @@ function renderAllMarkers(list){
       if(!isFinite(lat)||!isFinite(lng)) continue;
       const dtStr = f.timestamp ? fmtDateTimeFromTs(f.timestamp) : '';
       const shareUrl = `${location.origin}/f/${encodeURIComponent(f.id)}`;
-      const fmVal = isFinite(Number(f.amount_fm)) ? Number(f.amount_fm) : 0.90;
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0, fmVal);
+      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0);
       const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
       mk._fid = String(f.id);
       batch.push(mk);
@@ -709,9 +698,8 @@ function renderAllMarkers(list){
               if(item){
                 const dtStr = item.timestamp ? fmtDateTimeFromTs(item.timestamp) : '';
                 const shareUrl = `${location.origin}/f/${encodeURIComponent(item.id)}`;
-                const fmVal = isFinite(Number(item.amount_fm)) ? Number(item.amount_fm) : 0.90;
                 l.unbindPopup();
-                l.bindPopup(popupHtml(item.fromName||'', item.toName||'', item.message||'', dtStr, shareUrl, item.amount_total||0, fmVal));
+                l.bindPopup(popupHtml(item.fromName||'', item.toName||'', item.message||'', dtStr, shareUrl, item.amount_total||0));
               }
               l.openPopup(); opened=true;
             }
