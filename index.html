@@ -12,7 +12,6 @@
 <link rel="preconnect" href="https://basemaps.cartocdn.com">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-<link id="leaflet-css" rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --green:#22c55e; --blue:#0066cc; --bg:#f6fff9; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
@@ -144,19 +143,21 @@ const fromInput=document.getElementById('fromName'), toInput=document.getElement
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
 let amount=9;
 
-/* ====== LEAFLET (fallback CDNs) ====== */
-(async function ensureLeaflet(){
-  if(window.L){boot();return;}
-  const cssCDN=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"];
+/* ====== CARGA LEAFLET (CSS + JS con fallback, SIEMPRE por código) ====== */
+(async function loadLeaflet(){
+  const cssCDN=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css","https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"];
   const jsCDN =["https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"];
-  async function addCSS(h){return new Promise((r,e)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=h;l.onload=r;l.onerror=e;document.head.appendChild(l);setTimeout(()=>e(),12000)})}
-  async function addJS(s){return new Promise((r,e)=>{const x=document.createElement('script');x.src=s;x.async=true;x.onload=r;x.onerror=e;document.head.appendChild(x);setTimeout(()=>e(),12000)})}
-  if(!document.getElementById('leaflet-css')){for(const h of cssCDN){try{await addCSS(h);break;}catch{}}}
-  for(const s of jsCDN){try{await addJS(s);if(window.L)break;}catch{}}
-  if(!window.L){alert('No se pudo cargar el mapa (Leaflet).');return;}
-  boot();
+  const addCSS=h=>new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=h;l.onload=res;l.onerror=rej;document.head.appendChild(l);setTimeout(()=>rej(new Error('css timeout')),7000)});
+  const addJS=s=>new Promise((res,rej)=>{const x=document.createElement('script');x.src=s;x.async=true;x.onload=res;x.onerror=rej;document.head.appendChild(x);setTimeout(()=>rej(new Error('js timeout')),7000)});
+  // CSS: probar en cadena
+  let cssLoaded=false; for(const h of cssCDN){try{await addCSS(h); cssLoaded=true; break;}catch{}}
+  // JS: probar en cadena
+  for(const s of jsCDN){try{await addJS(s); if(window.L) break;}catch{}}
+  if(!window.L){alert('No se pudo cargar el mapa (Leaflet). Revisa bloqueos de red/CDN.'); return;}
+  boot(); setTimeout(()=>{ try{map.invalidateSize()}catch{} }, 300);
 })();
 
+/* ====== BOOT MAP ====== */
 function boot(){
   tilesA=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
   tilesA.on('tileerror',()=>{try{map.removeLayer(tilesA)}catch{};tilesB=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});tilesB.addTo(map)});
@@ -271,21 +272,18 @@ payBtn.addEventListener('click',async ()=>{
   }catch{ toast('Fallo de red',false) } finally{ payBtn.disabled=false; payBtn.textContent=prev; }
 });
 
-/* ====== Tras volver de Stripe: forzar render inmediato + refetch completo ====== */
+/* ====== Tras volver de Stripe: render inmediato + refetch completo ====== */
 async function afterStripe(){
   const u=new URL(location.href);
   if(u.searchParams.get('success')==='1'&&u.searchParams.get('session_id')){
     const sid=u.searchParams.get('session_id');
     try{
-      // 1) Preguntamos a nuestro backend por id/lat/lng
       const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`); const j=await r.json();
       if(j&&j.ok&&j.id){
-        // 2) Pedimos al Apps Script el item completo por id y lo pintamos YA
         try{
           const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`);
           if(d&&d.ok&&d.item){
-            const it=d.item;
-            const dt=fmtDate(it.timestamp);
+            const it=d.item; const dt=fmtDate(it.timestamp);
             const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(it.id)}`, +it.amount_total||+it.amountTotal||0);
             const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html);
             mk.openPopup(); try{map.flyTo([+it.lat,+it.lng],STREET_ZOOM,{duration:.5})}catch{}
@@ -294,12 +292,8 @@ async function afterStripe(){
         }catch{}
       }
     }catch{}
-    // 3) Limpiamos la querystring
     u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
-    // 4) Refresco COMPLETO (no incremental) para consolidar todo
-    lastTs = 0;           // importante: reiniciamos para no perder filas por desfase
-    await refetch(false); // full fetch
-    toast('¡Gracias! Flor plantada 🌸');
+    lastTs=0; await refetch(false); toast('¡Gracias! Flor plantada 🌸');
   }else if(u.searchParams.get('canceled')==='1'){
     u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado',false);
   }
@@ -334,10 +328,7 @@ function normalize(items){
 }
 function render(list){
   if(!map)return;
-  // elimina solo marcadores de flores (no tiles)
-  const toRemove=[];
-  map.eachLayer(l=>{if(l&&l._isFlower) toRemove.push(l)});
-  toRemove.forEach(l=>map.removeLayer(l));
+  const toRemove=[]; map.eachLayer(l=>{if(l&&l._isFlower) toRemove.push(l)}); toRemove.forEach(l=>map.removeLayer(l));
   for(const f of list){
     const dt=f.timestamp?fmtDate(f.timestamp):''; const shareUrl=`${location.origin}/f/${encodeURIComponent(f.id||'')}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200}); mk._isFlower=true; mk._fid=String(f.id||'');
