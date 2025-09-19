@@ -17,12 +17,19 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="/og_flovermaps.jpg">
 
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://basemaps.cartocdn.com">
+<link rel="preconnect" href="https://{s}.tile.openstreetmap.org">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet + MarkerCluster (carga estática) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
 
 <style>
   :root{
@@ -38,8 +45,12 @@
     overflow:hidden;
   }
 
+  /* Barra de diagnóstico */
+  #dbg{position:fixed;top:0;left:0;right:0;z-index:2000;background:#111;color:#fff;font-size:12px;padding:6px 10px;display:none}
+  #dbg.ok{background:#0f5132}
+
   .site-header{
-    position:fixed; z-index:1000; inset:auto 0 auto 0; top:0;
+    position:fixed; z-index:1000; inset:auto 0 auto 0; top:26px; /* deja hueco para debug */
     display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none;
   }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
@@ -66,9 +77,7 @@
     flex:1 1 auto; display:flex; align-items:center; gap:8px;
     background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04);
   }
-  .searchRow input{
-    border:0; outline:none; width:100%; font: inherit; background:transparent; color:var(--ink);
-  }
+  .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink); }
 
   .slist{
     position:fixed; left:50%; transform:translateX(-50%);
@@ -133,6 +142,9 @@
 </style>
 </head>
 <body>
+
+<!-- Diagnóstico -->
+<div id="dbg">Cargando…</div>
 
 <header class="site-header">
   <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
@@ -211,6 +223,11 @@ const MAINTENANCE_FEE_EUR = 0.90;
 const SELECT_ZOOM = 10;
 const FINAL_ZOOM  = 17;
 
+/* === DEBUG BAR === */
+const dbg = document.getElementById('dbg');
+function dbgShow(msg, ok=false){ dbg.style.display='block'; dbg.textContent=msg; dbg.className = ok ? 'ok' : ''; }
+function dbgAdd(msg){ dbg.style.display='block'; dbg.textContent += ' | ' + msg; }
+
 /* === JSONP helper === */
 function jsonp(url, timeoutMs=12000){
   return new Promise((resolve, reject)=>{
@@ -232,7 +249,7 @@ let selectedMarker=null, selectedLat=null, selectedLng=null;
 let lastTs=0; window._lastItems=[];
 let abortRev=null, abortCtrl=null, currentSuggest=[];
 let amount=5.9; let userClicked=false;
-let lastPlanted=null; // {id, lat, lng}
+let lastPlanted=null;
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -302,8 +319,19 @@ function hidePinCta(){ pinCta.style.display='none'; }
 
 /* === MAP === */
 function initMap(){
+  if(!window.L){ dbgShow('Leaflet NO cargado (CSP/CDN?). Revisa que unpkg.com esté permitido en script-src.', false); return; }
+  dbgShow('Leaflet OK, iniciando mapa…', true);
+
   baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
-  baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
+  baseTiles.on('tileerror', ()=>{ 
+    if(!tileFallbackUsed){
+      tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{}
+      fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19});
+      fallbackTiles.addTo(map);
+      dbgAdd('Tiles: fallback OSM');
+    }
+  });
+
   map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
   map.setView([40.4168,-3.7038],5);
 
@@ -375,7 +403,8 @@ async function reverseAt(lat,lng){
     const city=a.city||a.town||a.village||a.municipality||a.state||"";
     const label=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", ");
     addrBadge.textContent = label || (j.display_name||'Ubicación aproximada');
-  }catch{ addrBadge.textContent='Ubicación aproximada'; }
+    dbgAdd('Nominatim OK');
+  }catch{ addrBadge.textContent='Ubicación aproximada'; dbgAdd('Nominatim BLOQUEADO'); }
 }
 
 /* === Controles === */
@@ -390,7 +419,7 @@ gpsBtn.addEventListener('click', ()=>{
 });
 
 /* === Búsqueda === */
-let suggestTimer=null, abortCtrl=null, currentSuggest=[];
+let suggestTimer=null;
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
     + '?format=json&addressdetails=1&limit=10'
@@ -432,7 +461,7 @@ async function selectSuggest(i){
   const lat = Number(it.lat), lon = Number(it.lon);
   setSelectedPoint(lat, lon, true);
 
-  // ➜ EXTRA ZOOM +7 al elegir una dirección (capado a 18)
+  // ➜ EXTRA ZOOM +7 (máx 18)
   try{
     const targetZoom = Math.min((map.getZoom()||10) + 7, 18);
     map.flyTo([lat, lon], targetZoom, {duration:0.55});
@@ -558,7 +587,7 @@ payBtn.addEventListener('click', async ()=>{
   }
 });
 
-/* === Post-Stripe: mantener zoom calle + abrir popup con FECHA === */
+/* === Post-Stripe === */
 async function tryFocusAfterStripe(){
   const u = new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -741,69 +770,27 @@ async function refetch(incremental=false){
       renderAllMarkers(window._lastItems);
       for (const it of data.items) { const t=Number(it.timestamp)||0; if(t>lastTs) lastTs=t; }
       try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
+      dbgAdd('List OK');
       return;
+    } else {
+      dbgAdd('List vacío/KO');
     }
-  } catch(e){ /* usa cache si hay */ }
+  } catch(e){ dbgAdd('List BLOQUEADO'); }
   const cached=localStorage.getItem('flowers_cache');
   if(cached){
     window._lastItems = JSON.parse(cached);
     renderAllMarkers(window._lastItems);
+    dbgAdd('Cache usada');
   }
 }
 
 /* === Logo → refresh === */
 $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
-/* === Cargador robusto Leaflet + MarkerCluster === */
-(async function bootAll(){
-  const leafletCSS = [
-    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'
-  ];
-  const leafletJS = [
-    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js'
-  ];
-  const mcCSS = [
-    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
-    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css'
-  ];
-  const mcCSS2 = [
-    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
-    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css'
-  ];
-  const mcJS = [
-    'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
-    'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js'
-  ];
-
-  function loadCSS(url){ return new Promise((res,rej)=>{ const l=document.createElement('link'); l.rel='stylesheet'; l.href=url; l.onload=()=>res(true); l.onerror=()=>rej(); document.head.appendChild(l); setTimeout(()=>rej(),15000); }); }
-  async function loadFirstCSS(list){ for(const u of list){ try{ await loadCSS(u); return true; }catch{} } return false; }
-  function loadJS(url){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=url; s.async=true; s.onload=()=>res(true); s.onerror=()=>rej(); document.head.appendChild(s); setTimeout(()=>rej(),15000); }); }
-  async function loadFirstJS(list){ for(const u of list){ try{ await loadJS(u); return true; }catch{} } return false; }
-
-  await loadFirstCSS(leafletCSS);
-  const leafletOk = await loadFirstJS(leafletJS);
-  if(!leafletOk || !window.L){ alert('No se pudo cargar Leaflet. Revisa tu red o CSP.'); return; }
-
-  const mcCssOk1 = await loadFirstCSS(mcCSS).catch(()=>false);
-  const mcCssOk2 = await loadFirstCSS(mcCSS2).catch(()=>false);
-  const mcJsOk  = await loadFirstJS(mcJS).catch(()=>false);
-  if(!(mcCssOk1 && mcCssOk2 && mcJsOk) || !L.markerClusterGroup){
-    console.warn('[Flovermaps] MarkerCluster no disponible; seguimos sin clustering.');
-  }
-
-  initMap();
-  await refetch(false);
-  setInterval(()=>refetch(true),15000);
-  tryOpenShared();
-  tryFocusAfterStripe();
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }});
+/* === BOOT === */
+(function boot(){
+  if(window.L){ initMap(); refetch(false); setInterval(()=>refetch(true),15000); tryOpenShared(); tryFocusAfterStripe(); document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }}); }
+  else { dbgShow('Leaflet NO cargado. ¿CSP bloquea https://unpkg.com en script-src y style-src?'); }
 })();
 </script>
 </body>
