@@ -7,7 +7,7 @@
 
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
-<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre." />
+<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de la flor para siempre." />
 
 <!-- OG/Twitter -->
 <meta property="og:title" content="Flovermaps - Plant a Flower Change the World">
@@ -188,8 +188,8 @@
           <button class="chip" data-amount="other">Otro</button>
         </div>
         <div id="otherRow" style="display:none">
-          <label for="otherAmount" class="muted">Importe personalizado</label>
-          <input id="otherAmount" type="number" min="0.9" step="0.01" placeholder="Ej. 3,50" inputmode="decimal" />
+          <label for="otherAmount" class="muted">Importe personalizado (entre 1,90 € y 24,90 €)</label>
+          <input id="otherAmount" type="number" min="1.9" max="24.9" step="0.01" placeholder="Ej. 3,50" inputmode="decimal" />
         </div>
         <div id="splitCopy" class="muted" style="margin-top:6px"></div>
       </div>
@@ -205,13 +205,13 @@
 
 <script>
 /* === CONFIG === */
-const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec"; // Apps Script v2
-const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com"; // Render
+const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
+const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const MAINTENANCE_FEE_EUR = 0.90;
 const SELECT_ZOOM = 10;
 const FINAL_ZOOM  = 17;
 
-/* === JSONP helper (Apps Script list/get) === */
+/* === JSONP helper === */
 function jsonp(url, timeoutMs=12000){
   return new Promise((resolve, reject)=>{
     const cb='__fp_cb_'+Math.random().toString(36).slice(2);
@@ -232,6 +232,7 @@ let selectedMarker=null, selectedLat=null, selectedLng=null;
 let lastTs=0; window._lastItems=[];
 let abortRev=null, abortCtrl=null, currentSuggest=[];
 let amount=5.9; let userClicked=false;
+let lastPlanted=null; // {id, lat, lng}
 
 /* === DOM === */
 const $=s=>document.querySelector(s);
@@ -326,7 +327,7 @@ function initMap(){
 }
 function ensureFlowersLayer(wantCluster){
   const clusterAvail = !!(window.L && L.markerClusterGroup);
-  if(!clusterAvail) wantCluster = false; // fallback sin cluster
+  if(!clusterAvail) wantCluster = false;
   if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
   if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
   flowersLayer = wantCluster
@@ -392,7 +393,7 @@ gpsBtn.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
 });
 
-/* === Búsqueda incremental === */
+/* === Búsqueda === */
 let suggestTimer=null;
 async function searchPlacesPlain(q, sig){
   const url = 'https://nominatim.openstreetmap.org/search'
@@ -473,17 +474,36 @@ msgInput.addEventListener('input', ()=>{
 msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
 
 /* === Importe + copy === */
+const MIN_OTHER = 1.9, MAX_OTHER = 24.9;
 chips.addEventListener('click', (e)=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   b.classList.add('active');
   const v=b.dataset.amount;
-  if(v==='other'){ otherRow.style.display='block'; otherAmount.focus(); }
-  else { otherRow.style.display='none'; amount = Number(v)||5.9; updatePayBtn(); updateSplitCopy(); }
+  if(v==='other'){
+    otherRow.style.display='block';
+    // preset al mínimo permitido si estaba vacío o fuera de rango
+    const cur = Number(String(otherAmount.value||'').replace(',','.'));
+    if(!isFinite(cur) || cur<MIN_OTHER || cur>MAX_OTHER){
+      otherAmount.value = MIN_OTHER.toFixed(2);
+      amount = MIN_OTHER;
+    } else {
+      amount = cur;
+    }
+    otherAmount.focus();
+  } else {
+    otherRow.style.display='none';
+    amount = Number(v)||5.9;
+  }
+  updatePayBtn(); updateSplitCopy();
 });
 otherAmount.addEventListener('input', ()=>{
-  const val = Math.max(0.9, Number(String(otherAmount.value||'').replace(',','.')));
-  amount = isFinite(val) ? val : 5.9;
+  // normaliza coma/punto, clamp a [1.9, 24.9]
+  let val = Number(String(otherAmount.value||'').replace(',','.'));
+  if(!isFinite(val)) val = MIN_OTHER;
+  if(val<MIN_OTHER) val = MIN_OTHER;
+  if(val>MAX_OTHER) val = MAX_OTHER;
+  amount = val;
   updatePayBtn(); updateSplitCopy();
 });
 function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
@@ -493,11 +513,20 @@ function updateSplitCopy(){
 }
 ngoSel.addEventListener('change', updateSplitCopy);
 
-/* === PAGO CON STRIPE === */
+/* === PAGO CON STRIPE (valida rango en “Otro”) === */
 payBtn.addEventListener('click', async ()=>{
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
+
+  // Validación estricta si “Otro” está visible
+  if(otherRow.style.display!=='none'){
+    if(!(amount>=MIN_OTHER && amount<=MAX_OTHER)){
+      toast(`El importe "Otro" debe estar entre ${MIN_OTHER.toFixed(2)} € y ${MAX_OTHER.toFixed(2)} €`, false);
+      otherAmount.focus();
+      return;
+    }
+  }
 
   payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Abriendo pago…';
   try{
@@ -510,7 +539,7 @@ payBtn.addEventListener('click', async ()=>{
       message: msg,
       ngo: String(ngoSel.value||''),
       ngo_label: ngoFullLabel(ngoSel.value||''),
-      amount_total: Number(amount)
+      amount_total: Number(amount.toFixed(2))
     };
     const r = await fetch(`${BACKEND_URL}/create-checkout-session`, {
       method:'POST',
@@ -527,7 +556,7 @@ payBtn.addEventListener('click', async ()=>{
   }
 });
 
-/* === Post-Stripe focus === */
+/* === Post-Stripe: mantener zoom calle + abrir popup === */
 async function tryFocusAfterStripe(){
   const u = new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -536,7 +565,9 @@ async function tryFocusAfterStripe(){
       const r = await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`);
       const j = await r.json();
       if(j && j.ok && isFinite(j.lat) && isFinite(j.lng)){
-        try{ map.flyTo([Number(j.lat), Number(j.lng)], FINAL_ZOOM, {duration:0.6}); }catch{}
+        userClicked = true; // evita auto-zoom país
+        lastPlanted = { id: String(j.id||''), lat: Number(j.lat), lng: Number(j.lng) };
+        try{ map.flyTo([lastPlanted.lat, lastPlanted.lng], FINAL_ZOOM, {duration:0.6}); }catch{}
       }
     }catch{}
     u.searchParams.delete('success'); u.searchParams.delete('session_id');
@@ -643,7 +674,7 @@ function mergeUniqueById(oldList, newList){
 }
 function renderAllMarkers(list){
   if(!map) return;
-  const wantCluster = list.length >= 10;
+  const wantCluster = list.length >= 30; // clustering sólo si hay bastantes
   ensureFlowersLayer(wantCluster);
   try{ flowersLayer.clearLayers(); }catch{}
   let i=0, n=list.length;
@@ -665,7 +696,28 @@ function renderAllMarkers(list){
     if(i<n){ requestAnimationFrame(chunk); }
     else{
       try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      if(!userClicked){ try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{} }
+      // Abrir popup de la última plantada si existe
+      if(lastPlanted){
+        try{
+          let opened=false;
+          flowersLayer.eachLayer(l=>{
+            if(opened) return;
+            if(l && l._fid===lastPlanted.id){
+              l.openPopup(); opened=true;
+            }else if(!lastPlanted.id && l && l.getLatLng){
+              const p=l.getLatLng(); // fallback por coord
+              if(Math.abs(p.lat-lastPlanted.lat)<1e-6 && Math.abs(p.lng-lastPlanted.lng)<1e-6){
+                l.openPopup(); opened=true;
+              }
+            }
+          });
+          if(opened){
+            try{ map.flyTo([lastPlanted.lat,lastPlanted.lng], FINAL_ZOOM, {duration:0.3}); }catch{}
+          }
+        }catch{}
+      } else if(!userClicked){
+        try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{}
+      }
     }
   })();
 }
@@ -694,7 +746,7 @@ async function refetch(incremental=false){
 /* === Logo → refresh === */
 $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
 
-/* === Cargador robusto de Leaflet + MarkerCluster === */
+/* === Cargador robusto Leaflet + MarkerCluster === */
 (async function bootAll(){
   const leafletCSS = [
     'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css',
@@ -727,12 +779,10 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
   function loadJS(url){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=url; s.async=true; s.onload=()=>res(true); s.onerror=()=>rej(); document.head.appendChild(s); setTimeout(()=>rej(),15000); }); }
   async function loadFirstJS(list){ for(const u of list){ try{ await loadJS(u); return true; }catch{} } return false; }
 
-  // Leaflet primero
   await loadFirstCSS(leafletCSS);
   const leafletOk = await loadFirstJS(leafletJS);
   if(!leafletOk || !window.L){ alert('No se pudo cargar Leaflet. Revisa tu red o CSP.'); return; }
 
-  // MarkerCluster (opcional)
   const mcCssOk1 = await loadFirstCSS(mcCSS).catch(()=>false);
   const mcCssOk2 = await loadFirstCSS(mcCSS2).catch(()=>false);
   const mcJsOk  = await loadFirstJS(mcJS).catch(()=>false);
@@ -740,7 +790,6 @@ $("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
     console.warn('[Flovermaps] MarkerCluster no disponible; seguimos sin clustering.');
   }
 
-  // Arranque app
   initMap();
   await refetch(false);
   setInterval(()=>refetch(true),15000);
