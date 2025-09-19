@@ -31,12 +31,14 @@
   .brand img{ height:84px; display:block }
   @media(min-width:900px){ .brand img{ height:96px } }
 
-  /* Contador centrado bajo el logo */
+  /* Contador 2 líneas */
   .counter{
-    pointer-events:none;
-    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 14px;
-    box-shadow:0 6px 14px rgba(0,0,0,.06); font-weight:700; color:#0e1935;
+    pointer-events:none; text-align:center; line-height:1.2;
+    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:8px 14px;
+    box-shadow:0 6px 14px rgba(0,0,0,.06); color:#0e1935;
   }
+  .counter .big{ font-weight:700 }
+  .counter .cta{ color:#0e1935; opacity:.9 }
 
   /* Mapa */
   #mapWrap{ position:fixed; inset:0; }
@@ -97,7 +99,10 @@
 
 <header class="site-header">
   <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
-  <div id="counter" class="counter" aria-live="polite">0 Flores solidarias plantadas. ¡Planta la tuya!</div>
+  <div id="counter" class="counter" aria-live="polite">
+    <div class="big"><span id="countNum">0</span> Flores Solidarias Plantadas</div>
+    <div class="cta">¡Planta la Tuya Ahora!</div>
+  </div>
 </header>
 
 <main id="mapWrap" aria-label="Mapa">
@@ -187,7 +192,7 @@ let flowersCache=[]; let plantMode=false;
 const slist=document.getElementById('slist'), addrBadge=document.getElementById('addrBadge'), dragRing=document.getElementById('dragRing'), pinCta=document.getElementById('pinCta');
 const fromInput=document.getElementById('fromName'), toInput=document.getElementById('toName'), msgInput=document.getElementById('message'), ngoSel=document.getElementById('ngo');
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
-const counter=document.getElementById('counter');
+const counterNum=document.getElementById('countNum');
 let amount=9;
 
 /* === MAPA === */
@@ -348,7 +353,7 @@ payBtn.addEventListener('click', async ()=>{
   }catch{ toast('Fallo de red', false); } finally{ payBtn.disabled=false; payBtn.textContent=prev; }
 });
 
-/* === Volver de Stripe: pintar ya, zoom 17 y compartir listo === */
+/* === Volver de Stripe: pintar ya, mantener ZOOM 17 y compartir OK === */
 async function afterStripe(){
   const u=new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -360,24 +365,29 @@ async function afterStripe(){
         const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
         if(d&&d.ok&&d.item){
           const it=d.item; const dt=fmtDate(it.timestamp);
-          const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(it.id)}`, +it.amount_total||+it.amountTotal||0);
+          // URL limpia (sin encodeURIComponent para el path)
+          const shareUrl=`${location.origin}/f/${String(it.id)}`;
+          const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0);
           const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html);
           mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup();
           try{ map.flyTo([+it.lat,+it.lng], STREET_ZOOM, {duration:.5}); }catch{}
           upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
           persistCache(); updateCounter();
+          // Mantener vista: no cambiamos más el mapa.
           plantMode=false; hideRing(); hideCta(); addrBadge.style.display='none'; selectedMarker=null; selectedLat=null; selectedLng=null;
         }
       }
     }catch{}
     u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
-    lastTs=0; await refetch(false); toast('¡Gracias! Flor plantada 🌸');
+    // No llamamos a refetch(false) inmediatamente para NO mover la vista. Solo incremental.
+    setTimeout(()=>refetch(true), 1200);
+    toast('¡Gracias! Flor plantada 🌸');
   } else if(u.searchParams.get('canceled')==='1'){
     u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado', false);
   }
 }
 
-/* === Popup (sin URL debajo; solo botón Compartir) === */
+/* === Popup (solo botón Compartir) === */
 function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url=shareUrl||`${location.origin}${location.pathname}`;
@@ -402,7 +412,7 @@ window.shareAny = shareAny;
 
 window.plantAnother=function(){
   try{ map.closePopup(); }catch{}
-  try{ map.flyTo([40.4168,-3.7038],5,{duration:.4}); }catch{}
+  // El usuario decide dónde ir; no forzamos zoom país aquí.
   document.getElementById('controls').style.display='';
   slist.style.display='none'; hideRing(); hideCta(); addrBadge.style.display='none';
   plantMode=false; selectedMarker=null; selectedLat=null; selectedLng=null;
@@ -424,7 +434,7 @@ function upsertCache(newList){
 }
 function persistCache(){ try{ localStorage.setItem('flowers_cache', JSON.stringify(flowersCache)); }catch{} }
 function loadCache(){ try{ const c=localStorage.getItem('flowers_cache'); flowersCache = c?JSON.parse(c):[]; }catch{ flowersCache=[]; } }
-function updateCounter(){ counter.textContent = `${flowersCache.length} ${flowersCache.length===1?'Flor solidaria plantada':'Flores solidarias plantadas'}. ¡Planta la tuya!`; }
+function updateCounter(){ counterNum.textContent = String(flowersCache.length); }
 
 function render(list){
   const data=list||flowersCache||[];
@@ -433,7 +443,7 @@ function render(list){
   toRemove.forEach(l=>map.removeLayer(l));
   for(const f of data){
     const dt=f.timestamp?fmtDate(f.timestamp):'';
-    const shareUrl=`${location.origin}/f/${encodeURIComponent(f.id||'')}`;
+    const shareUrl=`${location.origin}/f/${String(f.id||'')}`; // URL limpia
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200});
     mk._isFlower=true; mk._fid=String(f.id||'');
     mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,shareUrl,f.amount_total));
@@ -475,8 +485,8 @@ async function deepLink(){
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
       if(d&&d.ok&&d.item){
         const it=d.item; const dt=fmtDate(it.timestamp);
-        const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(id)}`, +it.amount_total||+it.amountTotal||0);
-        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html);
+        const shareUrl=`${location.origin}/f/${String(id)}`; // limpio
+        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup(); map.setView([+it.lat,+it.lng], STREET_ZOOM); return;
       }
     }catch{}
