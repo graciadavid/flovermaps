@@ -4,137 +4,54 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flovermaps - Plant a Flower Change the World</title>
-
-<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><text x="6" y="54" font-size="52">🌸</text></svg>'>
 <meta name="theme-color" content="#f6fff9" />
-<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre." />
-
-<!-- OG/Twitter -->
-<meta property="og:title" content="Flovermaps - Plant a Flower Change the World">
-<meta property="og:description" content="Elige un lugar, dedica tu mensaje y comparte una flor para siempre.">
-<meta property="og:type" content="website">
-<meta property="og:image" content="/og_flovermaps.jpg">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="/og_flovermaps.jpg">
+<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text x='6' y='54' font-size='52'>🌸</text></svg>">
 
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="preconnect" href="https://basemaps.cartocdn.com">
-<link rel="preconnect" href="https://{s}.tile.openstreetmap.org">
 <link rel="preconnect" href="https://nominatim.openstreetmap.org">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet + MarkerCluster (carga estática) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+<!-- Leaflet CSS (se inyecta también por fallback si falla este) -->
+<link id="leaflet-css" rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <style>
-  :root{
-    --ink:#0f172a; --muted:#64748b; --green:#22c55e; --blue:#0066cc; --bg:#f6fff9;
-    --safe-b: env(safe-area-inset-bottom, 0px);
-    --safe-t: env(safe-area-inset-top, 0px);
-  }
-  *{box-sizing:border-box}
-  html, body { height:100%; }
-  body{
-    margin:0; font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink);
-    background: linear-gradient(180deg, #f6fff9 0%, #ecfaf2 60%, #e8f8ef 100%);
-    overflow:hidden;
-  }
-
-  .site-header{
-    position:fixed; z-index:1000; inset:auto 0 auto 0; top:0;
-    display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none;
-  }
-  .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
-  .brand img{ height:84px; display:block }
-  @media (min-width:900px){ .brand img{ height:96px } }
-
-  #mapWrap{ position:fixed; inset:0; }
-  #map{ position:absolute; inset:0; width:100%; height:100vh; height:100dvh; }
-
-  .controls{
-    position:fixed; z-index:900; left:50%; transform:translateX(-50%);
-    bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:10px;
-  }
-  .row{ display:flex; gap:10px; }
-  .tool-btn{
-    flex:1 1 0; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer;
-    box-shadow:0 6px 14px rgba(0,0,0,.04); display:flex; align-items:center; justify-content:center; gap:8px;
-  }
-  .tool-btn:active{ transform:translateY(1px) }
-  .tool-btn[disabled]{ opacity:.6; cursor:default }
-
-  .searchRow{ display:flex; gap:10px; }
-  .searchRow .input{
-    flex:1 1 auto; display:flex; align-items:center; gap:8px;
-    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04);
-  }
-  .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink); }
-
-  .slist{
-    position:fixed; left:50%; transform:translateX(-50%);
-    bottom:calc(84px + var(--safe-b));
-    width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px;
-    max-height:260px; overflow:auto; display:none; z-index:920; box-shadow:0 6px 14px rgba(0,0,0,.06)
-  }
-  .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
-  .sitem:last-child{ border-bottom:0 }
-
-  .addr-badge{
-    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880;
-    background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; color:#0e1935;
-    max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none;
-  }
-  .addr-badge::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)); }
-
-  .pin-cta{
-    position:absolute; z-index:930; display:none;
-    background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px; padding:14px 18px; font-size:1.05rem; font-weight:700; letter-spacing:.2px;
-    box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer; transform:translate(-50%, 10px);
-  }
-  .pin-cta:active{ transform:translate(-50%, 12px); }
-
-  .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent; }
-  .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
-
-  .drag-ring{
-    position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid #22c55e;
-    box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9); pointer-events:none; z-index:850; display:none;
-    transform:translate(-50%, -50%); background:radial-gradient(circle at 50% 50%, rgba(34,197,94,.12), rgba(34,197,94,.06) 60%, rgba(34,197,94,0) 70%);
-  }
-  .leaflet-tooltip.drag-tip{
-    background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:6px 12px; box-shadow:0 8px 24px rgba(0,0,0,.12);
-    font-size:1rem; font-weight:700;
-  }
-  .leaflet-tooltip.drag-tip::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid #fff; filter:drop-shadow(0 1px 0 rgba(0,0,0,.08)); }
-
-  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1001; transform:translateY(100%); transition:transform .25s ease;
-          background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column; }
-  .sheet.open{ transform:translateY(0) }
-  .sheet .handle{ align-self:center; width:54px; height:5px; border-radius:999px; background:#e5e7eb; margin:8px 0 4px }
-  .sheet .body{ padding:10px 14px 16px; overflow:auto; -webkit-overflow-scrolling: touch; }
-  .sheet h3{ margin:8px 0 10px }
-  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
-  label{ display:block; margin:6px 0 4px; font-size:.92rem }
-  input,.btn,select{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
-  .btn{ border:0; cursor:pointer }
-  .btn-green{ background:var(--green); color:#fff }
-  .muted{ color:var(--muted); font-size:.95rem }
-
-  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
-  .chip{ padding:8px 10px; border:1px solid #e6e6e6; border-radius:999px; cursor:pointer; }
-  .chip.active{ background:var(--green); color:#fff; border-color:var(--green) }
-
-  .toast{
-    position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%);
-    background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s, bottom .18s
-  }
-  .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
+  :root{ --ink:#0f172a; --muted:#64748b; --green:#22c55e; --blue:#0066cc; --bg:#f6fff9; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
+  .site-header{position:fixed;z-index:1000;top:0;inset:auto 0 auto 0;display:flex;justify-content:center;padding:8px 10px;padding-top:calc(8px + var(--safe-t));pointer-events:none}
+  .brand{pointer-events:auto;background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:6px 16px;box-shadow:0 6px 18px rgba(2,6,12,.06);cursor:pointer}
+  .brand img{height:84px;display:block}@media(min-width:900px){.brand img{height:96px}}
+  #mapWrap{position:fixed;inset:0} #map{position:absolute;inset:0;width:100%;height:100vh;height:100dvh}
+  .controls{position:fixed;z-index:900;left:50%;transform:translateX(-50%);bottom:calc(18px + var(--safe-b));width:min(94vw,960px);display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;gap:10px}
+  .tool-btn{flex:1;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;font-size:1rem;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.04);display:flex;align-items:center;justify-content:center;gap:8px}
+  .tool-btn:active{transform:translateY(1px)} .tool-btn[disabled]{opacity:.6;cursor:default}
+  .searchRow{display:flex;gap:10px}
+  .searchRow .input{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;box-shadow:0 6px 14px rgba(0,0,0,.04)}
+  .searchRow input{border:0;outline:none;width:100%;font:inherit;background:transparent;color:var(--ink)}
+  .slist{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--safe-b));width:min(94vw,960px);background:#fff;border:1px solid #e6e6e6;border-radius:12px;max-height:260px;overflow:auto;display:none;z-index:920;box-shadow:0 6px 14px rgba(0,0,0,.06)}
+  .sitem{padding:12px 14px;border-bottom:1px solid #f3f3f3;cursor:pointer;font-size:1rem}.sitem:last-child{border-bottom:0}
+  .addr-badge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(160px + var(--safe-b));z-index:880;background:#fff;border:1px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-size:1rem;font-weight:700;color:#0e1935;max-width:min(92vw,520px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px rgba(0,0,0,.10);display:none}
+  .addr-badge::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid #fff;filter:drop-shadow(0 1px 0 rgba(0,0,0,.08))}
+  .pin-cta{position:absolute;z-index:930;display:none;background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:16px;padding:14px 18px;font-size:1.05rem;font-weight:700;letter-spacing:.2px;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer;transform:translate(-50%,10px)}
+  .pin-cta:active{transform:translate(-50%,12px)}
+  .leaflet-marker-icon[src*="marker-icon"],.leaflet-marker-shadow{display:none!important}
+  .emoji-marker{background:transparent}.emoji-marker .e{font-size:44px;line-height:44px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
+  .drag-ring{position:absolute;width:64px;height:64px;border-radius:999px;border:3px solid #22c55e;box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9);pointer-events:none;z-index:850;display:none;transform:translate(-50%,-50%);background:radial-gradient(circle at 50% 50%,rgba(34,197,94,.12),rgba(34,197,94,.06) 60%,rgba(34,197,94,0) 70%)}
+  .leaflet-tooltip.drag-tip{background:#fff;color:#0f172a;border:1px solid #e6e6e6;border-radius:999px;padding:6px 12px;box-shadow:0 8px 24px rgba(0,0,0,.12);font-size:1rem;font-weight:700}
+  .leaflet-tooltip.drag-tip::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid #fff;filter:drop-shadow(0 1px 0 rgba(0,0,0,.08))}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:1001;transform:translateY(100%);transition:transform .25s ease;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -20px 60px rgba(0,0,0,.25);max-height:85dvh;display:flex;flex-direction:column}
+  .sheet.open{transform:translateY(0)} .sheet .handle{align-self:center;width:54px;height:5px;border-radius:999px;background:#e5e7eb;margin:8px 0 4px}
+  .sheet .body{padding:10px 14px 16px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px} label{display:block;margin:6px 0 4px;font-size:.92rem}
+  input,.btn,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem}
+  .btn{border:0;cursor:pointer}.btn-green{background:var(--green);color:#fff}
+  .muted{color:var(--muted);font-size:.95rem}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.chip{padding:8px 10px;border:1px solid #e6e6e6;border-radius:999px;cursor:pointer}.chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:10px;z-index:1500;opacity:0;pointer-events:none;transition:opacity .18s,bottom .18s}
+  .toast.show{opacity:1;bottom:calc(110px + var(--safe-b))}
 </style>
 </head>
 <body>
@@ -200,7 +117,7 @@
       </div>
 
       <div style="margin-top:12px">
-        <button id="payAndPlantBtn" class="btn btn-green" style="width:100%; font-size:1.05rem; padding:14px 18px">Pagar y plantar — 9,00 €</button>
+        <button id="payAndPlantBtn" class="btn btn-green" style="width:100%;font-size:1.05rem;padding:14px 18px">Pagar y plantar — 9,00 €</button>
       </div>
     </div>
   </div>
@@ -209,541 +126,233 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* === CONFIG === */
+/* ====== CONFIG BÁSICA ====== */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
-const MAINTENANCE_FEE_EUR = 0.90;
-const STREET_ZOOM = 17;      // mismo nivel calle para todo
-const SELECT_ZOOM = STREET_ZOOM;
-const FINAL_ZOOM  = STREET_ZOOM;
+const STREET_ZOOM = 17;
 
-/* === JSONP helper === */
-function jsonp(url, timeoutMs=12000){
-  return new Promise((resolve, reject)=>{
-    const cb='__fp_cb_'+Math.random().toString(36).slice(2);
-    const s=document.createElement('script'); const sep=url.includes('?')?'&':'?';
-    s.src=url+sep+'callback='+cb+'&_ts='+Date.now(); s.id=cb; s.async=true;
-    let to; function cleanup(){ clearTimeout(to); try{ delete window[cb]; }catch{}; s.remove(); }
-    window[cb]=(data)=>{ cleanup(); resolve(data); };
-    s.onerror=()=>{ cleanup(); reject(new Error('JSONP load failed')); };
-    document.head.appendChild(s);
-    to=setTimeout(()=>{ cleanup(); reject(new Error('JSONP timeout')); }, timeoutMs);
-  });
-}
+/* ====== HELPERS ====== */
+function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
+function fmtDate(ts){try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(Number(ts)||Date.now())).replace(',',''); }catch{return ''}}
+function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
+function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function cleanup(){clearTimeout(to);try{delete window[cb]}catch{};s.remove()}window[cb]=(d)=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('jsonp'))};document.head.appendChild(s);to=setTimeout(()=>{cleanup();reject(new Error('timeout'))},timeoutMs)})}
 
-/* === STATE === */
-let map, baseTiles, fallbackTiles, tileFallbackUsed=false;
-let flowersLayer=null, useCluster=null;
-let selectedMarker=null, selectedLat=null, selectedLng=null;
-let lastTs=0; window._lastItems=[];
-let abortRev=null, abortCtrl=null, currentSuggest=[];
-let amount=9; let userClicked=false;
-let lastPlanted=null;
+/* ====== ESTADO/DOM ====== */
+let map, tilesA, tilesB, selectedMarker=null, selectedLat=null, selectedLng=null, lastTs=0, userClicked=false, lastPlanted=null;
+const controls=document.getElementById('controls'), slist=document.getElementById('slist'), addrBadge=document.getElementById('addrBadge'), dragRing=document.getElementById('dragRing'), pinCta=document.getElementById('pinCta');
+const fromInput=document.getElementById('fromName'), toInput=document.getElementById('toName'), msgInput=document.getElementById('message'), ngoSel=document.getElementById('ngo');
+const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
+let amount=9;
 
-/* === DOM === */
-const $=s=>document.querySelector(s);
-const controls=$("#controls"), tapBtn=$("#tapBtn"), gpsBtn=$("#gpsBtn");
-const searchInput=$("#searchInput"), slist=$("#slist");
-const addrBadge=$("#addrBadge"), dragRing=$("#dragRing"), pinCta=$("#pinCta");
-const sheet=$("#sheet"), fromInput=$("#fromName"), toInput=$("#toName"), msgInput=$("#message"), ngoSel=$("#ngo");
-const chips=$("#chips"), otherRow=$("#otherRow"), otherAmount=$("#otherAmount"), payBtn=$("#payAndPlantBtn");
-const toastEl=$("#toast");
-
-/* === Utils === */
-const ACCEPT_LANG = (()=>{ 
-  try{
-    const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'es'];
-    const set = Array.from(new Set([...langs.map(l=>String(l||'').split('-')[0]), 'es','en']));
-    return set.join(',');
-  }catch{ return 'es,en'; }
+/* ====== MAPA (con fallback CDN) ====== */
+(async function ensureLeaflet(){
+  if(window.L){boot();return;}
+  const cssCDN=["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"];
+  const jsCDN =["https://unpkg.com/leaflet@1.9.4/dist/leaflet.js","https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"];
+  async function addCSS(h){return new Promise((r,e)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=h;l.onload=r;l.onerror=e;document.head.appendChild(l);setTimeout(()=>e(),12000)})}
+  async function addJS(s){return new Promise((r,e)=>{const x=document.createElement('script');x.src=s;x.async=true;x.onload=r;x.onerror=e;document.head.appendChild(x);setTimeout(()=>e(),12000)})}
+  // si el <link> inicial falla, recargamos otro
+  let cssOk = !!document.getElementById('leaflet-css');
+  if(!cssOk){for(const h of cssCDN){try{await addCSS(h);break;}catch{}}}
+  for(const s of jsCDN){try{await addJS(s);if(window.L)break;}catch{}}
+  if(!window.L){alert('No se pudo cargar el mapa (Leaflet).');return;}
+  boot();
 })();
-function toast(msg, ok=true){ const t=toastEl; t.textContent=msg; t.style.background=ok?"#111":"#b30000"; t.classList.add("show"); setTimeout(()=>t.classList.remove('show'),2000); }
-function fmt(n){ return (Number(n)||0).toFixed(2).replace('.',','); }
-function fmtDateTimeFromTs(ts){
-  const n=Number(ts); if(!isFinite(n)) return '';
-  try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date(n)).replace(',', ''); }
-  catch{return '';} }
-function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
-function escHtml(s){
-  const MAP={"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"};
-  return String(s||'').replace(new RegExp("[&<>\"']","g"), m=>MAP[m]);
-}
-function jsStr(s){ return JSON.stringify(String(s||'')); }
-function ngoFullLabel(v){
-  const m={msf:'Médicos Sin Fronteras', stc:'Save the Children', aecc:'Asociación Española contra el Cáncer', unicef:'UNICEF'};
-  return m[v]||'ONG';
+
+function boot(){
+  tilesA=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
+  tilesA.on('tileerror',()=>{try{map.removeLayer(tilesA)}catch{};tilesB=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});tilesB.addTo(map)});
+  map=L.map('map',{layers:[tilesA],zoomControl:true,worldCopyJump:true}); map.setView([40.4168,-3.7038],5);
+
+  map.on('click',e=>{userClicked=true;setSelectedPoint(e.latlng.lat,e.latlng.lng,true)});
+  map.on('move zoom',()=>{if(selectedMarker){positionRing();positionCta()}});
+  window.addEventListener('resize',()=>setTimeout(()=>map.invalidateSize(),120));
+
+  bindUI(); refetch(false); setInterval(()=>refetch(true),15000); deepLink(); afterStripe();
 }
 
-/* === Anillo/CTA centrados === */
-function positionRingFromMarker(){
-  if(!selectedMarker) return;
-  try{
-    const iconEl = (selectedMarker.getElement && selectedMarker.getElement()) || selectedMarker._icon;
-    const mapEl = document.getElementById('map');
-    if(iconEl && mapEl){
-      const r = iconEl.getBoundingClientRect();
-      const rm = mapEl.getBoundingClientRect();
-      const centerX = (r.left + r.width/2) - rm.left;
-      const centerY = (r.top + r.height/2) - rm.top;
-      dragRing.style.left = centerX + 'px';
-      dragRing.style.top  = centerY + 'px';
-      return;
-    }
-  }catch{}
-  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  dragRing.style.left = p.x + 'px';
-  dragRing.style.top  = (p.y - 22) + 'px';
-}
-const CTA_OFFSET_Y = 52;
-function positionPinCtaFromMarker(){
-  if(!selectedMarker) return;
-  const p = map.latLngToContainerPoint(selectedMarker.getLatLng());
-  pinCta.style.left = (p.x) + 'px';
-  pinCta.style.top  = (p.y + CTA_OFFSET_Y) + 'px';
-}
-function showRing(){ dragRing.style.display='block'; }
-function hideRing(){ dragRing.style.display='none'; }
-function showPinCtaFromMarker(){ positionPinCtaFromMarker(); pinCta.style.display='inline-block'; }
-function hidePinCta(){ pinCta.style.display='none'; }
-
-/* === MAP === */
-function initMap(){
-  if(!window.L){ alert('No se pudo cargar Leaflet (CDN bloqueado).'); return; }
-
-  baseTiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
-  baseTiles.on('tileerror', ()=>{ if(!tileFallbackUsed){ tileFallbackUsed=true; try{ map && map.removeLayer(baseTiles);}catch{} fallbackTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}); fallbackTiles.addTo(map);} });
-
-  map=L.map('map',{layers:[baseTiles],zoomControl:true, worldCopyJump:true});
-  map.setView([40.4168,-3.7038],5);
-
-  ensureFlowersLayer(false);
-
-  map.on('click', e=>{
-    userClicked=true;
-    setSelectedPoint(e.latlng.lat, e.latlng.lng, true);
-  });
-
-  map.on('move zoom', ()=>{
-    if(selectedMarker){ positionRingFromMarker(); positionPinCtaFromMarker(); }
-  });
-
-  window.addEventListener('resize', ()=>setTimeout(()=>map.invalidateSize(),120));
-  setTimeout(()=>map.invalidateSize(),200);
-}
-function ensureFlowersLayer(wantCluster){
-  const clusterAvail = !!(window.L && L.markerClusterGroup);
-  if(!clusterAvail) wantCluster = false;
-  if(useCluster===wantCluster && flowersLayer){ try{flowersLayer.clearLayers();}catch{} return; }
-  if(flowersLayer){ try{ map.removeLayer(flowersLayer);}catch{} }
-  flowersLayer = wantCluster
-    ? L.markerClusterGroup({ showCoverageOnHover:false, spiderfyOnEveryZoom:false, disableClusteringAtZoom:16, maxClusterRadius:60 })
-    : L.layerGroup();
-  flowersLayer.addTo(map);
-  useCluster=wantCluster;
-}
-
-/* === Selección de punto === */
-function setSelectedPoint(lat,lng,animate=false){
-  if(!selectedMarker){
-    selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-52], className:'drag-tip'}).openTooltip();
-    selectedMarker.on('drag', ()=>{ positionRingFromMarker(); positionPinCtaFromMarker(); });
-    selectedMarker.on('dragend', e=>{
-      const p=e.target.getLatLng();
-      selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
-      reverseAt(selectedLat, selectedLng);
-      positionRingFromMarker(); positionPinCtaFromMarker();
-    });
-  } else { selectedMarker.setLatLng([lat,lng]); }
-  selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
-
-  try{
-    const targetZoom = Math.max(map.getZoom(), STREET_ZOOM);
-    if(animate){ map.flyTo([lat,lng], targetZoom, {duration:0.5}); }
-    else{ map.setView([lat,lng], targetZoom, {animate:false}); }
-  }catch{}
-
-  reverseAt(selectedLat, selectedLng);
-  addrBadge.style.display='block';
-  showRing(); positionRingFromMarker();
-  showPinCtaFromMarker();
-}
-
-/* === Reverse geocoding === */
-async function reverseAt(lat,lng){
-  if(abortRev){ try{ abortRev.abort(); }catch{} }
-  const ctl=new AbortController(); abortRev=ctl;
-  addrBadge.textContent='Buscando dirección…';
-  try{
-    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(ACCEPT_LANG)}&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-    const r=await fetch(url,{signal:ctl.signal});
-    if(!r.ok) throw 0;
-    const j=await r.json(); const a=j.address||{};
-    const road=a.road||a.pedestrian||a.cycleway||a.footway||a.path||a.neighbourhood||a.suburb||a.city_district||"";
-    const hn=a.house_number||a.housenumber||"";
-    const city=a.city||a.town||a.village||a.municipality||a.state||"";
-    const label=[[road,hn].filter(Boolean).join(" "),city].filter(Boolean).join(", ");
-    addrBadge.textContent = label || (j.display_name||'Ubicación aproximada');
-  }catch{ addrBadge.textContent='Ubicación aproximada'; }
-}
-
-/* === Controles === */
-tapBtn.addEventListener('click', ()=>{ toast('Toca el mapa para continuar'); });
-gpsBtn.addEventListener('click', ()=>{
-  if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
+/* ====== UI BÁSICA ====== */
+document.getElementById('logoBtn').addEventListener('click',()=>location.reload());
+document.getElementById('tapBtn').addEventListener('click',()=>toast('Toca el mapa para continuar'));
+document.getElementById('gpsBtn').addEventListener('click',()=>{
+  if(!('geolocation' in navigator))return toast('Tu dispositivo no permite geolocalización',false);
   navigator.geolocation.getCurrentPosition(pos=>{
-    userClicked=true;
-    setSelectedPoint(pos.coords.latitude, pos.coords.longitude, true);
-    try{ map.flyTo([pos.coords.latitude, pos.coords.longitude], STREET_ZOOM, {duration:0.5}); }catch{}
-  }, ()=>toast('No se pudo obtener tu ubicación (revisa permisos)', false), {timeout:8000});
+    userClicked=true; setSelectedPoint(pos.coords.latitude,pos.coords.longitude,true);
+    try{map.flyTo([pos.coords.latitude,pos.coords.longitude],STREET_ZOOM,{duration:.5})}catch{}
+  },()=>toast('No se pudo obtener tu ubicación',false),{timeout:8000});
 });
+pinCta.addEventListener('click',()=>{if(!selectedLat||!selectedLng)return toast('Elige un punto del mapa primero',false); openSheet()});
+function openSheet(){const s=document.getElementById('sheet');s.classList.add('open');s.setAttribute('aria-hidden','false');try{map.dragging.disable();map.scrollWheelZoom.disable();map.doubleClickZoom.disable()}catch{};updateSplit()}
+function closeSheet(){const s=document.getElementById('sheet');s.classList.remove('open');s.setAttribute('aria-hidden','true');try{map.dragging.enable();map.scrollWheelZoom.enable();map.doubleClickZoom.enable()}catch{}}
 
-/* === Búsqueda === */
-let suggestTimer=null, abortCtrl=null, currentSuggest=[];
-async function searchPlacesPlain(q, sig){
-  const url = 'https://nominatim.openstreetmap.org/search'
-    + '?format=json&addressdetails=1&limit=10'
-    + '&accept-language=' + encodeURIComponent(ACCEPT_LANG)
-    + '&q=' + encodeURIComponent(q);
-  const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error('nominatim'); return r.json();
-}
-function renderSuggest(list, isSearching){
-  if(isSearching){ slist.innerHTML='<div class="sitem">Buscando…</div>'; slist.style.display='block'; return; }
-  slist.innerHTML="";
-  list.forEach((it,idx)=>{
-    const row=document.createElement('div'); row.className='sitem'; row.setAttribute('role','option');
-    const dn = (it.display_name||'').split(',').map(s=>s.trim());
-    const primary = dn[0] || '';
-    const city = it.address?.city || it.address?.town || it.address?.village || it.address?.municipality || '';
-    const state = it.address?.state || it.address?.province || it.address?.state_district || '';
-    const meta = [city || dn[1] || '', state || dn[2] || ''].filter(Boolean).join(', ');
-    row.innerHTML = primary + (meta?` <small>${meta}</small>`:'');
-    row.onclick=()=>selectSuggest(idx);
-    slist.appendChild(row);
-  });
-  slist.style.display = list.length ? 'block' : 'none';
-}
+document.getElementById('chars').textContent='(0/30)';
+msgInput.addEventListener('input',()=>{msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30);document.getElementById('chars').textContent='('+msgInput.value.length+'/30)'});
+msgInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()}});
+
+/* ====== BUSCAR ====== */
+let suggestTimer=null,abortCtrl=null,currentSuggest=[];
+const searchInput=document.getElementById('searchInput');
+searchInput.addEventListener('input',e=>{
+  const q=e.target.value.trim(); clearTimeout(suggestTimer);
+  if(!q){slist.style.display='none';return;}
+  suggestTimer=setTimeout(()=>runSuggest(q),260);
+});
+document.addEventListener('click',e=>{if(!slist.contains(e.target)&&e.target!==searchInput)slist.style.display='none'});
+searchInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); if(currentSuggest.length){selectSuggest(0)}}});
 async function runSuggest(q){
-  if(abortCtrl) abortCtrl.abort();
-  abortCtrl=new AbortController(); const sig=abortCtrl.signal;
-  renderSuggest([], true);
+  if(abortCtrl)abortCtrl.abort(); abortCtrl=new AbortController(); const sig=abortCtrl.signal;
+  slist.innerHTML='<div class="sitem">Buscando…</div>'; slist.style.display='block';
   try{
-    const list = await searchPlacesPlain(q,sig).catch(()=>[]);
-    currentSuggest = list || [];
-    renderSuggest(currentSuggest, false);
-  }catch{ currentSuggest=[]; renderSuggest([], false); }
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10&accept-language=es,en&q='+encodeURIComponent(q),{signal:sig});
+    const list=await r.json(); currentSuggest=list||[]; renderSuggest(list)
+  }catch{ currentSuggest=[]; renderSuggest([])}
 }
-async function selectSuggest(i){
-  const it=currentSuggest[i]; if(!it) return;
-  slist.style.display='none';
-  userClicked=true;
-
-  const lat = Number(it.lat), lon = Number(it.lon);
-  setSelectedPoint(lat, lon, true);
-  try{ map.flyTo([lat, lon], STREET_ZOOM, {duration:0.55}); }catch{}
+function renderSuggest(list){
+  slist.innerHTML='';
+  (list||[]).forEach((it,i)=>{
+    const dn=String(it.display_name||'').split(','); const primary=dn[0]||''; const meta=[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
+    const el=document.createElement('div'); el.className='sitem'; el.textContent=primary+(meta?(' · '+meta):''); el.onclick=()=>selectSuggest(i); slist.appendChild(el);
+  });
+  slist.style.display=(list&&list.length)?'block':'none';
 }
-searchInput.addEventListener('input', (e)=>{
-  const q=e.target.value.trim();
-  clearTimeout(suggestTimer);
-  if(!q){ slist.style.display='none'; return; }
-  suggestTimer=setTimeout(()=>runSuggest(q), 260);
-});
-searchInput.addEventListener('keydown', (e)=>{
-  if(e.key==='Enter'){
-    e.preventDefault();
-    if(currentSuggest.length){ selectSuggest(0); }
-  }
-});
-document.addEventListener('click', e=>{
-  if(!slist.contains(e.target) && e.target!==searchInput) slist.style.display='none';
-});
-
-/* === Sheet === */
-pinCta.addEventListener('click', ()=>{
-  if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero', false);
-  openSheet();
-});
-function openSheet(){
-  sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
-  try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}
-  updateSplitCopy();
-}
-function closeSheet(){
-  sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
-  try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}
+function selectSuggest(i){
+  const it=currentSuggest[i]; if(!it)return; slist.style.display='none'; userClicked=true;
+  const lat=Number(it.lat),lng=Number(it.lon); setSelectedPoint(lat,lng,true); try{map.flyTo([lat,lng],STREET_ZOOM,{duration:.55})}catch{}
 }
 
-/* === Mensaje (1 línea) === */
-const chars=$("#chars");
-msgInput.addEventListener('input', ()=>{
-  msgInput.value = msgInput.value.replace(new RegExp("\r?\n","g"), '').slice(0,30);
-  chars.textContent='(' + msgInput.value.length + '/30)';
-});
-msgInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); }});
-
-/* === Importe + copy === */
-const MIN_OTHER = 1; // sin límite máximo
-chips.addEventListener('click', (e)=>{
-  const b=e.target.closest('.chip'); if(!b) return;
-  chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-  b.classList.add('active');
-  const v=b.dataset.amount;
-  if(v==='other'){
-    otherRow.style.display='block';
-    let cur = Number(String(otherAmount.value||'').replace(',','.'));
-    if(!isFinite(cur) || cur<MIN_OTHER){ cur = MIN_OTHER; }
-    amount = cur; otherAmount.value = amount.toFixed(2);
-    otherAmount.focus();
-  } else {
-    otherRow.style.display='none';
-    amount = Number(v)||9;
-  }
-  updatePayBtn(); updateSplitCopy();
-});
-otherAmount.addEventListener('blur', ()=>{
-  let val = Number(String(otherAmount.value||'').replace(',','.'));
-  if(!isFinite(val) || val<MIN_OTHER){ val = MIN_OTHER; }
-  amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn(); updateSplitCopy();
-});
-otherAmount.addEventListener('input', ()=>{
-  let val = Number(String(otherAmount.value||'').replace(',','.'));
-  if(!isFinite(val)) return;
-  amount = val;
-  updatePayBtn(); updateSplitCopy();
-});
-function updatePayBtn(){ $("#payAndPlantBtn").textContent = `Pagar y plantar — ${fmt(amount)} €`; }
-function ngoLabel(){ const o=ngoSel.options[ngoSel.selectedIndex]; return o?o.textContent:'la ONG'; }
-function updateSplitCopy(){
-  $("#splitCopy").innerHTML = `Tu aportación es íntegra para <strong>${escHtml(ngoLabel())}</strong>, excepto <strong>0,90 €</strong> para el mantenimiento de tu flor para siempre.`;
+/* ====== SELECCIÓN PUNTO ====== */
+function setSelectedPoint(lat,lng,animate){
+  if(!selectedMarker){
+    selectedMarker=L.marker([lat,lng],{icon:emojiIcon(),draggable:true,zIndexOffset:2000}).addTo(map);
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true,direction:'top',offset:[0,-52],className:'drag-tip'}).openTooltip();
+    selectedMarker.on('drag',()=>{positionRing();positionCta()});
+    selectedMarker.on('dragend',e=>{
+      const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
+      reverseAt(selectedLat,selectedLng); positionRing(); positionCta();
+    });
+  }else{selectedMarker.setLatLng([lat,lng])}
+  selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
+  const z=Math.max(map.getZoom(),STREET_ZOOM); try{animate?map.flyTo([lat,lng],z,{duration:.5}):map.setView([lat,lng],z,{animate:false})}catch{}
+  reverseAt(selectedLat,selectedLng); addrBadge.style.display='block'; showRing(); positionRing(); showCta();
 }
-ngoSel.addEventListener('change', updateSplitCopy);
+function reverseAt(lat,lng){
+  addrBadge.textContent='Buscando dirección…';
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es,en&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`).then(r=>r.json()).then(j=>{
+    const a=j.address||{}; const road=a.road||a.pedestrian||a.path||a.neighbourhood||''; const hn=a.house_number||a.housenumber||''; const city=a.city||a.town||a.village||a.state||'';
+    addrBadge.textContent=[[road,hn].filter(Boolean).join(' '),city].filter(Boolean).join(', ')||j.display_name||'Ubicación aproximada';
+  }).catch(()=>addrBadge.textContent='Ubicación aproximada');
+}
+function positionRing(){
+  if(!selectedMarker)return;
+  const iconEl=selectedMarker.getElement?.()||selectedMarker._icon; const mapEl=document.getElementById('map');
+  if(iconEl&&mapEl){const r=iconEl.getBoundingClientRect(),rm=mapEl.getBoundingClientRect(); dragRing.style.left=(r.left+r.width/2-rm.left)+'px'; dragRing.style.top=(r.top+r.height/2-rm.top)+'px'; return;}
+  const p=map.latLngToContainerPoint(selectedMarker.getLatLng()); dragRing.style.left=p.x+'px'; dragRing.style.top=(p.y-22)+'px';
+}
+function positionCta(){const p=map.latLngToContainerPoint(selectedMarker.getLatLng()); pinCta.style.left=p.x+'px'; pinCta.style.top=(p.y+52)+'px'}
+function showRing(){dragRing.style.display='block'} function hideRing(){dragRing.style.display='none'}
+function showCta(){positionCta(); pinCta.style.display='inline-block'} function hideCta(){pinCta.style.display='none'}
 
-/* === PAGO CON STRIPE === */
-payBtn.addEventListener('click', async ()=>{
-  if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
+/* ====== SPLIT COPY + IMPORTE ====== */
+function updateSplit(){document.getElementById('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para el mantenimiento de tu flor para siempre.`}
+chips.addEventListener('click',e=>{
+  const b=e.target.closest('.chip'); if(!b)return; chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); b.classList.add('active');
+  const v=b.dataset.amount; if(v==='other'){otherRow.style.display='block'; let cur=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(cur)||cur<1)cur=1; amount=cur; otherAmount.value=amount.toFixed(2); otherAmount.focus();}
+  else {otherRow.style.display='none'; amount=Number(v)||9;}
+  payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; updateSplit();
+});
+otherAmount.addEventListener('input',()=>{let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v))return; amount=v; payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`});
+otherAmount.addEventListener('blur',()=>{let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1)v=1; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`});
+ngoSel.addEventListener('change',updateSplit);
+
+/* ====== STRIPE (crear sesión) ====== */
+payBtn.addEventListener('click',async ()=>{
+  if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa',false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
-  if(!from||!to||!msg){ toast('Completa tu dedicatoria', false); return; }
-
-  if(otherRow.style.display!=='none'){
-    let val = Number(String(otherAmount.value||'').replace(',','.'));
-    if(!isFinite(val) || val<MIN_OTHER){ val = MIN_OTHER; }
-    amount = val; otherAmount.value = amount.toFixed(2); updatePayBtn();
-  }
-
+  if(!from||!to||!msg) return toast('Completa tu dedicatoria',false);
+  if(otherRow.style.display!=='none'){let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1)v=1; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`;}
   payBtn.disabled=true; const prev=payBtn.textContent; payBtn.textContent='Abriendo pago…';
   try{
-    const body = {
-      lat: Number(selectedLat),
-      lng: Number(selectedLng),
-      place: addrBadge.textContent || '',
-      fromName: from,
-      toName: to,
-      message: msg,
-      ngo: String(ngoSel.value||''),
-      ngo_label: ngoFullLabel(ngoSel.value||''),
-      amount_total: Number(Number(amount).toFixed(2))
-    };
-    const r = await fetch(`${BACKEND_URL}/create-checkout-session`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body),
-    });
-    const j = await r.json().catch(()=>null);
-    if(!j || !j.ok || !j.url){ toast('Error creando pago', false); return; }
-    location.href = j.url;
-  }catch(e){
-    toast('Fallo de red', false);
-  }finally{
-    payBtn.disabled=false; payBtn.textContent=prev;
-  }
+    const body={lat:+selectedLat,lng:+selectedLng,place:addrBadge.textContent||'',fromName:from,toName:to,message:msg,ngo:String(ngoSel.value||''),ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'',amount_total:+(+amount).toFixed(2)};
+    const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>null); if(!j||!j.ok||!j.url) return toast('Error creando pago',false);
+    location.href=j.url;
+  }catch{ toast('Fallo de red',false) } finally{ payBtn.disabled=false; payBtn.textContent=prev; }
 });
 
-/* === Post-Stripe === */
-async function tryFocusAfterStripe(){
-  const u = new URL(location.href);
-  if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
-    const sid = u.searchParams.get('session_id');
+/* ====== Tras volver de Stripe ====== */
+async function afterStripe(){
+  const u=new URL(location.href);
+  if(u.searchParams.get('success')==='1'&&u.searchParams.get('session_id')){
+    const sid=u.searchParams.get('session_id');
     try{
-      const r = await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`);
-      const j = await r.json();
-      if(j && j.ok && isFinite(j.lat) && isFinite(j.lng)){
-        userClicked = true;
-        lastPlanted = { id: String(j.id||''), lat: Number(j.lat), lng: Number(j.lng) };
-        try{ map.flyTo([lastPlanted.lat, lastPlanted.lng], FINAL_ZOOM, {duration:0.6}); }catch{}
+      const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`); const j=await r.json();
+      if(j&&j.ok&&isFinite(j.lat)&&isFinite(j.lng)){
+        userClicked=true; lastPlanted={id:String(j.id||''),lat:+j.lat,lng:+j.lng};
+        try{map.flyTo([lastPlanted.lat,lastPlanted.lng],STREET_ZOOM,{duration:.6})}catch{}
       }
     }catch{}
-    u.searchParams.delete('success'); u.searchParams.delete('session_id');
-    history.replaceState({}, '', u.toString());
-    setTimeout(()=>refetch(true), 300);
-    toast('¡Gracias! Flor plantada 🌸');
-  }else if(u.searchParams.get('canceled')==='1'){
-    u.searchParams.delete('canceled');
-    history.replaceState({}, '', u.toString());
-    toast('Pago cancelado', false);
-  }
+    u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
+    setTimeout(()=>refetch(true),300); toast('¡Gracias! Flor plantada 🌸');
+  }else if(u.searchParams.get('canceled')==='1'){u.searchParams.delete('canceled'); history.replaceState({},'',u.toString()); toast('Pago cancelado',false)}
 }
 
-/* === Popup (estilo nuevo) === */
-function popupHtml(from,to,msg,dtStr,shareUrl,total){
+/* ====== POPUP ====== */
+function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
-  const url = shareUrl || `${location.origin}${location.pathname}`;
-  const tt = (Number(total)||0).toFixed(2).replace('.',',');
-
-  // Estructura: 1) Fecha Hora  2) De X para Y  3) Mensaje  4) Donación: Importe total
-  const urlEsc = escHtml(url);
+  const url=shareUrl||`${location.origin}${location.pathname}`;
+  const tt=fmt(total||0), urlEsc=escHtml(url);
   return `
     <div style="min-width:260px;max-width:320px">
-      <div class="muted" style="margin-bottom:6px">${dtStr || ''}</div>
+      <div class="muted" style="margin-bottom:6px">${dt||''}</div>
       <div style="margin-bottom:6px"><strong>De ${safeFrom}</strong> para <strong>${safeTo}</strong></div>
       <div style="margin-bottom:10px">${safeMsg}</div>
       <div class="muted" style="margin-bottom:12px">Donación: <strong>${tt} €</strong></div>
-
-      <!-- Botón-URL completa -->
-      <a href="${urlEsc}" target="_blank" rel="noopener"
-         style="display:block;width:100%;text-align:center;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;word-break:break-all;text-decoration:none;">
-         ${urlEsc}
-      </a>
-
-      <div style="margin-top:8px; text-align:center">
-        <button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra 🌸</button>
-      </div>
+      <a href="${urlEsc}" target="_blank" rel="noopener" style="display:block;width:100%;text-align:center;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;word-break:break-all;text-decoration:none">${urlEsc}</a>
+      <div style="margin-top:8px;text-align:center"><button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra 🌸</button></div>
     </div>`;
 }
+window.plantAnother=function(){
+  try{map.closePopup()}catch{}; controls.style.display=''; slist.style.display='none'; hideRing(); hideCta(); addrBadge.style.display='none';
+  selectedMarker=null; selectedLat=null; selectedLng=null; lastPlanted=null;
+  try{map.flyTo([40.4168,-3.7038],5,{duration:.4})}catch{}
+}
 
-/* === Deep link === */
-async function tryOpenShared(){
-  const path = location.pathname;
-  let id = null;
-  const m = path.match(new RegExp("\/f\/([^\/?#]+)"));
-  if(m && m[1]) id = decodeURIComponent(m[1]);
-  if(!id){
-    const u=new URL(location.href);
-    id=u.searchParams.get('id');
-  }
-  const u2 = new URL(location.href);
-  const latParam=u2.searchParams.get('lat'), lngParam=u2.searchParams.get('lng');
-
-  if(id){
-    try{
-      const data = await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
-      if(data && data.ok && data.item){
-        const it=data.item;
-        const lat=Number(it.lat), lng=Number(it.lng);
-        const from=it.fromName||'', to=it.toName||'', msg=it.message||'';
-        const dtStr = fmtDateTimeFromTs(it.timestamp);
-        const html = popupHtml(from,to,msg,dtStr, `${location.origin}/f/${encodeURIComponent(id)}`, Number(it.amount_total)||0);
-        const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1600}).addTo(map).bindPopup(html);
-        mk._fid = String(it.id||id);
-        map.setView([lat,lng], FINAL_ZOOM);
-        mk.openPopup();
-        return;
-      }
-    }catch(e){}
-  } else if(latParam && lngParam){
-    const lat=+latParam, lng=+lngParam;
-    map.setView([lat,lng], FINAL_ZOOM);
+/* ====== LISTADO + RENDER ====== */
+function normalize(items){
+  const out=[]; for(const f of (items||[])){const lat=+f.lat,lng=+f.lng; if(!isFinite(lat)||!isFinite(lng))continue;
+    out.push({id:String(f.id||''),lat,lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp:f.timestamp||'',amount_total:isFinite(+f.amount_total)?+f.amount_total:isFinite(+f.amountTotal)?+f.amountTotal:0})
+  } return out;
+}
+function render(list){
+  if(!map)return; try{map.eachLayer(l=>{if(l&&l._isFlower){map.removeLayer(l)}})}catch{}
+  for(const f of list){
+    const dt=f.timestamp?fmtDate(f.timestamp):''; const shareUrl=`${location.origin}/f/${encodeURIComponent(f.id||'')}`;
+    const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200}); mk._isFlower=true; mk._fid=String(f.id||'');
+    mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,shareUrl,f.amount_total)); mk.addTo(map);
+    if(lastPlanted && String(lastPlanted.id)===String(f.id)){ try{mk.openPopup()}catch{} }
   }
 }
-
-/* === Normaliza + render === */
-function normalizeItems(items){
-  const out=[];
-  for(const f of (items||[])){
-    const lat = Number(f.lat); const lng = Number(f.lng);
-    if(!isFinite(lat)||!isFinite(lng)) continue;
-    const id       = String(f.id ?? `${lat},${lng},${f.timestamp ?? ''}`);
-    const fromName = f.fromName ?? '';
-    const toName   = f.toName   ?? '';
-    const message  = f.message  ?? '';
-    const timestamp= f.timestamp?? '';
-    const amount_total = isFinite(Number(f.amount_total)) ? Number(f.amount_total) : (isFinite(Number(f.amountTotal)) ? Number(f.amountTotal) : 0);
-    out.push({ id, lat, lng, fromName, toName, message, timestamp, amount_total });
-  }
-  return out;
-}
-function mergeUniqueById(oldList, newList){
-  const m=new Map(); for(const it of (oldList||[])) m.set(it.id,it); for(const it of (newList||[])) m.set(it.id,it);
-  return Array.from(m.values());
-}
-function renderAllMarkers(list){
-  if(!map) return;
-  const wantCluster = list.length >= 30;
-  ensureFlowersLayer(wantCluster);
-  try{ flowersLayer.clearLayers(); }catch{}
-  let i=0, n=list.length;
-  (function chunk(){
-    const t0=performance.now();
-    const batch=[];
-    while(i<n && (performance.now()-t0)<24){
-      const f=list[i++]; const lat=f.lat, lng=f.lng;
-      if(!isFinite(lat)||!isFinite(lng)) continue;
-      const dtStr = f.timestamp ? fmtDateTimeFromTs(f.timestamp) : '';
-      const shareUrl = `${location.origin}/f/${encodeURIComponent(f.id)}`;
-      const html=popupHtml(f.fromName||'', f.toName||'', (f.message||''), dtStr, shareUrl, f.amount_total||0);
-      const mk=L.marker([lat,lng],{icon:emojiIcon(), zIndexOffset:1200}).bindPopup(html);
-      mk._fid = String(f.id);
-      batch.push(mk);
-    }
-    if(batch.length){ if(useCluster) flowersLayer.addLayers(batch); else batch.forEach(m=>flowersLayer.addLayer(m)); }
-    if(i<n){ requestAnimationFrame(chunk); }
-    else{
-      try{ useCluster && flowersLayer.refreshClusters(); }catch{}
-      if(lastPlanted){
-        try{
-          let opened=false;
-          flowersLayer.eachLayer(l=>{
-            if(opened) return;
-            if(l && l._fid===lastPlanted.id){
-              const item = (list||[]).find(x=>String(x.id)===String(lastPlanted.id));
-              if(item){
-                const dtStr = item.timestamp ? fmtDateTimeFromTs(item.timestamp) : '';
-                const shareUrl = `${location.origin}/f/${encodeURIComponent(item.id)}`;
-                l.unbindPopup();
-                l.bindPopup(popupHtml(item.fromName||'', item.toName||'', item.message||'', dtStr, shareUrl, item.amount_total||0));
-              }
-              l.openPopup(); opened=true;
-            }
-          });
-          if(opened){
-            try{ map.flyTo([lastPlanted.lat,lastPlanted.lng], FINAL_ZOOM, {duration:0.3}); }catch{}
-          }
-        }catch{}
-      } else if(!userClicked){
-        try{ map.setView([40.4168, -3.7038], 5, {animate:false}); }catch{}
-      }
-    }
-  })();
-}
-
-/* === Refetch periódico === */
-async function refetch(incremental=false){
+async function refetch(incr){
   try{
-    const url = SCRIPT_URL + '?action=list' + (incremental && lastTs ? ('&since='+encodeURIComponent(lastTs)) : '');
-    const data = await jsonp(url, 12000);
-    if (data && Array.isArray(data.items)) {
-      const norm = normalizeItems(data.items);
-      window._lastItems = incremental && window._lastItems.length ? mergeUniqueById(window._lastItems, norm) : norm;
-      renderAllMarkers(window._lastItems);
-      for (const it of data.items) { const t=Number(it.timestamp)||0; if(t>lastTs) lastTs=t; }
-      try{ localStorage.setItem('flowers_cache', JSON.stringify(window._lastItems||[])); }catch{}
+    const url=SCRIPT_URL+'?action=list'+(incr&&lastTs?('&since='+encodeURIComponent(lastTs)):'');
+    const d=await jsonp(url,12000); if(d&&Array.isArray(d.items)){
+      const norm=normalize(d.items); render(norm);
+      for(const it of d.items){const t=+it.timestamp||0; if(t>lastTs)lastTs=t;}
+      try{localStorage.setItem('flowers_cache',JSON.stringify(norm))}catch{}
       return;
     }
-  } catch(e){ /* usa cache si hay */ }
-  const cached=localStorage.getItem('flowers_cache');
-  if(cached){
-    window._lastItems = JSON.parse(cached);
-    renderAllMarkers(window._lastItems);
-  }
+  }catch{}
+  const cached=localStorage.getItem('flowers_cache'); if(cached){render(JSON.parse(cached))}
 }
 
-/* === Logo → refresh === */
-$("#logoBtn").addEventListener('click', ()=>{ location.reload(); });
-
-/* === BOOT === */
-(function boot(){
-  if(window.L){ initMap(); refetch(false); setInterval(()=>refetch(true),15000); tryOpenShared(); tryFocusAfterStripe(); document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; }}); }
-  else { alert('No se pudo cargar Leaflet. Revisa si tu red o CSP bloquean el CDN.'); }
-})();
+/* ====== DEEP LINK ====== */
+async function deepLink(){
+  const u=new URL(location.href); const m=location.pathname.match(/\/f\/([^\/?#]+)/); let id=null; if(m&&m[1]) id=decodeURIComponent(m[1]); if(!id) id=u.searchParams.get('id');
+  if(id){ try{const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`); if(d&&d.ok&&d.item){const it=d.item; const dt=fmtDate(it.timestamp); const html=popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,`${location.origin}/f/${encodeURIComponent(id)}`, +it.amount_total||+it.amountTotal||0); const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(html); mk.openPopup(); map.setView([+it.lat,+it.lng],STREET_ZOOM); return; }}catch{} }
+  if(u.searchParams.get('lat')&&u.searchParams.get('lng')){map.setView([+u.searchParams.get('lat'),+u.searchParams.get('lng')],STREET_ZOOM)}
+}
 </script>
 </body>
 </html>
