@@ -7,6 +7,19 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
 
+<!-- Fuerza dominio canónico: redirige https://www.flovermaps.com → https://flovermaps.com -->
+<script>
+  (function forceCanonical(){
+    try{
+      var apex = "flovermaps.com";
+      if (location.hostname === "www." + apex) {
+        var url = "https://" + apex + location.pathname + location.search + location.hash;
+        location.replace(url);
+      }
+    }catch(e){}
+  })();
+</script>
+
 <!-- Favicon corazón -->
 <link rel="icon" type="image/svg+xml"
   href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="%23c73737" d="M32 57c-1.1 0-2.1-.3-3-.9C20.7 51.7 4 39.7 4 22.8 4 14 11 7 19.8 7c4.8 0 9.1 2.2 12.2 5.7C35.1 9.2 39.4 7 44.2 7 53 7 60 14 60 22.8c0 16.9-16.7 28.9-25 33.3-.9.6-1.9.9-3 .9z"/></svg>' />
@@ -151,7 +164,7 @@ const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const STREET_ZOOM = 17;
 const MAX_ZOOM = 19;
 
-// Producción ABSOLUTA
+// Producción ABSOLUTA (enlaces de compartir)
 const PROD_ORIGIN = "https://flovermaps.com";
 function shareUrlFor(id){
   const origin = (typeof PROD_ORIGIN === 'string' && PROD_ORIGIN) || location.origin;
@@ -183,7 +196,7 @@ function focusToStreet(lat, lng){
 let map, baseTiles, fallbackTiles;
 let selectedMarker=null, selectedLat=null, selectedLng=null;
 let flowersCache=[], lastTs=0, plantMode=false;
-let pendingFocus=null; // {lat,lng,openPopup:fn}
+let pendingFocus=null; // {lat,lng,open:fn}
 
 /* === DOM === */
 const slist=document.getElementById('slist'), addrBadge=document.getElementById('addrBadge'), dragRing=document.getElementById('dragRing'), pinCta=document.getElementById('pinCta');
@@ -368,11 +381,9 @@ async function afterStripe(){
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         mk._isFlower=true; mk._fid=String(it.id||'');
 
-        // Guardamos foco pendiente por si aún no hay teselas listas
         pendingFocus = { lat:+it.lat, lng:+it.lng, open: ()=>mk.openPopup() };
         map.whenReady(()=>{ focusToStreet(pendingFocus.lat, pendingFocus.lng); setTimeout(()=>pendingFocus.open(), 120); pendingFocus=null; });
 
-        // Cache local + render (no mueve vista)
         upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
         persistCache(); render(flowersCache);
 
@@ -380,7 +391,6 @@ async function afterStripe(){
       }
     }
   }catch{}
-  // limpiar query
   URL_NOW.searchParams.delete('success'); URL_NOW.searchParams.delete('session_id');
   history.replaceState({},'',URL_NOW.toString());
   setTimeout(()=>refetch(true), 1200);
@@ -480,7 +490,6 @@ function bindUI(){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; } });
   updateSplit();
 }
-
 </script>
 </body>
 </html>
