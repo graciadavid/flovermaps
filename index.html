@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.2.1 (fix ReferenceError en renderSuggest) -->
+<!-- BUILD: FM-frontend-3.2.2 (debug overlay + fixes) -->
 
 <!-- Redirección canónica: www → apex -->
 <script>
@@ -33,8 +33,12 @@
 <link rel="dns-prefetch" href="https://flovermaps-stripe-backend.onrender.com">
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Leaflet CSS + JS (sin defer para asegurar orden) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-y4UQvRZV9tTg0l0nF2HnVv7m0XH1bU0G4l7jXb1G5TQ4t7lJ9xgM0iWmQXf3sHn8c0qU9J5Zp8gqz2lG0n8mQ==" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha512-pkG5Yw2m1o0a8q1R7oZ1lA6m1mB3n8s8m1Y8Cw5mC2kqkqX7c9p4nH8e2z6r3d9kZlK3pK1oYxQ7nC5J9T9V7Q=="
+        crossorigin=""></script>
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --green:#22c55e; --blue:#0066cc; --bg:#f6fff9; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
@@ -42,7 +46,7 @@
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
 
   .site-header{ position:fixed; z-index:1000; top:0; inset:auto 0 auto 0; display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
-  .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
+  .brand{ pointer-events:auto; background:#fff; border:1px solid #e6e6e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
   .brand img{ height:84px; display:block }
 
   #mapWrap{ position:fixed; inset:0; }
@@ -87,6 +91,41 @@
   .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:2000; }
   .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
 </style>
+
+<!-- ===== DEBUG OVERLAY (temporal) ===== -->
+<style>
+  #dbgErr{position:fixed;inset:auto 8px 8px 8px;background:#1b1b1b;color:#fff;
+    font:14px/1.35 ui-monospace,Menlo,Consolas,monospace;border-radius:10px;
+    padding:10px 12px;z-index:99999;max-height:40vh;overflow:auto;display:none;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  #dbgErr b{color:#ff8}
+  #dbgErr .note{color:#8bb}
+</style>
+<script>
+(function(){
+  function show(msg){
+    var el=document.getElementById('dbgErr');
+    if(!el){ el=document.createElement('div'); el.id='dbgErr'; document.body.appendChild(el); }
+    el.style.display='block';
+    el.innerHTML += '<div>'+msg+'</div>';
+  }
+  window.addEventListener('error', function(e){
+    show('<b>JS Error:</b> '+(e.message||e.error)+'<br><span class="note">'+(e.filename||'')+':'+(e.lineno||'')+'</span>');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    show('<b>Promise Rejection:</b> '+(e.reason&&e.reason.message||e.reason));
+  });
+  document.addEventListener('DOMContentLoaded', function(){
+    try{
+      show('<b>Build:</b> DEBUG overlay activo');
+      show('<b>Leaflet presente:</b> '+(!!window.L));
+      var mapDiv = document.getElementById('map');
+      show('<b>#map existe:</b> '+(!!mapDiv));
+    }catch(err){ show('<b>Overlay error:</b> '+err.message); }
+  });
+})();
+</script>
+<!-- ===== /DEBUG OVERLAY ===== -->
+
 </head>
 <body>
 
@@ -278,7 +317,7 @@ function renderSuggest(list){
   slist.innerHTML='';
   (list||[]).forEach((it,i)=>{
     const dn=String(it.display_name||'').split(',');
-    const primary=dn[0]||'';                     /* ← FIX: variable correcta y declarada */
+    const primary=dn[0]||'';
     const meta=[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
     const el=document.createElement('div'); el.className='sitem';
     el.textContent=primary+(meta?(' · '+meta):'');
