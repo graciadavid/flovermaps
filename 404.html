@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirigiendo… | Flovermaps</title>
+    <meta http-equiv="refresh" content="2; url=/" />
+    <style>
+      body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px}
+    </style>
+  </head>
+  <body>
+    <p>Redirigiendo a Flovermaps…</p>
+    <script>
+      (function(){
+        try{
+          var m = location.pathname.match(/\/f\/([^\/?#]+)/);
+          if(m && m[1]){
+            var id = decodeURIComponent(m[1]);
+            var extra = location.search.replace(/^\?/,'&');
+            location.replace('/?id=' + encodeURIComponent(id) + extra);
+            return;
+          }
+        }catch(e){}
+        location.replace('/');
+      })();
+    </script>
+  </body>
+</html>
