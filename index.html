@@ -165,6 +165,13 @@ const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXW
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
 const STREET_ZOOM = 17;
 
+// Producción ABSOLUTA (enlaces de compartir)
+const PROD_ORIGIN = "https://flovermaps.com";
+function shareUrlFor(id){
+  const origin = (typeof PROD_ORIGIN === 'string' && PROD_ORIGIN) || location.origin;
+  return origin.replace(/\/$/,'') + '/?id=' + encodeURIComponent(String(id||''));
+}
+
 /* === HELPERS === */
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
@@ -356,14 +363,12 @@ async function afterStripe(){
         const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
         if(d&&d.ok&&d.item){
           const it=d.item; const dt=fmtDate(it.timestamp);
-          // URL compatible con GitHub Pages (evita 404): usar ?id=
-          const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(it.id))}`;
+          const shareUrl = shareUrlFor(it.id);
           const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
             .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
           mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup();
           try{ map.flyTo([+it.lat,+it.lng], STREET_ZOOM, {duration:.45}); }catch{}
 
-          // Añadir a cache local para que no desaparezca tras el refetch
           upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
           persistCache(); render(flowersCache);
 
@@ -372,7 +377,6 @@ async function afterStripe(){
         }
       }
     }catch{}
-    // limpiar query sin recargar
     u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
     setTimeout(()=>refetch(true), 1200);
   } else if(u.searchParams.get('canceled')==='1'){
@@ -421,8 +425,7 @@ function render(list){
   toRemove.forEach(l=>map.removeLayer(l));
   for(const f of data){
     const dt=f.timestamp?fmtDate(f.timestamp):'';
-    // URL de compartir en formato ?id= (compatible con Pages)
-    const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(f.id||''))}`;
+    const shareUrl = shareUrlFor(f.id);
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200});
     mk._isFlower=true; mk._fid=String(f.id||'');
     mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,shareUrl,f.amount_total));
@@ -451,7 +454,7 @@ async function deepLink(){
   const u=new URL(location.href);
   // Soportamos ?id=... (recomendado para Pages)
   let id = u.searchParams.get('id');
-  // si viniera /f/ID también funciona si añades 404.html (abajo)
+  // si viniera /f/ID también funciona con 404.html
   if(!id){
     const m=location.pathname.match(/\/f\/([^\/?#]+)/);
     if(m&&m[1]) id=decodeURIComponent(m[1]);
@@ -461,7 +464,7 @@ async function deepLink(){
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
       if(d&&d.ok&&d.item){
         const it=d.item; const dt=fmtDate(it.timestamp);
-        const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(id))}`;
+        const shareUrl = shareUrlFor(id);
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup(); map.setView([+it.lat,+it.lng], STREET_ZOOM); return;
