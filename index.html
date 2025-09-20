@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.4 (index compacto + focus garantizado) -->
+<!-- BUILD: FM-frontend-3.5 (plant=17, post-Stripe=19, foco estable) -->
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
@@ -16,7 +16,7 @@
 <style>
 :root{--ink:#0f172a;--muted:#64748b;--green:#22c55e;--blue:#0066cc;--bg:#f6fff9;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
-.site-header{position:fixed;z-index:1000;top:0;inset:auto 0 auto 0;display:flex;justify-content:center;padding:8px 10px;padding-top:calc(8px + var(--safe-t));pointer-events:none}
+.site-header{position:fixed;z-index:1000;top:0;left:0;right:0;display:flex;justify-content:center;padding:8px 10px;padding-top:calc(8px + var(--safe-t));pointer-events:none}
 .brand{pointer-events:auto;background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:6px 16px;box-shadow:0 6px 18px rgba(2,6,12,.06)}
 .brand img{height:84px;display:block}
 #mapWrap{position:fixed;inset:0}#map{position:absolute;inset:0;width:100%;height:100vh;height:100dvh}
@@ -109,35 +109,34 @@ input,.btn,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10
 /* ====== CONFIG ====== */
 const SCRIPT_URL="https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL="https://flovermaps-stripe-backend.onrender.com";
-const STREET_ZOOM=19, MAX_ZOOM=19, PROD_ORIGIN="https://flovermaps.com";
+const Z_PLANT=17;     // zoom en plantar (mapa/búsqueda/GPS) — un poco menos cerca
+const Z_RETURN=19;    // zoom al volver de Stripe (máxima cercanía)
+const MAX_ZOOM=19;
+const PROD_ORIGIN="https://flovermaps.com";
 
-/* ====== CARGA LEAFLET ====== */
-(function(){
-  const s=document.createElement('script');
-  s.src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
-  s.onload=init; s.onerror=()=>alert("No se pudo cargar Leaflet"); document.head.appendChild(s);
-})();
+/* ====== LEAFLET ====== */
+(function(){const s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";s.onload=init;s.onerror=()=>alert("No se pudo cargar Leaflet");document.head.appendChild(s)})();
 
 /* ====== HELPERS ====== */
 const $=id=>document.getElementById(id);
 function toast(m,ok=true){const t=$('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
-function fmtDate(ts){try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(+ts||Date.now())).replace(',',''); }catch{return ''}}
-function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
+function fmtDate(ts){try{return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(+ts||Date.now())).replace(',','')}catch{return''}}
+function emojiIcon(){return L.divIcon({className:'emoji-marker',html:'<span class="e" role="img" aria-label="flor">🌸</span>',iconSize:[44,44],iconAnchor:[22,44],popupAnchor:[0,-46]})}
 function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 function jsonp(url,ms=12000){return new Promise((res,rej)=>{const cb='__cb_'+Math.random().toString(36).slice(2),sep=url.includes('?')?'&':'?';const sc=document.createElement('script');let t;function done(v){clearTimeout(t);try{delete window[cb]}catch{};sc.remove();v instanceof Error?rej(v):res(v)}window[cb]=d=>done(d);sc.src=url+sep+'callback='+cb+'&_ts='+Date.now();sc.onerror=()=>done(new Error('jsonp'));document.head.appendChild(sc);t=setTimeout(()=>done(new Error('timeout')),ms)})}
 function shareUrlFor(id){return (PROD_ORIGIN||location.origin).replace(/\/$/,'')+'/?id='+encodeURIComponent(String(id||''))}
 function popupHtml(from,to,msg,dt,shareUrl,total){const a=escHtml(from),b=escHtml(to),c=escHtml(msg),u=shareUrl||location.href,tt=fmt(total||0);return `<div style="min-width:260px;max-width:320px"><div style="color:#64748b;margin-bottom:6px">${dt||''}</div><div style="margin-bottom:6px"><strong>De ${a}</strong> para <strong>${b}</strong></div><div style="margin-bottom:10px">${c}</div><div style="color:#64748b;margin-bottom:12px">Donación: <strong>${tt} €</strong></div><button onclick="shareAny('${u.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button></div>`}
 async function shareAny(url){try{if(navigator.share){await navigator.share({title:'Flovermaps',text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.',url})}else{await navigator.clipboard.writeText(url);toast('Enlace copiado')}}catch{}}
 
-/* ====== MAPA (estado global mínimo) ====== */
+/* ====== MAPA (estado) ====== */
 let map, tiles, selectedMarker=null, flowersCache=[], lastTs=0, plantMode=false, selectedLat=null, selectedLng=null, amount=9;
 const slist=$('slist'), addrBadge=$('addrBadge'), dragRing=$('dragRing'), pinCta=$('pinCta'), fromInput=$('fromName'), toInput=$('toName'), msgInput=$('message'), ngoSel=$('ngo'), chips=$('chips'), otherRow=$('otherRow'), otherAmount=$('otherAmount'), payBtn=$('payAndPlantBtn');
 
-/* ====== FOCUS GARANTIZADO ====== */
-async function ensureFocus(lat,lng,z=STREET_ZOOM){
-  const Z=Math.min(z,MAX_ZOOM);
-  for(let i=0;i<4;i++){
+/* ====== FOCO ROBUSTO ====== */
+async function ensureFocus(lat,lng,zoom){
+  const Z=Math.min(zoom,MAX_ZOOM);
+  for(let i=0;i<3;i++){
     try{ map.stop(); map.setView([lat,lng], Z, {animate:false}); }catch{}
     await new Promise(r=>setTimeout(r, i?120:60));
     if(map.getZoom()===Z) return;
@@ -158,19 +157,22 @@ function init(){
   map.on('click',e=>{ if(!plantMode) return; setSelectedPoint(e.latlng.lat,e.latlng.lng,true) });
   map.on('move zoom',()=>{ if(selectedMarker){ positionRing(); positionCta(); }});
   window.addEventListener('resize',()=>setTimeout(()=>{try{map.invalidateSize();positionRing();positionCta()}catch{}},100));
-  $('logoBtn').onclick=()=>location.href='/?b=fm34';
+
+  $('logoBtn').onclick=()=>location.href='/?b=fm35';
   $('tapBtn').onclick=()=>{plantMode=true;toast('Toca el mapa para elegir el punto')};
-  $('gpsBtn').onclick=()=>{plantMode=true;if(!('geolocation'in navigator))return toast('Tu dispositivo no permite geolocalización',false);navigator.geolocation.getCurrentPosition(p=>{setSelectedPoint(p.coords.latitude,p.coords.longitude,true);ensureFocus(p.coords.latitude,p.coords.longitude)},()=>toast('No se pudo obtener tu ubicación',false),{timeout:8000})};
+  $('gpsBtn').onclick=()=>{plantMode=true;if(!('geolocation'in navigator))return toast('Tu dispositivo no permite geolocalización',false);navigator.geolocation.getCurrentPosition(p=>{setSelectedPoint(p.coords.latitude,p.coords.longitude,true);ensureFocus(p.coords.latitude,p.coords.longitude,Z_PLANT)},()=>toast('No se pudo obtener tu ubicación',false),{timeout:8000})};
   pinCta.onclick=()=>{ if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero',false); openSheet(); };
 
   $('chars').textContent='(0/30)';
   msgInput.addEventListener('input',()=>{msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30);$('chars').textContent='('+msgInput.value.length+'/30)'});
   msgInput.addEventListener('keydown',e=>{ if(e.key==='Enter') e.preventDefault() });
 
-  initSearch(); initPayments(); refetch(false); setInterval(()=>refetch(true),15000); deepLink(); afterStripe();
+  initSearch(); initPayments();
+  refetch(false); setInterval(()=>refetch(true),15000);
+  deepLink(); afterStripe();
 }
 
-/* ====== UI puntuales ====== */
+/* ====== UI ====== */
 function openSheet(){const s=$('sheet');s.classList.add('open');s.setAttribute('aria-hidden','false');try{map.dragging.disable();map.scrollWheelZoom.disable();map.doubleClickZoom.disable()}catch{};updateSplit()}
 function closeSheet(){const s=$('sheet');s.classList.remove('open');s.setAttribute('aria-hidden','true');try{map.dragging.enable();map.scrollWheelZoom.enable();map.doubleClickZoom.enable()}catch{}}
 function updateSplit(){ $('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para el mantenimiento de tu flor para siempre.`; }
@@ -193,7 +195,7 @@ function initSearch(){
     catch{ currentSuggest=[]; render([]) }
   }
   function render(list){ slist.innerHTML=''; (list||[]).forEach((it,i)=>{const dn=String(it.display_name||'').split(','), primary=dn[0]||'', meta=[dn[1]||'',dn[2]||''].filter(Boolean).join(', '); const el=document.createElement('div'); el.className='sitem'; el.textContent=primary+(meta?(' · '+meta):''); el.onclick=()=>select(i); slist.appendChild(el)}); slist.style.display=(list&&list.length)?'block':'none' }
-  function select(i){ const it=currentSuggest[i]; if(!it) return; slist.style.display='none'; plantMode=true; const lat=+it.lat,lng=+it.lon; setSelectedPoint(lat,lng,true); ensureFocus(lat,lng); }
+  function select(i){ const it=currentSuggest[i]; if(!it) return; slist.style.display='none'; plantMode=true; const lat=+it.lat,lng=+it.lon; setSelectedPoint(lat,lng,true); ensureFocus(lat,lng,Z_PLANT); }
 }
 
 /* ====== Selección de punto ====== */
@@ -202,10 +204,10 @@ function setSelectedPoint(lat,lng,animate){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(),draggable:true,zIndexOffset:2000}).addTo(map);
     selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true,direction:'top',offset:[0,-52],className:'drag-tip'}).openTooltip();
     selectedMarker.on('drag',()=>{positionRing();positionCta()});
-    selectedMarker.on('dragend',e=>{const p=e.target.getLatLng();selectedLat=p.lat.toFixed(6);selectedLng=p.lng.toFixed(6);reverseAt(selectedLat,selectedLng);positionRing();positionCta();ensureFocus(+selectedLat,+selectedLng);try{selectedMarker.openTooltip()}catch{}})
+    selectedMarker.on('dragend',e=>{const p=e.target.getLatLng();selectedLat=p.lat.toFixed(6);selectedLng=p.lng.toFixed(6);reverseAt(selectedLat,selectedLng);positionRing();positionCta();ensureFocus(+selectedLat,+selectedLng,Z_PLANT);try{selectedMarker.openTooltip()}catch{}})
   } else { selectedMarker.setLatLng([lat,lng]); try{selectedMarker.openTooltip()}catch{} }
   selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
-  if(animate) ensureFocus(+selectedLat,+selectedLng);
+  if(animate) ensureFocus(+selectedLat,+selectedLng,Z_PLANT);
   reverseAt(selectedLat,selectedLng); addrBadge.style.display='block'; showRing(); positionRing(); showCta();
 }
 function reverseAt(lat,lng){
@@ -221,7 +223,6 @@ function initPayments(){
   otherAmount.addEventListener('input',()=>{let v=Number(String(otherAmount.value||'').replace(',','.'));if(!isFinite(v))return;amount=v;payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`});
   otherAmount.addEventListener('blur',()=>{let v=Number(String(otherAmount.value||'').replace(',','.'));if(!isFinite(v)||v<1)v=1;amount=v;otherAmount.value=amount.toFixed(2);payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`});
   ngoSel.addEventListener('change',updateSplit);
-  setInterval(()=>{ fetch(`${BACKEND_URL}/health`,{mode:'no-cors'}).catch(()=>{}) },240000);
 
   payBtn.addEventListener('click',async ()=>{
     if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa',false);
@@ -240,20 +241,25 @@ function initPayments(){
   });
 }
 
-/* ====== Post-Stripe (plan A + plan B) ====== */
+/* ====== Post-Stripe (plantada → zoom 19 + popup) ====== */
 async function afterStripe(){
-  const u=new URL(location.href); if(!(u.searchParams.get('success')==='1' && u.searchParams.get('session_id'))) return;
+  const u=new URL(location.href);
+  if(!(u.searchParams.get('success')==='1' && u.searchParams.get('session_id'))) return;
   const sid=u.searchParams.get('session_id');
-  const planB=setTimeout(()=>{try{const h=JSON.parse(sessionStorage.getItem('fm_postpay_hint')||'{}');if(isFinite(h.lat)&&isFinite(h.lng)) ensureFocus(+h.lat,+h.lng)}catch{}},900);
+
+  // Plan B: si session tarda, usa la pista para acercar (zoom 19)
+  const planB=setTimeout(()=>{try{const h=JSON.parse(sessionStorage.getItem('fm_postpay_hint')||'{}');if(isFinite(h.lat)&&isFinite(h.lng)) ensureFocus(+h.lat,+h.lng,Z_RETURN)}catch{}},900);
 
   try{
-    const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'}); const j=await r.json();
+    const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
+    const j=await r.json();
     if(j&&j.ok&&j.id){
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
       if(d&&d.ok&&d.item){
         const it=d.item,dt=fmtDate(it.timestamp),share=shareUrlFor(it.id);
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0));
-        await ensureFocus(+it.lat,+it.lng); setTimeout(()=>mk.openPopup(),140);
+        await ensureFocus(+it.lat,+it.lng,Z_RETURN); // 👈 siempre zoom 19 tras Stripe
+        setTimeout(()=>mk.openPopup(),140);
         upsertCache([{id:String(it.id),lat:+it.lat,lng:+it.lng,fromName:it.fromName||'',toName:it.toName||'',message:it.message||'',timestamp:+it.timestamp||Date.now(),amount_total:+it.amount_total||+it.amountTotal||0}]); persistCache(); render(flowersCache); setTimeout(()=>toast('¡Gracias! Flor plantada 🌸'),150);
       }
     }
@@ -274,13 +280,16 @@ async function refetch(incr){if(!flowersCache.length){loadCache();if(flowersCach
 
 /* ====== Deep link ====== */
 async function deepLink(){
-  const u=new URL(location.href); let id=u.searchParams.get('id'); if(!id){ const m=location.pathname.match(/\/f\/([^\/?#]+)/); if(m&&m[1]) id=decodeURIComponent(m[1]) }
+  const u=new URL(location.href); let id=u.searchParams.get('id');
+  if(!id){ const m=location.pathname.match(/\/f\/([^\/?#]+)/); if(m&&m[1]) id=decodeURIComponent(m[1]) }
   if(!id) return;
   try{
-    const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`); if(d&&d.ok&&d.item){
+    const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
+    if(d&&d.ok&&d.item){
       const it=d.item,dt=fmtDate(it.timestamp),share=shareUrlFor(id);
       const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map).bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0));
-      await ensureFocus(+it.lat,+it.lng); setTimeout(()=>mk.openPopup(),140);
+      await ensureFocus(+it.lat,+it.lng,Z_RETURN);
+      setTimeout(()=>mk.openPopup(),140);
     }
   }catch{}
 }
