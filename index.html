@@ -7,15 +7,17 @@
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
 
-<!-- Favicon corazón SVG -->
+<!-- Favicon corazón -->
 <link rel="icon" type="image/svg+xml"
   href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="%23c73737" d="M32 57c-1.1 0-2.1-.3-3-.9C20.7 51.7 4 39.7 4 22.8 4 14 11 7 19.8 7c4.8 0 9.1 2.2 12.2 5.7C35.1 9.2 39.4 7 44.2 7 53 7 60 14 60 22.8c0 16.9-16.7 28.9-25 33.3-.9.6-1.9.9-3 .9z"/></svg>' />
 
-<!-- Perf -->
+<!-- Perf: preconnect para Stripe + backend (acelera apertura de pago) -->
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
 <link rel="preconnect" href="https://js.stripe.com" crossorigin>
 <link rel="preconnect" href="https://flovermaps-stripe-backend.onrender.com" crossorigin>
-<link rel="preconnect" href="https://nominatim.openstreetmap.org">
+<link rel="dns-prefetch" href="https://api.stripe.com">
+<link rel="dns-prefetch" href="https://js.stripe.com">
+<link rel="dns-prefetch" href="https://flovermaps-stripe-backend.onrender.com">
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -26,13 +28,10 @@
   *{box-sizing:border-box} html,body{height:100%}
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
 
-  /* Header */
-  .site-header{ position:fixed; z-index:1000; top:0; inset:auto 0 auto 0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
+  /* Header simple (puedes sustituir por tu logo) */
+  .site-header{ position:fixed; z-index:1000; top:0; inset:auto 0 auto 0; display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
   .brand img{ height:84px; display:block }
-  @media(min-width:900px){ .brand img{ height:96px } }
-  .counter{ pointer-events:none; text-align:center; line-height:1.2; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:8px 14px; box-shadow:0 6px 14px rgba(0,0,0,.06); color:#0e1935; }
-  .counter .big{ font-weight:700 }
 
   /* Mapa */
   #mapWrap{ position:fixed; inset:0; }
@@ -42,7 +41,7 @@
   .controls{ position:fixed; z-index:900; left:50%; transform:translateX(-50%); bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:10px }
   .row{ display:flex; gap:10px }
   .tool-btn{ flex:1; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; font-size:1rem; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.04); display:flex; align-items:center; justify-content:center; gap:8px }
-  .tool-btn:active{ transform:translateY(1px) }
+
   .searchRow{ display:flex; gap:10px }
   .searchRow .input{ flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04) }
   .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink) }
@@ -50,19 +49,15 @@
   /* Sugerencias + dirección */
   .slist{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + var(--safe-b)); width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:920; box-shadow:0 6px 14px rgba(0,0,0,.06) }
   .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
-  .sitem:last-child{ border-bottom:0 }
   .addr-badge{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(160px + var(--safe-b)); z-index:880; background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none }
 
   /* CTA del pin */
-  .pin-cta{ position:absolute; z-index:930; display:none; background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px; padding:14px 18px; font-size:1.05rem; font-weight:700; letter-spacing:.2px; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer; transform:translate(-50%,10px) }
-  .pin-cta:active{ transform:translate(-50%,12px) }
+  .pin-cta{ position:absolute; z-index:930; display:none; background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px; padding:14px 18px; font-size:1.05rem; font-weight:700; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer; transform:translate(-50%,10px) }
 
   /* Marcador + anillo */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
-  .emoji-marker{ background:transparent }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
-  .drag-ring{ position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid #22c55e; box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9); pointer-events:none; z-index:850; display:none; transform:translate(-50%,-50%); background:radial-gradient(circle at 50% 50%,rgba(34,197,94,.12),rgba(34,197,94,.06) 60%,rgba(34,197,94,0) 70%) }
-  .leaflet-tooltip.drag-tip{ background:#fff; color:#0f172a; border:1px solid #e6e6e6; border-radius:999px; padding:6px 12px; box-shadow:0 8px 24px rgba(0,0,0,.12); font-size:1rem; font-weight:700 }
+  .drag-ring{ position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid #22c55e; box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9); pointer-events:none; z-index:850; display:none; transform:translate(-50%,-50%) }
 
   /* Sheet */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1001; transform:translateY(100%); transition:transform .25s ease; background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column }
@@ -83,7 +78,7 @@
   .toast{ position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
 
-  /* Overlay de carga para Stripe */
+  /* Overlay de carga */
   .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:2000; }
   .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
 </style>
@@ -92,10 +87,6 @@
 
 <header class="site-header">
   <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
-  <div id="counter" class="counter" aria-live="polite">
-    <div class="big"><span id="countNum">0</span> Flores Solidarias Plantadas</div>
-    <div>¡Planta la Tuya Ahora!</div>
-  </div>
 </header>
 
 <main id="mapWrap" aria-label="Mapa">
@@ -188,8 +179,10 @@ let flowersCache=[]; let plantMode=false;
 const slist=document.getElementById('slist'), addrBadge=document.getElementById('addrBadge'), dragRing=document.getElementById('dragRing'), pinCta=document.getElementById('pinCta');
 const fromInput=document.getElementById('fromName'), toInput=document.getElementById('toName'), msgInput=document.getElementById('message'), ngoSel=document.getElementById('ngo');
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
-const counterNum=document.getElementById('countNum'); const veil=document.getElementById('veil');
 let amount=9;
+
+/* === Mantener backend caliente (acelera Stripe en Render) === */
+setInterval(()=>{ fetch(`${BACKEND_URL}/health`,{mode:'no-cors'}).catch(()=>{}) }, 240000); // cada 4 min
 
 /* === MAPA === */
 window.addEventListener('load', ()=>{
@@ -203,7 +196,6 @@ window.addEventListener('load', ()=>{
   map.setView([40.4168,-3.7038],5);
   setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 200);
 
-  // Click en mapa SOLO en modo plantar
   map.on('click', e=>{ if(!plantMode) return; setSelectedPoint(e.latlng.lat,e.latlng.lng,true); });
   map.on('move zoom', ()=>{ if(selectedMarker){ positionRing(); positionCta(); } });
   window.addEventListener('resize', ()=>setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 120));
@@ -241,6 +233,7 @@ searchInput.addEventListener('input', e=>{
 });
 document.addEventListener('click', e=>{ if(!slist.contains(e.target) && e.target!==searchInput) slist.style.display='none'; });
 searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); if(currentSuggest.length){ selectSuggest(0); } } });
+
 async function runSuggest(q){
   if(abortCtrl) abortCtrl.abort();
   abortCtrl=new AbortController(); const sig=abortCtrl.signal;
@@ -333,22 +326,21 @@ otherAmount.addEventListener('blur',  ()=>{ let v=Number(String(otherAmount.valu
 ngoSel.addEventListener('change', updateSplit);
 
 /* === STRIPE === */
+const veil=document.getElementById('veil');
 payBtn.addEventListener('click', async ()=>{
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
   if(otherRow.style.display!=='none'){ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
 
-  // Overlay visible ya (mejor feedback que "Abriendo pago" de Stripe)
   veil.style.display='flex';
-
   payBtn.disabled=true;
   try{
     const body={ lat:+selectedLat, lng:+selectedLng, place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
     const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), cache:'no-store'});
     const j=await r.json().catch(()=>null);
     if(!j||!j.ok||!j.url){ veil.style.display='none'; return toast('Error creando pago', false); }
-    window.location.assign(j.url); // salir rápido hacia Stripe
+    window.location.assign(j.url);
   }catch{ veil.style.display='none'; toast('Fallo de red', false); } finally{ payBtn.disabled=false; }
 });
 
@@ -364,13 +356,17 @@ async function afterStripe(){
         const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
         if(d&&d.ok&&d.item){
           const it=d.item; const dt=fmtDate(it.timestamp);
-          const shareUrl=`${location.origin}/f/${String(it.id)}`;
+          // URL compatible con GitHub Pages (evita 404): usar ?id=
+          const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(it.id))}`;
           const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
             .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
           mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup();
           try{ map.flyTo([+it.lat,+it.lng], STREET_ZOOM, {duration:.45}); }catch{}
+
+          // Añadir a cache local para que no desaparezca tras el refetch
           upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
-          persistCache(); render(flowersCache); updateCounter();
+          persistCache(); render(flowersCache);
+
           plantMode=false; hideRing(); hideCta(); addrBadge.style.display='none'; selectedMarker=null; selectedLat=null; selectedLng=null;
           setTimeout(()=>toast('¡Gracias! Flor plantada 🌸'), 150);
         }
@@ -384,7 +380,7 @@ async function afterStripe(){
   }
 }
 
-/* === Popup (estructura solicitada) === */
+/* === Popup (estructura pedida) === */
 function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg);
   const url=shareUrl||`${location.origin}${location.pathname}`;
@@ -396,7 +392,6 @@ function popupHtml(from,to,msg,dt,shareUrl,total){
       <div style="margin-bottom:10px">${safeMsg}</div>
       <div class="muted" style="margin-bottom:12px">Donación: <strong>${tt} €</strong></div>
       <button onclick="shareAny('${url.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#0066cc;color:#fff;cursor:pointer">🔗 Compartir</button>
-      <div style="margin-top:8px;text-align:center"><button onclick="plantAnother()" class="btn" style="padding:8px 10px;border-radius:10px;border:1px solid #e6e6e6;background:#fff;cursor:pointer">Plantar otra 🌸</button></div>
     </div>`;
 }
 async function shareAny(url){
@@ -407,14 +402,7 @@ async function shareAny(url){
 }
 window.shareAny = shareAny;
 
-window.plantAnother=function(){
-  try{ map.closePopup(); }catch{}
-  document.getElementById('controls').style.display='';
-  slist.style.display='none'; hideRing(); hideCta(); addrBadge.style.display='none';
-  plantMode=false; selectedMarker=null; selectedLat=null; selectedLng=null;
-}
-
-/* === CACHE / RENDER / CONTADOR === */
+/* === CACHE / RENDER === */
 function normalize(items){
   const out=[];
   for(const f of (items||[])){
@@ -423,47 +411,34 @@ function normalize(items){
   }
   return out;
 }
-function upsertCache(newList){
-  const m=new Map(flowersCache.map(x=>[x.id,x]));
-  for(const it of (newList||[])) m.set(it.id,it);
-  flowersCache = Array.from(m.values());
-}
+function upsertCache(newList){ const m=new Map(flowersCache.map(x=>[x.id,x])); for(const it of (newList||[])) m.set(it.id,it); flowersCache = Array.from(m.values()); }
 function persistCache(){ try{ localStorage.setItem('flowers_cache', JSON.stringify(flowersCache)); }catch{} }
 function loadCache(){ try{ const c=localStorage.getItem('flowers_cache'); flowersCache = c?JSON.parse(c):[]; }catch{ flowersCache=[]; } }
-function updateCounter(){ counterNum.textContent = String(flowersCache.length); }
 
 function render(list){
-  const data=list||flowersCache||[];
-  if(!map) return;
+  const data=list||flowersCache||[]; if(!map) return;
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
   toRemove.forEach(l=>map.removeLayer(l));
   for(const f of data){
     const dt=f.timestamp?fmtDate(f.timestamp):'';
-    const shareUrl=`${location.origin}/f/${String(f.id||'')}`;
+    // URL de compartir en formato ?id= (compatible con Pages)
+    const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(f.id||''))}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200});
     mk._isFlower=true; mk._fid=String(f.id||'');
     mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,shareUrl,f.amount_total));
     mk.addTo(map);
   }
-  updateCounter();
 }
 
 async function refetch(incr){
-  if(!flowersCache.length){
-    loadCache();
-    if(flowersCache.length) render(flowersCache);
-  }
+  if(!flowersCache.length){ loadCache(); if(flowersCache.length) render(flowersCache); }
   try{
     const url = SCRIPT_URL + '?action=list' + (incr&&lastTs?('&since='+encodeURIComponent(lastTs)):'');
     const d = await jsonp(url,12000);
     if(d && Array.isArray(d.items)){
       const norm=normalize(d.items);
-      if(incr){
-        if(!norm.length){ return; }
-        upsertCache(norm); persistCache(); render(flowersCache);
-      }else{
-        flowersCache = norm; persistCache(); render(flowersCache);
-      }
+      if(incr){ if(!norm.length) return; upsertCache(norm); persistCache(); render(flowersCache); }
+      else { flowersCache = norm; persistCache(); render(flowersCache); }
       for(const it of d.items){ const t=+it.timestamp||0; if(t>lastTs) lastTs=t; }
       return;
     }
@@ -474,25 +449,32 @@ async function refetch(incr){
 /* === Deep link === */
 async function deepLink(){
   const u=new URL(location.href);
-  const m=location.pathname.match(/\/f\/([^\/?#]+)/); let id=null;
-  if(m&&m[1]) id=decodeURIComponent(m[1]); if(!id) id=u.searchParams.get('id');
+  // Soportamos ?id=... (recomendado para Pages)
+  let id = u.searchParams.get('id');
+  // si viniera /f/ID también funciona si añades 404.html (abajo)
+  if(!id){
+    const m=location.pathname.match(/\/f\/([^\/?#]+)/);
+    if(m&&m[1]) id=decodeURIComponent(m[1]);
+  }
   if(id){
     try{
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
       if(d&&d.ok&&d.item){
         const it=d.item; const dt=fmtDate(it.timestamp);
-        const shareUrl=`${location.origin}/f/${String(id)}`;
+        const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(id))}`;
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         mk._isFlower=true; mk._fid=String(it.id||''); mk.openPopup(); map.setView([+it.lat,+it.lng], STREET_ZOOM); return;
       }
     }catch{}
   }
-  if(u.searchParams.get('lat')&&u.searchParams.get('lng')) map.setView([+u.searchParams.get('lat'),+u.searchParams.get('lng')], STREET_ZOOM);
 }
 
-/* === Misc === */
-function bindUI(){ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; } }); updateSplit(); }
+/* === Miscelánea === */
+function bindUI(){
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ slist.style.display='none'; } });
+  updateSplit();
+}
 </script>
 </body>
 </html>
