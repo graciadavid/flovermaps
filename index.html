@@ -6,9 +6,9 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.3.3 (focus robusto con reintentos) -->
+<!-- BUILD: FM-frontend-3.3.4 (post-Stripe zoom fix) -->
 
-<!-- Leaflet CSS (2 fuentes por resiliencia) -->
+<!-- Leaflet CSS (2 fuentes) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
@@ -26,7 +26,7 @@
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100vh; height:100dvh; }
 
-  /* Tooltip “Arrastra…” fijo */
+  /* Tooltip “Arrastra…” */
   .drag-tip{
     background:#fff!important; color:#0f172a!important; border:1px solid #e6e6e6!important;
     border-radius:10px!important; box-shadow:0 8px 20px rgba(0,0,0,.10)!important;
@@ -158,7 +158,7 @@ const STREET_ZOOM = 19;
 const MAX_ZOOM = 19;
 const PROD_ORIGIN = "https://flovermaps.com";
 
-/* ============ CARGA ROBUSTA LEAFLET ============ */
+/* ============ CARGA LEAFLET ============ */
 (function loadLeaflet(){
   const urls = [
     "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
@@ -196,18 +196,14 @@ function forceFocus(lat,lng,z, tries=3){
     try{
       map.setView([lat,lng], targetZ, {animate:false});
       map.once('moveend', verify);
-      // doble rAF para asegurar layout listo
       requestAnimationFrame(()=>requestAnimationFrame(()=>map.invalidateSize()));
-    }catch{ /* no-op */ }
+    }catch{}
   };
 
   const verify = () => {
     if(done) return;
     const cur = map.getZoom();
-    if(cur === targetZ){
-      done = true;
-      return;
-    }
+    if(cur === targetZ){ done = true; return; }
     if(tries > 0){
       tries--;
       setTimeout(()=>{ try{
@@ -251,15 +247,7 @@ function init(){
     fallbackTiles.addTo(map);
   });
 
-  map = L.map('map',{
-    layers:[baseTiles],
-    zoomControl:true,
-    worldCopyJump:true,
-    maxZoom: MAX_ZOOM,
-    minZoom: 2,
-    zoomAnimation: true,
-    zoomSnap: 1
-  });
+  map = L.map('map',{layers:[baseTiles],zoomControl:true,worldCopyJump:true,maxZoom:MAX_ZOOM,minZoom:2,zoomAnimation:true,zoomSnap:1});
   map.setView([40.4168,-3.7038], 5, {animate:false});
   setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 150);
 
@@ -267,7 +255,7 @@ function init(){
   map.on('move zoom', ()=>{ if(selectedMarker){ positionRing(); positionCta(); } });
   window.addEventListener('resize', ()=>setTimeout(()=>{ try{ map.invalidateSize(); positionRing(); positionCta(); }catch{} }, 120));
 
-  document.getElementById('logoBtn').addEventListener('click', ()=>location.href='/?b=fix333');
+  document.getElementById('logoBtn').addEventListener('click', ()=>location.href='/?b=fix334');
   document.getElementById('tapBtn').addEventListener('click', ()=>{ plantMode=true; toast('Toca el mapa para elegir el punto'); });
   document.getElementById('gpsBtn').addEventListener('click', ()=>{
     plantMode=true;
@@ -414,6 +402,13 @@ function initStripe(){
     if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
     if(otherRow.style.display!=='none'){ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
 
+    // 👉 Guardamos pista local para el plan B post-Stripe
+    try{
+      sessionStorage.setItem('fm_postpay_hint', JSON.stringify({
+        lat:+selectedLat, lng:+selectedLng, ts:Date.now()
+      }));
+    }catch{}
+
     veil.style.display='flex'; payBtn.disabled=true;
     try{
       const body={ lat:+selectedLat, lng:+selectedLng, place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
@@ -425,12 +420,27 @@ function initStripe(){
   });
 }
 
-/* === Retorno de Stripe: pintar + foco robusto === */
+/* === POST-STRIPE: foco garantizado (plan A + plan B) === */
 async function afterStripe(){
   const u=new URL(location.href);
-  if(!(u.searchParams.get('success')==='1' && u.searchParams.get('session_id'))) return;
-  const sid=u.searchParams.get('session_id');
+  const isReturn = (u.searchParams.get('success')==='1' && u.searchParams.get('session_id'));
+  if(!isReturn) return;
 
+  const sid=u.searchParams.get('session_id');
+  let focused = false;
+
+  // Plan B: si en 900ms no hemos enfocado por la session, usa la pista local
+  const planBTimer = setTimeout(()=>{
+    try{
+      const hint = JSON.parse(sessionStorage.getItem('fm_postpay_hint')||'{}');
+      if(isFinite(hint.lat) && isFinite(hint.lng)){
+        forceFocus(+hint.lat, +hint.lng, STREET_ZOOM);
+        focused = true;
+      }
+    }catch{}
+  }, 900);
+
+  // Plan A: session → id → get → marcador + popup + foco
   try{
     const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
     const j=await r.json();
@@ -442,13 +452,21 @@ async function afterStripe(){
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
         forceFocus(+it.lat, +it.lng, STREET_ZOOM);
         setTimeout(()=>mk.openPopup(), 150);
+        focused = true;
+
         upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
         persistCache(); render(flowersCache);
         setTimeout(()=>toast('¡Gracias! Flor plantada 🌸'), 150);
       }
     }
   }catch{}
+
+  clearTimeout(planBTimer);
+  // Limpieza de URL y de la pista
   u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
+  try{ sessionStorage.removeItem('fm_postpay_hint'); }catch{}
+
+  // Refresco incremental, sin tocar el zoom
   setTimeout(()=>refetch(true),1200);
 }
 
