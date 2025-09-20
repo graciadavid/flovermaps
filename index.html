@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.6 (fmReady + foco estable: plantar=17, post-Stripe=19) -->
+<!-- BUILD: FM-frontend-3.7 (anti-temblor: no setView 5 tardío, foco único) -->
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
@@ -106,24 +106,19 @@ input,.btn,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10
 <div id="veil" class="veil"><div class="box">Preparando la semilla…</div></div>
 
 <script>
-/* ====== CONFIG ====== */
+/* ===== CONFIG ===== */
 const SCRIPT_URL="https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL="https://flovermaps-stripe-backend.onrender.com";
-
-const Z_PLANT=17;     // zoom al plantar (mapa/búsqueda/GPS)
-const Z_RETURN=19;    // zoom al volver de Stripe
-const MAX_ZOOM=19;
+const Z_PLANT=17, Z_RETURN=19, MAX_ZOOM=19;
 const PROD_ORIGIN="https://flovermaps.com";
 
-/* ====== CANONICAL (por si entra con www) ====== */
-if(location.hostname==="www.flovermaps.com"){
-  location.replace(location.href.replace("//www.","//"));
-}
+/* Canonical: sin www */
+if(location.hostname==="www.flovermaps.com"){ location.replace(location.href.replace("//www.","//")); }
 
-/* ====== CARGA LEAFLET ====== */
+/* Carga Leaflet */
 (function(){const s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";s.onload=init;s.onerror=()=>alert("No se pudo cargar Leaflet");document.head.appendChild(s)})();
 
-/* ====== HELPERS ====== */
+/* Helpers */
 const $=id=>document.getElementById(id);
 function toast(m,ok=true){const t=$('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
@@ -136,45 +131,51 @@ function popupHtml(from,to,msg,dt,shareUrl,total){const a=escHtml(from),b=escHtm
 async function shareAny(url){try{if(navigator.share){await navigator.share({title:'Flovermaps',text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.',url})}else{await navigator.clipboard.writeText(url);toast('Enlace copiado')}}catch{}}
 function warmBackend(){ fetch(`${BACKEND_URL}/health`,{mode:'no-cors',cache:'no-store'}).catch(()=>{}) }
 
-/* ====== MAPA (estado) ====== */
+/* Estado */
 let map, tiles, selectedMarker=null, flowersCache=[], lastTs=0, plantMode=false, selectedLat=null, selectedLng=null, amount=9;
 const slist=$('slist'), addrBadge=$('addrBadge'), dragRing=$('dragRing'), pinCta=$('pinCta'), fromInput=$('fromName'), toInput=$('toName'), msgInput=$('message'), ngoSel=$('ngo'), chips=$('chips'), otherRow=$('otherRow'), otherAmount=$('otherAmount'), payBtn=$('payAndPlantBtn');
 
-/* ====== PROMESA DE LISTO (fmReady) ====== */
-let fmReadyResolve;
-const fmReady = new Promise(r=>{ fmReadyResolve = r });
+/* Promesa de listo y control de foco */
+let fmReadyResolve; const fmReady=new Promise(r=>fmReadyResolve=r);
+let hasFocused=false; function focusOnce(){ hasFocused=true; }
 
-/* ====== FOCO ROBUSTO ====== */
+/* Foco robusto */
 async function ensureFocus(lat,lng,zoom){
+  if(hasFocused) return;
   const Z=Math.min(zoom,MAX_ZOOM);
   for(let i=0;i<3;i++){
     try{ map.stop(); map.setView([lat,lng], Z, {animate:false}); }catch{}
     await new Promise(r=>setTimeout(r, i?120:60));
-    if(map.getZoom()===Z) return;
+    if(map.getZoom()===Z){ focusOnce(); return; }
     try{ map.flyTo([lat,lng], Z, {duration:.35}); }catch{}
     await new Promise(r=>map.once('moveend', r));
-    if(map.getZoom()===Z) return;
+    if(map.getZoom()===Z){ focusOnce(); return; }
   }
 }
 
-/* ====== INIT ====== */
+/* INIT */
 function init(){
   if(!window.L) return alert('Leaflet no disponible');
 
-  // Warmup backend ya desde el arranque
-  warmBackend(); setInterval(warmBackend,60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) warmBackend() });
+  warmBackend(); setInterval(warmBackend,60000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) warmBackend() });
 
   tiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:MAX_ZOOM,maxNativeZoom:19});
   map=L.map('map',{layers:[tiles],zoomControl:true,worldCopyJump:true,maxZoom:MAX_ZOOM,minZoom:2,zoomAnimation:true,zoomSnap:1});
-  map.setView([40.4168,-3.7038],5,{animate:false});
   setTimeout(()=>{try{map.invalidateSize()}catch{}},120);
-  fmReadyResolve(true); // 👈 el mapa ya existe
+  fmReadyResolve(true); // mapa listo
 
+  // Si en ~900ms nadie enfocó (Stripe ni usuario), damos vista por defecto
+  setTimeout(()=>{ if(!hasFocused){ try{ map.setView([40.4168,-3.7038],5,{animate:false}); focusOnce(); }catch{} } }, 900);
+
+  // UI
   map.on('click',e=>{ if(!plantMode) return; setSelectedPoint(e.latlng.lat,e.latlng.lng,true) });
   map.on('move zoom',()=>{ if(selectedMarker){ positionRing(); positionCta(); }});
-  window.addEventListener('resize',()=>setTimeout(()=>{try{map.invalidateSize();positionRing();positionCta()}catch{}},100));
+  let resizeTO=null, blockResize=false;
+  function onResize(){ if(blockResize) return; clearTimeout(resizeTO); resizeTO=setTimeout(()=>{ try{ map.invalidateSize() }catch{} },120) }
+  window.addEventListener('resize', onResize);
 
-  $('logoBtn').onclick=()=>location.href='/?b=fm36';
+  $('logoBtn').onclick=()=>location.href='/?b=fm37';
   $('tapBtn').onclick=()=>{plantMode=true;toast('Toca el mapa para elegir el punto')};
   $('gpsBtn').onclick=()=>{plantMode=true;if(!('geolocation'in navigator))return toast('Tu dispositivo no permite geolocalización',false);navigator.geolocation.getCurrentPosition(p=>{setSelectedPoint(p.coords.latitude,p.coords.longitude,true);ensureFocus(p.coords.latitude,p.coords.longitude,Z_PLANT)},()=>toast('No se pudo obtener tu ubicación',false),{timeout:8000})};
   pinCta.onclick=()=>{ if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero',false); openSheet(); };
@@ -186,15 +187,19 @@ function init(){
   initSearch(); initPayments();
   refetch(false); setInterval(()=>refetch(true),15000);
 
-  // Importante: si venimos de Stripe, post-Stripe tendrá el control del foco
-  afterStripe();
-  // Si NO venimos de Stripe, habilita deep-link normal
-  if(!(new URL(location.href)).searchParams.get('success')==='1'){
+  // Post-Stripe (prioritario)
+  afterStripe({blockResizeFor:1200});
+  // Deep link solo si NO vienes de Stripe
+  const u=new URL(location.href);
+  if(!(u.searchParams.get('success')==='1' && u.searchParams.get('session_id'))){
     deepLink();
   }
+
+  // Exponer control de resize para afterStripe
+  window.__fm_blockResize = (ms)=>{ blockResize=true; setTimeout(()=>blockResize=false, ms||800); };
 }
 
-/* ====== UI ====== */
+/* UI auxiliares */
 function openSheet(){const s=$('sheet');s.classList.add('open');s.setAttribute('aria-hidden','false');try{map.dragging.disable();map.scrollWheelZoom.disable();map.doubleClickZoom.disable()}catch{};updateSplit()}
 function closeSheet(){const s=$('sheet');s.classList.remove('open');s.setAttribute('aria-hidden','true');try{map.dragging.enable();map.scrollWheelZoom.enable();map.doubleClickZoom.enable()}catch{}}
 function updateSplit(){ $('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para el mantenimiento de tu flor para siempre.`; }
@@ -203,7 +208,7 @@ function positionRing(){if(!selectedMarker) return; const p=map.latLngToContaine
 function positionCta(){if(!selectedMarker) return; const p=map.latLngToContainerPoint(selectedMarker.getLatLng());pinCta.style.left=p.x+'px';pinCta.style.top=(p.y+52)+'px'}
 function showCta(){positionCta();pinCta.style.display='inline-block'}function hideCta(){pinCta.style.display='none'}
 
-/* ====== BÚSQUEDA ====== */
+/* Búsqueda */
 function initSearch(){
   let timer=null, abortCtrl=null, currentSuggest=[];
   const input=$('searchInput');
@@ -220,7 +225,7 @@ function initSearch(){
   function select(i){ const it=currentSuggest[i]; if(!it) return; slist.style.display='none'; plantMode=true; const lat=+it.lat,lng=+it.lon; setSelectedPoint(lat,lng,true); ensureFocus(lat,lng,Z_PLANT); }
 }
 
-/* ====== SELECCIÓN PUNTO ====== */
+/* Selección punto */
 function setSelectedPoint(lat,lng,animate){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(),draggable:true,zIndexOffset:2000}).addTo(map);
@@ -238,7 +243,7 @@ function reverseAt(lat,lng){
     .then(r=>r.json()).then(j=>{const a=j.address||{},road=a.road||a.pedestrian||a.path||a.neighbourhood||'',hn=a.house_number||a.housenumber||'',city=a.city||a.town||a.village||a.state||'';addrBadge.textContent=[[road,hn].filter(Boolean).join(' '),city].filter(Boolean).join(', ')||j.display_name||'Ubicación aproximada'}).catch(()=>addrBadge.textContent='Ubicación aproximada')
 }
 
-/* ====== PAGOS (Stripe) ====== */
+/* Pagos */
 const veil=$('veil');
 function initPayments(){
   chips.addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));b.classList.add('active');const v=b.dataset.amount;if(v==='other'){otherRow.style.display='block';amount=25;otherAmount.value=amount.toFixed(2);otherAmount.focus()}else{otherRow.style.display='none';amount=Number(v)||9}payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`;updateSplit()});
@@ -250,10 +255,7 @@ function initPayments(){
     if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa',false);
     const from=fromInput.value.trim(),to=toInput.value.trim(),msg=msgInput.value.trim();
     if(!from||!to||!msg) return toast('Completa tu dedicatoria',false);
-
-    // Pista local para foco inmediato al volver
     try{ sessionStorage.setItem('fm_postpay_hint', JSON.stringify({lat:+selectedLat,lng:+selectedLng,ts:Date.now()})) }catch{}
-
     veil.style.display='flex'; payBtn.disabled=true;
     try{
       const body={lat:+selectedLat,lng:+selectedLng,place:addrBadge.textContent||'',fromName:from,toName:to,message:msg,ngo:String(ngoSel.value||''),ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'',amount_total:+(+amount).toFixed(2)};
@@ -265,24 +267,26 @@ function initPayments(){
   });
 }
 
-/* ====== POST-STRIPE: foco garantizado (espera fmReady) ====== */
-async function afterStripe(){
+/* Post-Stripe: Foco primero, datos después (anti-temblor) */
+async function afterStripe(opts){
   const u=new URL(location.href);
-  const success = u.searchParams.get('success')==='1' && u.searchParams.get('session_id');
-  if(!success) return;
-
+  const isSuccess = u.searchParams.get('success')==='1' && u.searchParams.get('session_id');
+  if(!isSuccess) return;
   const sid=u.searchParams.get('session_id');
 
-  // 1) Espera a que el mapa exista
+  // Evitar que los resize inmediatos causen "temblor"
+  try{ if(window.__fm_blockResize) window.__fm_blockResize(opts?.blockResizeFor||1200) }catch{}
+
+  // Espera a que exista el mapa
   await fmReady;
 
-  // 2) Foco inmediato con pista local (si existe) para dar zoom-calle YA
+  // Foco inmediato con pista local (no esperamos red)
   try{
     const hint=JSON.parse(sessionStorage.getItem('fm_postpay_hint')||'{}');
     if(isFinite(hint.lat)&&isFinite(hint.lng)) await ensureFocus(+hint.lat,+hint.lng,Z_RETURN);
   }catch{}
 
-  // 3) Trae la sesión y pinta popup con datos reales
+  // Ahora sí, traer datos y abrir popup SIN auto-pan (para no mover foco)
   try{
     const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
     const j=await r.json();
@@ -290,10 +294,9 @@ async function afterStripe(){
       const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
       if(d&&d.ok&&d.item){
         const it=d.item,dt=fmtDate(it.timestamp),share=shareUrlFor(it.id);
-        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
-                   .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0));
-        await ensureFocus(+it.lat,+it.lng,Z_RETURN);
-        setTimeout(()=>mk.openPopup(),140);
+        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map);
+        mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0), {autoPan:false});
+        setTimeout(()=>mk.openPopup(),140); // no autoPan: no mueve el mapa
 
         upsertCache([{id:String(it.id),lat:+it.lat,lng:+it.lng,fromName:it.fromName||'',toName:it.toName||'',message:it.message||'',timestamp:+it.timestamp||Date.now(),amount_total:+it.amount_total||+it.amountTotal||0}]);
         persistCache(); render(flowersCache);
@@ -302,13 +305,13 @@ async function afterStripe(){
     }
   }catch{}
 
-  // 4) Limpia URL y pista
+  // Limpieza de URL y pista
   u.searchParams.delete('success'); u.searchParams.delete('session_id'); history.replaceState({},'',u.toString());
   try{ sessionStorage.removeItem('fm_postpay_hint') }catch{}
   setTimeout(()=>refetch(true),1200);
 }
 
-/* ====== CACHE + RENDER ====== */
+/* Cache + Render + Data */
 function normalize(items){const out=[];for(const f of(items||[])){const lat=+f.lat,lng=+f.lng;if(!isFinite(lat)||!isFinite(lng))continue;out.push({id:String(f.id||''),lat,lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp:+f.timestamp||0,amount_total:isFinite(+f.amount_total)?+f.amount_total:(isFinite(+f.amountTotal)?+f.amountTotal:0)})}return out}
 function upsertCache(list){const m=new Map(flowersCache.map(x=>[x.id,x]));for(const it of(list||[]))m.set(it.id,it);flowersCache=[...m.values()]}
 function persistCache(){try{localStorage.setItem('flowers_cache',JSON.stringify(flowersCache))}catch{}}
@@ -316,19 +319,20 @@ function loadCache(){try{flowersCache=JSON.parse(localStorage.getItem('flowers_c
 function render(list){const data=list||flowersCache||[];if(!map)return;const rm=[];map.eachLayer(l=>{if(l&&l._isFlower)rm.push(l)});rm.forEach(l=>map.removeLayer(l));for(const f of data){const dt=f.timestamp?fmtDate(f.timestamp):'',share=shareUrlFor(f.id);const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1200});mk._isFlower=true;mk._fid=String(f.id||'');mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,dt,share,f.amount_total));mk.addTo(map)}}
 async function refetch(incr){if(!flowersCache.length){loadCache();if(flowersCache.length)render(flowersCache)}try{const url=SCRIPT_URL+'?action=list'+(incr&&lastTs?('&since='+encodeURIComponent(lastTs)):'');const d=await jsonp(url,12000);if(d&&Array.isArray(d.items)){const norm=normalize(d.items);if(incr){if(!norm.length)return;upsertCache(norm);persistCache();render(flowersCache)}else{flowersCache=norm;persistCache();render(flowersCache)}for(const it of d.items){const t=+it.timestamp||0;if(t>lastTs)lastTs=t}return}}catch{}if(flowersCache.length){render(flowersCache)}}
 
-/* ====== DEEP LINK (solo si NO vienes de Stripe) ====== */
+/* Deep link (solo si NO vienes de Stripe) */
 async function deepLink(){
   const u=new URL(location.href);
-  if(u.searchParams.get('success')==='1') return; // Stripe tiene prioridad
+  if(u.searchParams.get('success')==='1') return;
   let id=u.searchParams.get('id');
   if(!id){ const m=location.pathname.match(/\/f\/([^\/?#]+)/); if(m&&m[1]) id=decodeURIComponent(m[1]) }
   if(!id) return;
   try{
+    await fmReady;
     const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
     if(d&&d.ok&&d.item){
       const it=d.item,dt=fmtDate(it.timestamp),share=shareUrlFor(id);
-      const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
-                 .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0));
+      const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map);
+      mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,share,+it.amount_total||+it.amountTotal||0),{autoPan:false});
       await ensureFocus(+it.lat,+it.lng,Z_RETURN);
       setTimeout(()=>mk.openPopup(),140);
     }
