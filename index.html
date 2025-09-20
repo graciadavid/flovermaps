@@ -6,9 +6,9 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.3.2 (tooltip + zoom 19) -->
+<!-- BUILD: FM-frontend-3.3.3 (focus robusto con reintentos) -->
 
-<!-- Leaflet CSS (2 fuentes) -->
+<!-- Leaflet CSS (2 fuentes por resiliencia) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
@@ -26,14 +26,14 @@
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100vh; height:100dvh; }
 
-  /* Tooltip de arrastre */
+  /* Tooltip “Arrastra…” fijo */
   .drag-tip{
     background:#fff!important; color:#0f172a!important; border:1px solid #e6e6e6!important;
     border-radius:10px!important; box-shadow:0 8px 20px rgba(0,0,0,.10)!important;
     font-weight:700; padding:6px 10px!important;
   }
 
-  /* Anillo de arrastre (vuelve) */
+  /* Anillo verde */
   .drag-ring{ position:absolute; width:64px; height:64px; border-radius:999px; border:3px solid var(--green);
     box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9);
     pointer-events:none; z-index:850; display:none; transform:translate(-50%,-50%) }
@@ -154,8 +154,8 @@
 /* ============ CONFIG ============ */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
-const STREET_ZOOM = 19;           // máximo detalle
-const MAX_ZOOM = 19;              // límites del tile
+const STREET_ZOOM = 19;
+const MAX_ZOOM = 19;
 const PROD_ORIGIN = "https://flovermaps.com";
 
 /* ============ CARGA ROBUSTA LEAFLET ============ */
@@ -181,9 +181,44 @@ function toast(m,ok=true){const t=document.getElementById('toast');t.textContent
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
 function fmtDate(ts){try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(Number(ts)||Date.now())).replace(',',''); }catch{return ''}}
 function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
-function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":">","\"":"&quot;","'":"&#39;"}[m]))}
+function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;"," >":">","\"":"&quot;","'":"&#39;"}[m]))}
 function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function cleanup(){clearTimeout(to);try{delete window[cb]}catch{};s.remove()}window[cb]=(d)=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('jsonp'))};document.head.appendChild(s);to=setTimeout(()=>{cleanup();reject(new Error('timeout'))},timeoutMs)})}
 function shareUrlFor(id){ return (PROD_ORIGIN||location.origin).replace(/\/$/,'') + '/?id=' + encodeURIComponent(String(id||'')); }
+
+/* ========= FOCUS ROBUSTO CON REINTENTOS ========= */
+function forceFocus(lat,lng,z, tries=3){
+  if(!map) return;
+  const targetZ = Math.min(z||STREET_ZOOM, MAX_ZOOM);
+  let done = false;
+
+  const apply = () => {
+    if(done) return;
+    try{
+      map.setView([lat,lng], targetZ, {animate:false});
+      map.once('moveend', verify);
+      // doble rAF para asegurar layout listo
+      requestAnimationFrame(()=>requestAnimationFrame(()=>map.invalidateSize()));
+    }catch{ /* no-op */ }
+  };
+
+  const verify = () => {
+    if(done) return;
+    const cur = map.getZoom();
+    if(cur === targetZ){
+      done = true;
+      return;
+    }
+    if(tries > 0){
+      tries--;
+      setTimeout(()=>{ try{
+        map.flyTo([lat,lng], targetZ, {duration:.4, animate:true});
+        map.once('moveend', verify);
+      }catch{} }, 80);
+    }
+  };
+
+  apply();
+}
 
 /* ============ ESTADO / DOM ============ */
 let map, baseTiles, fallbackTiles, selectedMarker=null;
@@ -201,10 +236,30 @@ const slist=document.getElementById('slist'), addrBadge=document.getElementById(
 function init(){
   if(!window.L){ alert("Leaflet no disponible"); return; }
 
-  baseTiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{ attribution:'© OpenStreetMap © CARTO', maxZoom:MAX_ZOOM });
-  baseTiles.on('tileerror', ()=>{ try{ map.removeLayer(baseTiles); }catch{}; fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap', maxZoom:MAX_ZOOM }); fallbackTiles.addTo(map); });
+  baseTiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO',
+    maxZoom: MAX_ZOOM,
+    maxNativeZoom: 19
+  });
+  baseTiles.on('tileerror', ()=>{
+    try{ map.removeLayer(baseTiles); }catch{}
+    fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap',
+      maxZoom: MAX_ZOOM,
+      maxNativeZoom: 19
+    });
+    fallbackTiles.addTo(map);
+  });
 
-  map = L.map('map',{layers:[baseTiles],zoomControl:true,worldCopyJump:true,maxZoom:MAX_ZOOM});
+  map = L.map('map',{
+    layers:[baseTiles],
+    zoomControl:true,
+    worldCopyJump:true,
+    maxZoom: MAX_ZOOM,
+    minZoom: 2,
+    zoomAnimation: true,
+    zoomSnap: 1
+  });
   map.setView([40.4168,-3.7038], 5, {animate:false});
   setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 150);
 
@@ -212,14 +267,14 @@ function init(){
   map.on('move zoom', ()=>{ if(selectedMarker){ positionRing(); positionCta(); } });
   window.addEventListener('resize', ()=>setTimeout(()=>{ try{ map.invalidateSize(); positionRing(); positionCta(); }catch{} }, 120));
 
-  document.getElementById('logoBtn').addEventListener('click', ()=>location.href='/?b=fix332');
+  document.getElementById('logoBtn').addEventListener('click', ()=>location.href='/?b=fix333');
   document.getElementById('tapBtn').addEventListener('click', ()=>{ plantMode=true; toast('Toca el mapa para elegir el punto'); });
   document.getElementById('gpsBtn').addEventListener('click', ()=>{
     plantMode=true;
     if(!('geolocation' in navigator)) return toast('Tu dispositivo no permite geolocalización', false);
     navigator.geolocation.getCurrentPosition(pos=>{
       setSelectedPoint(pos.coords.latitude,pos.coords.longitude,true);
-      focusToStreet(pos.coords.latitude,pos.coords.longitude);
+      forceFocus(pos.coords.latitude,pos.coords.longitude, STREET_ZOOM);
     }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
   });
   pinCta.addEventListener('click', ()=>{ if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero', false); openSheet(); });
@@ -236,17 +291,6 @@ function init(){
 
   deepLink();
   afterStripe();
-}
-
-/* ============ FOCO CALLE (zoom 19) ============ */
-function focusToStreet(lat,lng){
-  const z=STREET_ZOOM;
-  map.whenReady(()=>{
-    try{
-      map.setView([lat,lng], z, {animate:false});
-      setTimeout(()=>{ try{ map.flyTo([lat,lng], z, {duration:.45}); }catch{} }, 60);
-    }catch{}
-  });
 }
 
 /* ============ RING + CTA ============ */
@@ -307,7 +351,7 @@ function initSearch(){
     plantMode=true;
     const lat=Number(it.lat), lng=Number(it.lon);
     setSelectedPoint(lat,lng,true);
-    focusToStreet(lat,lng);
+    forceFocus(lat,lng, STREET_ZOOM);
   }
 }
 
@@ -315,7 +359,6 @@ function initSearch(){
 function setSelectedPoint(lat,lng,animate){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    // Tooltip fijo “Arrastra para ajustar”
     selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-52], className:'drag-tip'}).openTooltip();
     selectedMarker.on('drag', ()=>{ positionRing(); positionCta(); });
     selectedMarker.on('dragend', e=>{
@@ -323,7 +366,7 @@ function setSelectedPoint(lat,lng,animate){
       selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
       reverseAt(selectedLat, selectedLng);
       positionRing(); positionCta();
-      focusToStreet(+selectedLat, +selectedLng);
+      forceFocus(+selectedLat, +selectedLng, STREET_ZOOM);
       try{ selectedMarker.openTooltip(); }catch{}
     });
   } else {
@@ -332,7 +375,7 @@ function setSelectedPoint(lat,lng,animate){
   }
   selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
 
-  if(animate){ focusToStreet(+selectedLat, +selectedLng); }
+  if(animate){ forceFocus(+selectedLat, +selectedLng, STREET_ZOOM); }
   reverseAt(selectedLat,selectedLng);
 
   addrBadge.style.display='block';
@@ -382,7 +425,7 @@ function initStripe(){
   });
 }
 
-/* === RETORNO DE STRIPE: pintar, zoom 19 y popup === */
+/* === Retorno de Stripe: pintar + foco robusto === */
 async function afterStripe(){
   const u=new URL(location.href);
   if(!(u.searchParams.get('success')==='1' && u.searchParams.get('session_id'))) return;
@@ -397,7 +440,8 @@ async function afterStripe(){
         const it=d.item; const dt=fmtDate(it.timestamp); const shareUrl=shareUrlFor(it.id);
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
-        map.whenReady(()=>{ focusToStreet(+it.lat, +it.lng); setTimeout(()=>mk.openPopup(), 140); });
+        forceFocus(+it.lat, +it.lng, STREET_ZOOM);
+        setTimeout(()=>mk.openPopup(), 150);
         upsertCache([{ id:String(it.id), lat:+it.lat, lng:+it.lng, fromName:it.fromName||'', toName:it.toName||'', message:it.message||'', timestamp:+it.timestamp||Date.now(), amount_total:+it.amount_total||+it.amountTotal||0 }]);
         persistCache(); render(flowersCache);
         setTimeout(()=>toast('¡Gracias! Flor plantada 🌸'), 150);
@@ -483,7 +527,7 @@ async function deepLink(){
         const it=d.item; const dt=fmtDate(it.timestamp); const shareUrl=shareUrlFor(id);
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map)
           .bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl, +it.amount_total||+it.amountTotal||0));
-        focusToStreet(+it.lat, +it.lng);
+        forceFocus(+it.lat, +it.lng, STREET_ZOOM);
         setTimeout(()=>mk.openPopup(), 140);
       }
     }catch{}
