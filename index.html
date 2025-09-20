@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-frontend-3.2.2 (debug overlay + fixes) -->
+<!-- BUILD: FM-frontend-3.2.3 (fix: quitar SRI de Leaflet) -->
 
 <!-- Redirección canónica: www → apex -->
 <script>
@@ -34,11 +34,9 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Leaflet CSS + JS (sin defer para asegurar orden) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-y4UQvRZV9tTg0l0nF2HnVv7m0XH1bU0G4l7jXb1G5TQ4t7lJ9xgM0iWmQXf3sHn8c0qU9J5Zp8gqz2lG0n8mQ==" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha512-pkG5Yw2m1o0a8q1R7oZ1lA6m1mB3n8s8m1Y8Cw5mC2kqkqX7c9p4nH8e2z6r3d9kZlK3pK1oYxQ7nC5J9T9V7Q=="
-        crossorigin=""></script>
+<!-- Leaflet CSS + JS (SIN integrity/crossorigin para asegurar carga) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
   :root{ --ink:#0f172a; --muted:#64748b; --green:#22c55e; --blue:#0066cc; --bg:#f6fff9; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
@@ -46,7 +44,7 @@
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
 
   .site-header{ position:fixed; z-index:1000; top:0; inset:auto 0 auto 0; display:flex; justify-content:center; padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
-  .brand{ pointer-events:auto; background:#fff; border:1px solid #e6e6e8; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
+  .brand{ pointer-events:auto; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:6px 16px; box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
   .brand img{ height:84px; display:block }
 
   #mapWrap{ position:fixed; inset:0; }
@@ -242,7 +240,7 @@ const slist=document.getElementById('slist'), addrBadge=document.getElementById(
 const fromInput=document.getElementById('fromName'), toInput=document.getElementById('toName'), msgInput=document.getElementById('message'), ngoSel=document.getElementById('ngo');
 const chips=document.getElementById('chips'), otherRow=document.getElementById('otherRow'), otherAmount=document.getElementById('otherAmount'), payBtn=document.getElementById('payAndPlantBtn');
 
-/* === Keep-alive backend === */
+/* === Mantener backend despierto === */
 setInterval(()=>{ fetch(`${BACKEND_URL}/health`,{mode:'no-cors'}).catch(()=>{}) }, 240000);
 
 /* === MAPA === */
