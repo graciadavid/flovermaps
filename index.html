@@ -6,6 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
+<!-- BUILD: FM-frontend-3.2.1 (fix ReferenceError en renderSuggest) -->
 
 <!-- Redirección canónica: www → apex -->
 <script>
@@ -277,8 +278,11 @@ function renderSuggest(list){
   slist.innerHTML='';
   (list||[]).forEach((it,i)=>{
     const dn=String(it.display_name||'').split(',');
-    thePrimary=dn[0]||''; const meta=[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
-    const el=document.createElement('div'); el.className='sitem'; el.textContent=thePrimary+(meta?(' · '+meta):''); el.onclick=()=>selectSuggest(i); slist.appendChild(el);
+    const primary=dn[0]||'';                     /* ← FIX: variable correcta y declarada */
+    const meta=[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
+    const el=document.createElement('div'); el.className='sitem';
+    el.textContent=primary+(meta?(' · '+meta):'');
+    el.onclick=()=>selectSuggest(i); slist.appendChild(el);
   });
   slist.style.display=(list&&list.length)?'block':'none';
 }
