@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 -->
+<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-FIRST -->
 
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
 <link rel="preconnect" href="https://js.stripe.com" crossorigin>
@@ -41,7 +41,7 @@
   .sitem{padding:12px 14px;border-bottom:1px solid #f3f3f3;cursor:pointer;font-size:1rem}
   .addr-badge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(190px + var(--safe-b));z-index:8;background:#fff;border:1px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-size:1rem;font-weight:700;max-width:min(92vw,520px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px rgba(0,0,0,.10);display:none}
 
-  /* Limpia el recuadro por defecto de L.divIcon */
+  /* Quita recuadro de L.divIcon */
   .leaflet-div-icon{ background:transparent!important; border:none!important; }
 
   .emoji-marker .e{font-size:44px;line-height:44px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
@@ -153,7 +153,7 @@ function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const 
 /* === STATE / VIEW-LOCK === */
 let map, tiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
-let lockUntil=0; // mientras esté activo, nadie puede cambiar el zoom/vista
+let lockUntil=0;
 function setViewHard(lat,lng,z){ try{ map.stop(); map.setView([lat,lng], z, {animate:false}); lockUntil=Date.now()+4000; }catch{} }
 function canMove(){ return Date.now() > lockUntil; }
 
@@ -267,7 +267,9 @@ function reverseAt(lat,lng){
 /* === CHECKOUT (guarda retorno optimista) === */
 function savePending(body){ try{ sessionStorage.setItem('fm_pending', JSON.stringify(body)); }catch{} }
 function readPending(){ try{ const s=sessionStorage.getItem('fm_pending'); return s?JSON.parse(s):null; }catch{ return null; } }
-function clearPending(){ try{ sessionStorage.removeItem('fm_pending'); }catch{} }
+function setShareUrl(u){ try{ sessionStorage.setItem('fm_share_url', String(u||'')); }catch{} }
+function getShareUrl(){ try{ return sessionStorage.getItem('fm_share_url')||''; }catch{ return ''; } }
+function clearPending(){ try{ sessionStorage.removeItem('fm_pending'); sessionStorage.removeItem('fm_share_url'); }catch{} }
 
 async function startCheckout(){
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
@@ -286,7 +288,23 @@ async function startCheckout(){
   }catch{ veil.style.display='none'; toast('Fallo de red', false); }
 }
 
-/* === VUELTA DE STRIPE: detecta ambas variantes y fuerza zoom cercano === */
+/* === Compartir mientras se confirma === */
+async function shareAny(url){
+  try{
+    if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
+    else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
+  }catch{}
+}
+window.shareAny=shareAny;
+
+async function sharePending(){
+  const u = getShareUrl();
+  if(u){ return shareAny(u); }
+  toast('Generando enlace…'); // aún no tenemos el id; en segundos se activará
+}
+window.sharePending=sharePending;
+
+/* === VUELTA DE STRIPE (zoom cercano y compartir desde el principio) === */
 async function afterStripe(){
   const u=new URL(location.href);
   const successA = (u.searchParams.get('success')==='1' && u.searchParams.get('session_id'));
@@ -295,7 +313,7 @@ async function afterStripe(){
 
   const sid=u.searchParams.get('session_id');
 
-  // 1) Optimista si hay datos locales
+  // 1) Optimista con botón Compartir desde YA (aún sin URL final)
   const p = readPending();
   if(p && isFinite(p.lat) && isFinite(p.lng)){
     try{
@@ -309,14 +327,15 @@ async function afterStripe(){
         <div class="muted" style="margin-bottom:6px">${fmtDate(Date.now())}</div>
         <div style="margin-bottom:6px"><strong>De ${escHtml(p.fromName)}</strong> para <strong>${escHtml(p.toName)}</strong></div>
         <div style="margin-bottom:10px">${escHtml(p.message)}</div>
-        <div class="muted" style="margin-bottom:10px">Confirmando pago…</div>
+        <button onclick="sharePending()" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
+        <div class="muted" style="margin-top:6px;font-size:.9rem">El enlace se activará en segundos…</div>
       </div>`, {autoClose:false,closeOnClick:false});
       setViewHard(p.lat,p.lng, RETURN_ZOOM);
       mk.openPopup();
     }catch{}
   }
 
-  // 2) Confirmación real
+  // 2) Confirmación real → ya tenemos el id y el enlace definitivo
   veil.style.display='flex'; veilText.textContent='Confirmando tu flor…';
   try{
     const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
@@ -326,6 +345,8 @@ async function afterStripe(){
       if(d&&d.ok&&d.item){
         const it=d.item; const dt=fmtDate(it.timestamp);
         const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(it.id))}`;
+        setShareUrl(shareUrl); // << activa el botón “Compartir” de inmediato
+
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map);
         mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false});
         setViewHard(+it.lat,+it.lng, RETURN_ZOOM);
@@ -335,13 +356,13 @@ async function afterStripe(){
   }catch{ veil.style.display='none'; }
   clearPending();
 
-  // limpia query
+  // Limpia query
   ['success','session_id','redirect_status'].forEach(k=>u.searchParams.delete(k));
   history.replaceState({},'',u.toString());
   setTimeout(()=>refetch(true),800);
 }
 
-/* === Popup Compartir === */
+/* === Popup “final” con enlace real === */
 function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg), tt=fmt(total||0);
   const url=shareUrl||location.href;
@@ -353,13 +374,8 @@ function popupHtml(from,to,msg,dt,shareUrl,total){
     <button onclick="shareAny('${url.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
   </div>`;
 }
-async function shareAny(url){
-  try{ if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
-        else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } }catch{}
-}
-window.shareAny=shareAny;
 
-/* === Datos === */
+/* === Datos (carga y render) === */
 function normalize(items){ const out=[]; for(const f of (items||[])){ const lat=+f.lat,lng=+f.lng; if(!isFinite(lat)||!isFinite(lng)) continue;
   out.push({ id:String(f.id||''),lat,lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp:+f.timestamp||0,amount_total:isFinite(+f.amount_total)?+f.amount_total:(isFinite(+f.amountTotal)?+f.amountTotal:0)});} return out;}
 function render(list){ if(!map) return; const rm=[]; map.eachLayer(l=>{ if(l&&l._isFlower) rm.push(l); }); rm.forEach(l=>map.removeLayer(l));
