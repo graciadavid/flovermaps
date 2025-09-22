@@ -6,9 +6,8 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-RING-POPUP-FIX-2025-09-22 -->
+<!-- BUILD: FM-RING-ANCHOR-FIX-2025-09-22 -->
 
-<!-- Perf: preconnect -->
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
 <link rel="preconnect" href="https://js.stripe.com" crossorigin>
 <link rel="preconnect" href="https://flovermaps-stripe-backend.onrender.com" crossorigin>
@@ -26,35 +25,26 @@
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);
        background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%); overflow:hidden}
 
-  /* Header */
   .site-header{ position:fixed; z-index:1000; top:0; left:0; right:0; display:flex; justify-content:center;
     padding:8px 10px; padding-top:calc(8px + var(--safe-t)); pointer-events:none; }
   .brand{ pointer-events:auto; background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:6px 16px;
     box-shadow:0 6px 18px rgba(2,6,12,.06); cursor:pointer }
   .brand img{ height:84px; display:block }
 
-  /* Mapa */
   #mapWrap{ position:fixed; inset:0; }
   #map{ position:absolute; inset:0; width:100%; height:100vh; height:100dvh; }
 
-  /* Controles inferiores */
   .controls{ position:fixed; z-index:900; left:50%; transform:translateX(-50%);
     bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:8px }
   .actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
-  .btn{
-    display:inline-flex; align-items:center; justify-content:center; gap:8px;
-    border:1px solid #e6e6e6; background:#fff; color:#111; font-weight:800;
-    border-radius:12px; padding:11px 12px; font-size:0.95rem; cursor:pointer;
-    box-shadow:0 6px 14px rgba(0,0,0,.04);
-  }
-  .btn span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:1px solid #e6e6e6; background:#fff; color:#111; font-weight:800; border-radius:12px; padding:11px 12px; font-size:.95rem; cursor:pointer;
+    box-shadow:0 6px 14px rgba(0,0,0,.04); }
   .searchRow{ display:flex; gap:8px }
   .searchRow .input{ flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e6e6e6;
     border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04) }
   .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink) }
 
-  /* Sugerencias + dirección */
   .slist{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(120px + var(--safe-b)); width:min(94vw,960px);
     background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:920;
     box-shadow:0 6px 14px rgba(0,0,0,.06) }
@@ -63,31 +53,20 @@
     border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; max-width:min(92vw,520px);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none }
 
-  /* Estilos de los elementos Leaflet usados como anillo y CTA */
-  .ring-wrapper{ /* contenedor del divIcon */ }
+  /* —— Elementos Leaflet como anillo y CTA —— */
   .ring{ width:64px; height:64px; border-radius:999px; border:3px solid #22c55e;
          box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9);
-         transform:translate(-32px,-32px); pointer-events:none; } /* centra respecto al anchor */
+         /* OJO: SIN transform extra; se centra con iconAnchor */ }
 
-  .leaflet-popup.pin-cta { /* popup para CTA “Plantar aquí” */
-    margin-top:6px;
-  }
-  .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{
-    background:transparent; box-shadow:none; border:none;
-  }
-  .leaflet-popup.pin-cta .leaflet-popup-content{
-    margin:0; width:auto;
-  }
-  .pin-cta-btn{
-    background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px;
-    padding:12px 16px; font-size:1rem; font-weight:800; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer;
-  }
+  .leaflet-popup.pin-cta{ margin-top:6px; }
+  .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{ background:transparent; box-shadow:none; border:none; }
+  .leaflet-popup.pin-cta .leaflet-popup-content{ margin:0; width:auto; }
+  .pin-cta-btn{ background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:16px;
+    padding:12px 16px; font-size:1rem; font-weight:800; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer; }
 
-  /* Marker visual */
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
 
-  /* Sheet */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1001; transform:translateY(100%); transition:transform .25s ease; background:#fff;
     border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column }
   .sheet.open{ transform:translateY(0) }
@@ -101,7 +80,7 @@
   .muted{ color:#64748b; font-size:.95rem }
   .progress{ display:flex; align-items:center; gap:8px; font-weight:700; margin:4px 0 10px }
   .progress .dot{ width:8px; height:8px; border-radius:50%; background:#e5e7eb }
-  .progress .dot.active{ background:var(--green) }
+  .progress .dot.active{ background:#22c55e }
 
   .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
   .chip{ padding:10px 12px; border:1px solid #e6e6e6; border-radius:12px; cursor:pointer; background:#fff; }
@@ -111,7 +90,6 @@
     border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
 
-  /* Overlays */
   .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:2000; }
   .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
   .warn{ position:fixed; z-index:3000; left:50%; transform:translateX(-50%); top:12px; background:#fff3cd; color:#664d03; border:1px solid #ffe69c;
@@ -126,12 +104,10 @@
 
 <div id="warn" class="warn">Cargando el mapa…</div>
 
-<!-- MAPA -->
 <main id="mapWrap" aria-label="Mapa">
   <div id="map"></div>
 </main>
 
-<!-- Controles inferiores -->
 <div class="controls" id="controls" aria-label="Controles">
   <div class="actions">
     <button id="btnFromMap" class="btn"><span>🌸 Plantar desde el mapa</span></button>
@@ -148,7 +124,6 @@
 <div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
-<!-- Sheet -->
 <section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div id="sheetBody" class="body">
@@ -198,7 +173,6 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="veil" class="veil"><div class="box" id="veilText">Preparando la semilla…</div></div>
 
-<!-- Leaflet JS (con reintento si falla) -->
 <script>
 (function loadLeaflet(){
   const warn = document.getElementById('warn');
@@ -228,12 +202,12 @@ const RETURN_ZOOM = 19;
 function toast(m,ok=true){const t=document.getElementById('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
 function fmtDate(ts){try{ return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(Number(ts)||Date.now())).replace(',',''); }catch{return ''}}
-function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,44], popupAnchor:[0,-46]}); }
+function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,22], popupAnchor:[0,38]}); }
 function ringIcon(){ return L.divIcon({className:'ring-wrapper', html:'<div class="ring"></div>', iconSize:[64,64], iconAnchor:[32,32]}); }
 function escHtml(s){return String(s||'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function cleanup(){clearTimeout(to);try{delete window[cb]}catch{};s.remove()}window[cb]=(d)=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('jsonp'))};document.head.appendChild(s);to=setTimeout(()=>{cleanup();reject(new Error('timeout'))},timeoutMs)})}
 
-/* === ESTADO / DOM === */
+/* === ESTADO === */
 let map, baseTiles, fallbackTiles;
 let selectedMarker=null, ringMarker=null, ctaPopup=null;
 let selectedLat=null, selectedLng=null, lastTs=0;
@@ -246,10 +220,10 @@ const btnFromMap=document.getElementById('btnFromMap'), btnGps=document.getEleme
 const veil=document.getElementById('veil'), veilText=document.getElementById('veilText'); const warn=document.getElementById('warn');
 let amount=9;
 
-/* === Mantener backend caliente === */
+/* === Keep warm === */
 setInterval(()=>{ fetch(`${BACKEND_URL}/health`,{mode:'no-cors'}).catch(()=>{}) }, 60000);
 
-/* === Flags URL (Stripe return) === */
+/* === Stripe return flag === */
 (function checkReturnFlag(){
   try{ const u=new URL(location.href); if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){ returning=true; veil.style.display='flex'; veilText.textContent='Colocando tu flor…'; } }catch{}
 })();
@@ -272,7 +246,7 @@ function initApp(){
   bindUI(); refetch(false); setInterval(()=>refetch(true),15000); deepLink(); afterStripe();
 }
 
-/* === Acciones inferiores === */
+/* === Acciones === */
 document.getElementById('logoBtn').addEventListener('click', ()=>location.reload());
 
 btnFromMap.addEventListener('click', ()=>{
@@ -290,7 +264,7 @@ btnGps.addEventListener('click', ()=>{
   }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
 });
 
-/* === SHEET / PROGRESO === */
+/* === Sheet / progreso === */
 function openSheet(){ const s=document.getElementById('sheet'); s.classList.add('open'); s.setAttribute('aria-hidden','false'); try{ map.dragging.disable(); map.scrollWheelZoom.disable(); map.doubleClickZoom.disable(); }catch{}; updateSplit(); setProgress(2); }
 function closeSheet(){ const s=document.getElementById('sheet'); s.classList.remove('open'); s.setAttribute('aria-hidden','true'); try{ map.dragging.enable(); map.scrollWheelZoom.enable(); map.doubleClickZoom.enable(); }catch{}; }
 
@@ -307,7 +281,7 @@ document.getElementById('chars').textContent='(0/30)';
 msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); document.getElementById('chars').textContent='('+msgInput.value.length+'/30)'; if(step<3) setProgress(3); });
 msgInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); } });
 
-/* === BÚSQUEDA === */
+/* === Búsqueda === */
 let suggestTimer=null, abortCtrl=null, currentSuggest=[];
 const searchInput=document.getElementById('searchInput');
 searchInput.addEventListener('input', e=>{
@@ -344,26 +318,22 @@ function selectSuggest(i){
   try{ map.flyTo([lat,lng], STREET_ZOOM, {duration:.5}); }catch{}
 }
 
-/* === PIN / PUNTO === */
+/* === Pin / punto === */
 function ensureRingAndCta(lat,lng){
-  // Anillo como marcador de Leaflet (divIcon)
   if(!ringMarker){
     ringMarker = L.marker([lat,lng], {icon:ringIcon(), interactive:false, keyboard:false, pane:'markerPane', zIndexOffset:850}).addTo(map);
   } else {
     ringMarker.setLatLng([lat,lng]);
   }
-  // CTA como popup de Leaflet, offset y clase propia
   const ctaHtml = `<button id="pinCtaBtn" class="pin-cta-btn">Plantar aquí</button>`;
   if(!ctaPopup){
-    ctaPopup = L.popup({
-      closeButton:false, autoClose:false, closeOnClick:false, offset:[0,46], className:'pin-cta'
-    }).setLatLng([lat,lng]).setContent(ctaHtml).openOn(map);
+    ctaPopup = L.popup({ closeButton:false, autoClose:false, closeOnClick:false, offset:[0,48], className:'pin-cta' })
+      .setLatLng([lat,lng]).setContent(ctaHtml).openOn(map);
   } else {
     ctaPopup.setLatLng([lat,lng]);
     ctaPopup.setContent(ctaHtml);
     ctaPopup.openOn(map);
   }
-  // click del botón
   setTimeout(()=>{
     const btn=document.getElementById('pinCtaBtn');
     if(btn) btn.onclick = ()=>{ if(!selectedLat||!selectedLng) return toast('Elige un punto del mapa primero', false); openSheet(); };
@@ -373,7 +343,7 @@ function ensureRingAndCta(lat,lng){
 function setSelectedPoint(lat,lng,animate){
   if(!selectedMarker){
     selectedMarker=L.marker([lat,lng],{icon:emojiIcon(), draggable:true, zIndexOffset:2000}).addTo(map);
-    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-52], className:'drag-tip'}).openTooltip();
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-36], className:'drag-tip'}).openTooltip();
     selectedMarker.on('drag', (e)=>{ const p=e.target.getLatLng(); ensureRingAndCta(p.lat,p.lng); });
     selectedMarker.on('dragend', e=>{
       const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6);
@@ -387,7 +357,7 @@ function setSelectedPoint(lat,lng,animate){
 
   reverseAt(selectedLat,selectedLng);
   addrBadge.style.display='block';
-  ensureRingAndCta(lat,lng); // <<— anillo + CTA alineados al pin
+  ensureRingAndCta(lat,lng);
   bounceMarker(selectedMarker);
 }
 
@@ -400,45 +370,37 @@ function reverseAt(lat,lng){
     }).catch(()=>addrBadge.textContent='Ubicación aproximada');
 }
 
-/* === Animación rebote del pin === */
+/* === Animación rebote === */
 function bounceMarker(mk){
-  try{
-    const el = mk.getElement?.()||mk._icon; if(!el) return;
-    el.style.transition='transform .25s ease';
-    el.style.transform='translateY(-8px)';
+  try{ const el = mk.getElement?.()||mk._icon; if(!el) return;
+    el.style.transition='transform .25s ease'; el.style.transform='translateY(-8px)';
     setTimeout(()=>{ el.style.transform='translateY(0)'; }, 250);
     setTimeout(()=>{ el.style.transition=''; }, 400);
   }catch{}
 }
 
-/* === IMPORTE / COPY === */
+/* === Importe / copy === */
 function updateSplit(){ document.getElementById('splitCopy').innerHTML=`Tu donación va íntegra a la <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'ONG')}</strong>, salvo <strong>0,90 €</strong> para mantener tu flor para siempre.`; }
 chips.addEventListener('click', e=>{
   const b=e.target.closest('.chip'); if(!b) return;
   chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); b.classList.add('active');
   const v=b.dataset.amount;
-  if(v==='other'){
-    otherRow.style.display='block';
-    amount = 25; otherAmount.value = amount.toFixed(2); otherAmount.focus();
-  } else {
-    otherRow.style.display='none';
-    amount = Number(v)||9;
-  }
-  document.getElementById('payAndPlantBtn').textContent=`Pagar y plantar — ${fmt(amount)} €`; if(step<3) setProgress(3);
+  if(v==='other'){ otherRow.style.display='block'; amount = 25; otherAmount.value = amount.toFixed(2); otherAmount.focus(); }
+  else { otherRow.style.display='none'; amount = Number(v)||9; }
+  payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; if(step<3) setProgress(3);
 });
-otherAmount.addEventListener('input', ()=>{ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)) return; amount=v; document.getElementById('payAndPlantBtn').textContent=`Pagar y plantar — ${fmt(amount)} €`; });
-otherAmount.addEventListener('blur',  ()=>{ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=1; amount=v; otherAmount.value=amount.toFixed(2); document.getElementById('payAndPlantBtn').textContent=`Pagar y plantar — ${fmt(amount)} €`; });
+otherAmount.addEventListener('input', ()=>{ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)) return; amount=v; payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; });
+otherAmount.addEventListener('blur',  ()=>{ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=1; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; });
 ngoSel.addEventListener('change', updateSplit);
 
-/* === STRIPE === */
-document.getElementById('payAndPlantBtn').addEventListener('click', async ()=>{
+/* === Stripe === */
+payBtn.addEventListener('click', async ()=>{
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
   if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
-  if(otherRow.style.display!=='none'){ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); document.getElementById('payAndPlantBtn').textContent=`Pagar y plantar — ${fmt(amount)} €`; }
+  if(otherRow.style.display!=='none'){ let v=Number(String(otherAmount.value||'').replace(',','.')); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
 
-  veil.style.display='flex'; veilText.textContent='Preparando la semilla…';
-  const payBtn=document.getElementById('payAndPlantBtn'); payBtn.disabled=true;
+  veil.style.display='flex'; veilText.textContent='Preparando la semilla…'; payBtn.disabled=true;
   try{
     const body={ lat:+selectedLat, lng:+selectedLng, place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
     const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), cache:'no-store'});
@@ -448,7 +410,7 @@ document.getElementById('payAndPlantBtn').addEventListener('click', async ()=>{
   }catch{ veil.style.display='none'; toast('Fallo de red', false); } finally{ payBtn.disabled=false; }
 });
 
-/* === Volver de Stripe: zoom 19 + popup Compartir abierto === */
+/* === Vuelta de Stripe: zoom 19 + “Compartir” abierto === */
 async function afterStripe(){
   const u=new URL(location.href);
   if(u.searchParams.get('success')==='1' && u.searchParams.get('session_id')){
@@ -462,7 +424,8 @@ async function afterStripe(){
           const it=d.item; const dt=fmtDate(it.timestamp);
           const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(it.id))}`;
 
-          plantMode=false; addrBadge.style.display='none'; selectedMarker=null; selectedLat=null; selectedLng=null;
+          plantMode=false; addrBadge.style.display='none';
+          if(selectedMarker){ map.removeLayer(selectedMarker); selectedMarker=null; }
           if(ringMarker){ map.removeLayer(ringMarker); ringMarker=null; }
           if(ctaPopup){ map.closePopup(ctaPopup); ctaPopup=null; }
 
@@ -512,7 +475,7 @@ async function shareAny(url){
 }
 window.shareAny = shareAny;
 
-/* === Asegurar visibilidad del botón Compartir === */
+/* === Visibilidad botón Compartir === */
 function ensureShareVisible(){
   try{
     const mapEl = document.getElementById('map');
@@ -526,7 +489,7 @@ function ensureShareVisible(){
   }catch{}
 }
 
-/* === CACHE / RENDER / FETCH === */
+/* === Cache / render / fetch === */
 function normalize(items){
   const out=[];
   for(const f of (items||[])){
@@ -569,7 +532,7 @@ async function refetch(incr){
   if(flowersCache.length){ render(flowersCache); }
 }
 
-/* === DEEP LINK === */
+/* === Deep link === */
 async function deepLink(){
   const u=new URL(location.href);
   let id = u.searchParams.get('id');
