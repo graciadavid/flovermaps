@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flovermaps - Plant a Flower Change the World</title>
+<meta name="theme-color" content="#f6fff9" />
+<meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
+<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-INSTANT + CTA-TIP-v2 (FIX) + SHARE-CLICK-17 -->
+
+<link rel="preconnect" href="https://api.stripe.com" crossorigin>
+<link rel="preconnect" href="https://js.stripe.com" crossorigin>
+<link rel="preconnect" href="https://flovermaps-stripe-backend.onrender.com" crossorigin>
+<link rel="dns-prefetch" href="https://api.stripe.com">
+<link rel="dns-prefetch" href="https://js.stripe.com">
+<link rel="dns-prefetch" href="https://flovermaps-stripe-backend.onrender.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root{ --ink:#0f172a; --muted:#64748b; --green:#22c55e; --bg:#f6fff9; --safe-b:env(safe-area-inset-bottom,0); --safe-t:env(safe-area-inset-top,0); }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);
+       background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
+
+  .site-header{position:fixed;z-index:10;top:0;left:0;right:0;display:flex;justify-content:center;padding:8px 10px;padding-top:calc(8px + var(--safe-t))}
+  .brand{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:6px 16px;box-shadow:0 6px 18px rgba(2,6,12,.06);cursor:pointer}
+  .brand img{height:84px;display:block}
+
+  #map{position:fixed;inset:0;width:100%;height:100vh;height:100dvh}
+
+  .controls{position:fixed;z-index:9;left:50%;transform:translateX(-50%);bottom:calc(18px + var(--safe-b));width:min(94vw,960px);display:flex;flex-direction:column;gap:8px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #e6e6e6;background:#fff;color:#111;font-weight:800;border-radius:12px;padding:11px 12px;font-size:.95rem;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.04)}
+  .searchRow{display:flex;gap:8px}
+  .searchRow .input{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;box-shadow:0 6px 14px rgba(0,0,0,.04)}
+  .searchRow input{border:0;outline:none;width:100%;font:inherit;background:transparent;color:var(--ink)}
+  .slist{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + var(--safe-b));width:min(94vw,960px);background:#fff;border:1px solid #e6e6e6;border-radius:12px;max-height:260px;overflow:auto;display:none;z-index:9;box-shadow:0 6px 14px rgba(0,0,0,.06)}
+  .sitem{padding:12px 14px;border-bottom:1px solid #f3f3f3;cursor:pointer;font-size:1rem}
+  .addr-badge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(190px + var(--safe-b));z-index:8;background:#fff;border:1px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-size:1rem;font-weight:700;max-width:min(92vw,520px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px rgba(0,0,0,.10);display:none}
+
+  .leaflet-div-icon{ background:transparent!important; border:none!important; }
+  .emoji-marker .e{font-size:44px;line-height:44px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
+  .ring{width:64px;height:64px;border-radius:999px;border:3px solid #22c55e;box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9)}
+  .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
+
+  .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{background:transparent;box-shadow:none;border:none}
+  .leaflet-popup.pin-cta .leaflet-popup-content{margin:0}
+  .leaflet-popup.pin-cta .leaflet-popup-tip{display:none!important;}
+
+  .pin-cta-btn{
+    position:relative;background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:14px;
+    padding:9px 14px;font-size:.95rem;font-weight:800;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer
+  }
+  .pin-cta-btn::before{
+    content:""; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:10px solid #fff;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
+  }
+
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;transform:translateY(100%);transition:transform .25s ease;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -20px 60px rgba(0,0,0,.25);max-height:85dvh;display:flex;flex-direction:column}
+  .sheet.open{transform:translateY(0)}
+  .sheet .handle{align-self:center;width:54px;height:5px;border-radius:999px;background:#e5e7eb;margin:8px 0 4px}
+  .sheet .body{padding:10px 14px 16px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  label{display:block;margin:6px 0 4px;font-size:.92rem}
+  input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem}
+  .btn-wide{width:100%;font-size:1.05rem;padding:14px 18px;border-radius:10px;background:#111;color:#fff;border:0;cursor:pointer}
+  .muted{color:#64748b;font-size:.95rem}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .chip{padding:10px 12px;border:1px solid #e6e6e6;border-radius:12px;cursor:pointer;background:#fff}
+  .chip.active{background:#22c55e;color:#fff;border-color:#22c55e}
+
+  .toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:10px;z-index:15;opacity:0;pointer-events:none;transition:opacity .18s,bottom .18s}
+  .toast.show{opacity:1;bottom:calc(110px + var(--safe-b))}
+  .veil{position:fixed;inset:0;background:rgba(246,255,249,.85);display:none;align-items:center;justify-content:center;z-index:20}
+  .veil .box{background:#fff;border:1px solid #e6e6e6;border-radius:14px;padding:14px 18px;box-shadow:0 12px 36px rgba(0,0,0,.12);font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
+</header>
+
+<div id="map" aria-label="Mapa"></div>
+
+<div class="controls" aria-label="Controles">
+  <div class="actions">
+    <button id="btnFromMap" class="btn">🌸 Plantar desde el mapa</button>
+    <button id="btnGps" class="btn">📍 Mi ubicación</button>
+  </div>
+  <div class="searchRow">
+    <div class="input">
+      <span aria-hidden="true">🔎</span>
+      <input id="searchInput" placeholder="Buscar un lugar (calle, ciudad…)" autocomplete="off" aria-autocomplete="list" aria-controls="slist" />
+    </div>
+  </div>
+</div>
+
+<div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
+<div id="addrBadge" class="addr-badge" aria-live="polite"></div>
+
+<section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
+  <div class="handle"></div>
+  <div class="body">
+    <h3 id="sheetTitle">Tu dedicatoria</h3>
+    <div class="row2">
+      <div><label for="fromName">¿Quién la envía?</label><input id="fromName" placeholder="Tu nombre" required></div>
+      <div><label for="toName">¿Para quién?</label><input id="toName" placeholder="Nombre del destinatario" required></div>
+    </div>
+    <label for="message" style="margin-top:8px">Mensaje <span class="muted" id="chars">(0/30)</span></label>
+    <input id="message" maxlength="30" placeholder="Ese rincón especial… (máx. 30)" inputmode="text" autocomplete="off" required />
+    <label for="ngo" style="margin-top:10px">ONG</label>
+    <select id="ngo">
+      <option value="msf" selected>Médicos Sin Fronteras</option>
+      <option value="stc">Save the Children</option>
+      <option value="aecc">Asociación Española contra el Cáncer</option>
+      <option value="unicef">UNICEF</option>
+    </select>
+    <div style="margin-top:10px">
+      <div class="chips" id="chips">
+        <button class="chip" data-amount="2">2 €</button>
+        <button class="chip active" data-amount="9">9 €</button>
+        <button class="chip" data-amount="10">10 €</button>
+        <button class="chip" data-amount="other">Otro</button>
+      </div>
+      <div id="otherRow" style="display:none">
+        <label for="otherAmount" class="muted">Importe personalizado</label>
+        <input id="otherAmount" type="number" min="1" step="0.01" placeholder="Ej. 25,00" inputmode="decimal" />
+      </div>
+      <div id="splitCopy" class="muted" style="margin-top:6px"></div>
+    </div>
+    <div style="margin-top:12px">
+      <button id="payAndPlantBtn" class="btn-wide">Pagar y plantar — 9,00 €</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="veil" class="veil"><div class="box" id="veilText">Preparando la semilla…</div></div>
+
+<script>
+/* === CONFIG === */
+const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
+const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
+const STREET_ZOOM = 17, RETURN_ZOOM = 19, SHARE_ZOOM = 17;
+
+/* === HELPERS === */
+const $=id=>document.getElementById(id);
+function toast(m,ok=true){const t=$('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
+function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
+function fmtDate(ts){try{return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(+ts||Date.now())).replace(',','');}catch{return ''}}
+function escHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,22], popupAnchor:[0,-22]}); }
+function ringIcon(){ return L.divIcon({html:'<div class="ring"></div>', iconSize:[64,64], iconAnchor:[32,32]}); }
+function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function end(fn){clearTimeout(to);try{delete window[cb]}catch{};s.remove();fn&&fn()}window[cb]=(d)=>{end();resolve(d)};s.onerror=()=>{end(()=>reject(new Error('jsonp')))};document.head.appendChild(s);to=setTimeout(()=>end(()=>reject(new Error('timeout'))),timeoutMs)})}
+function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(); const s=()=>Math.floor((1+Math.random())*0x10000).toString(16).slice(1); return `fm-${s()}${s()}-${s()}-${s()}-${s()}${s()}${s()}`; }
+
+/* === STATE / VIEW-LOCK === */
+let map, tiles, selectedMarker, ringMarker, ctaPopup;
+let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
+let lockUntil=0;
+function setViewHard(lat,lng,z){ try{ map.stop(); map.setView([lat,lng], z, {animate:false}); lockUntil=Date.now()+4000; }catch{} }
+function canMove(){ return Date.now() > lockUntil; }
+
+const addrBadge=$('addrBadge'), veil=$('veil'), veilText=$('veilText');
+const fromInput=$('fromName'), toInput=$('toName'), msgInput=$('message'), ngoSel=$('ngo'), chips=$('chips');
+const otherRow=$('otherRow'), otherAmount=$('otherAmount'), payBtn=$('payAndPlantBtn'); let amount=9;
+
+/* === KEEP WARM === */
+setInterval(()=>{ fetch(`${BACKEND_URL}/health`,{mode:'no-cors'}).catch(()=>{}); }, 45000);
+setInterval(()=>{ jsonp(`${SCRIPT_URL}` ).catch(()=>{}); }, 180000);
+
+/* === INIT === */
+window.addEventListener('load', ()=>{
+  if(!window.L) return alert('No se pudo cargar Leaflet.');
+  tiles=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19});
+  map=L.map('map',{layers:[tiles],zoomControl:true}).setView([40.4168,-3.7038],5);
+
+  $('logoBtn').onclick=()=>location.href='/';
+  $('btnFromMap').onclick=()=>{ plantMode=true; const c=map.getCenter(); setPoint(c.lat,c.lng,false); if(canMove()) map.flyTo(c, Math.max(map.getZoom(), STREET_ZOOM), {duration:.35}); };
+  $('btnGps').onclick=()=>{
+    plantMode=true;
+    if(!navigator.geolocation) return toast('Tu dispositivo no permite geolocalización', false);
+    navigator.geolocation.getCurrentPosition(p=>{ setPoint(p.coords.latitude,p.coords.longitude,true); if(canMove()) map.flyTo([p.coords.latitude,p.coords.longitude], STREET_ZOOM, {duration:.45}); }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
+  };
+  map.on('click', e=>{ if(plantMode) setPoint(e.latlng.lat,e.latlng.lng,true); });
+
+  // Buscar
+  const slist=$('slist'); let timer=null, abortCtrl=null, currentSuggest=[];
+  const search=$('searchInput');
+  search.addEventListener('input', e=>{
+    const q=e.target.value.trim(); clearTimeout(timer);
+    if(!q){ slist.style.display='none'; return; }
+    timer=setTimeout(async ()=>{
+      if(abortCtrl) abortCtrl.abort(); abortCtrl=new AbortController();
+      slist.innerHTML='<div class="sitem">Buscando…</div>'; slist.style.display='block';
+      try{
+        const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10&accept-language=es,en&q='+encodeURIComponent(q),{signal:abortCtrl.signal});
+        const list=await r.json(); currentSuggest=list||[]; slist.innerHTML='';
+        (list||[]).forEach((it)=>{
+          const dn=String(it.display_name||'').split(','), el=document.createElement('div');
+          el.className='sitem'; el.textContent=(dn[0]||'')+' · '+[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
+          el.onclick=()=>{ slist.style.display='none'; plantMode=true; setPoint(+it.lat,+it.lon,true); if(canMove()) map.flyTo([+it.lat,+it.lon], STREET_ZOOM, {duration:.5}); };
+          slist.appendChild(el);
+        });
+        if(!(list&&list.length)) slist.style.display='none';
+      }catch{ slist.style.display='none'; }
+    },260);
+  });
+  document.addEventListener('click', e=>{ if(!slist.contains(e.target) && e.target!==search) slist.style.display='none'; });
+  search.addEventListener('keydown', e=>{ if(e.key==='Enter' && currentSuggest.length){ e.preventDefault(); slist.style.display='none'; const it=currentSuggest[0]; plantMode=true; setPoint(+it.lat,+it.lon,true); if(canMove()) map.flyTo([+it.lat,+it.lon], STREET_ZOOM, {duration:.5}); } });
+
+  // Form
+  $('chars').textContent='(0/30)';
+  msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); $('chars').textContent='('+msgInput.value.length+'/30)'; });
+  chips.addEventListener('click', e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    b.classList.add('active');
+    if(b.dataset.amount==='other'){ otherRow.style.display='block'; amount=25; otherAmount.value='25.00'; otherAmount.focus(); }
+    else { otherRow.style.display='none'; amount=+b.dataset.amount; }
+    payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`;
+  });
+  otherAmount.addEventListener('input', ()=>{ const v=+String(otherAmount.value||'').replace(',','.'); if(isFinite(v)) { amount=v; payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }});
+  otherAmount.addEventListener('blur',  ()=>{ let v=+String(otherAmount.value||'').replace(',','.'); if(!isFinite(v)||v<1) v=1; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; });
+  $('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para mantener tu flor para siempre.`;
+  ngoSel.addEventListener('change', ()=>{ $('splitCopy').innerHTML=`Tu aportación es íntegra para <strong>${escHtml(ngoSel.options[ngoSel.selectedIndex]?.text||'la ONG')}</strong>, excepto <strong>0,90 €</strong> para mantener tu flor para siempre.`; });
+
+  payBtn.onclick = startCheckout;
+
+  // Datos + retorno
+  refetch(false); setInterval(()=>refetch(true),15000); deepLink(); afterStripe();
+});
+
+/* === PIN / SELECCIÓN === */
+function ensureRing(lat,lng){
+  if(!ringMarker) ringMarker = L.marker([lat,lng], {icon:ringIcon(), interactive:false, keyboard:false}).addTo(map);
+  else ringMarker.setLatLng([lat,lng]);
+}
+function ensureCta(lat,lng){
+  const html = `<button id="pinCtaBtn" class="pin-cta-btn">Plantar aquí</button>`;
+  if(!ctaPopup){
+    ctaPopup = L.popup({closeButton:false, autoClose:false, closeOnClick:false, offset:[0,104], className:'pin-cta'})
+      .setLatLng([lat,lng]).setContent(html).openOn(map);
+  } else { ctaPopup.setLatLng([lat,lng]); ctaPopup.setContent(html); ctaPopup.openOn(map); }
+  setTimeout(()=>{ const b=$('pinCtaBtn'); if(b) b.onclick = ()=>{ if(!selectedLat) return toast('Elige un punto primero', false); openSheet(); }; },0);
+}
+function setPoint(lat,lng,animate){
+  if(!selectedMarker){
+    selectedMarker = L.marker([lat,lng], {icon:emojiIcon(), draggable:true}).addTo(map);
+    selectedMarker.bindTooltip('Arrastra para ajustar',{permanent:true, direction:'top', offset:[0,-34]});
+    selectedMarker.on('drag', e=>{ const p=e.target.getLatLng(); ensureRing(p.lat,p.lng); ensureCta(p.lat,p.lng); });
+    selectedMarker.on('dragend', e=>{ const p=e.target.getLatLng(); selectedLat=p.lat.toFixed(6); selectedLng=p.lng.toFixed(6); reverseAt(selectedLat,selectedLng); });
+  } else selectedMarker.setLatLng([lat,lng]);
+  selectedLat=Number(lat).toFixed(6); selectedLng=Number(lng).toFixed(6);
+  const z=Math.max(map.getZoom(), STREET_ZOOM);
+  if(canMove()){ animate ? map.flyTo([lat,lng], z, {duration:.35}) : map.setView([lat,lng], z, {animate:false}); }
+  ensureRing(lat,lng); ensureCta(lat,lng);
+  reverseAt(selectedLat,selectedLng); addrBadge.style.display='block';
+}
+
+function openSheet(){ $('sheet').classList.add('open'); try{ map.dragging.disable(); map.scrollWheelZoom.disable(); }catch{} }
+function closeSheet(){ $('sheet').classList.remove('open'); try{ map.dragging.enable(); map.scrollWheelZoom.enable(); }catch{} }
+
+function reverseAt(lat,lng){
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es,en&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+    .then(r=>r.json()).then(j=>{
+      const a=j.address||{}; const road=a.road||a.pedestrian||a.path||a.neighbourhood||''; const hn=a.house_number||a.housenumber||''; const city=a.city||a.town||a.village||a.state||'';
+      addrBadge.textContent=[[road,hn].filter(Boolean).join(' '),city].filter(Boolean).join(', ')||j.display_name||'Ubicación aproximada';
+    }).catch(()=>addrBadge.textContent='Ubicación aproximada');
+}
+
+/* === CHECKOUT (ID cliente para compartir inmediato) === */
+function savePending(obj){ try{ sessionStorage.setItem('fm_pending', JSON.stringify(obj)); }catch{} }
+function readPending(){ try{ const s=sessionStorage.getItem('fm_pending'); return s?JSON.parse(s):null; }catch{ return null; } }
+function clearPending(){ try{ sessionStorage.removeItem('fm_pending'); }catch{} }
+
+async function startCheckout(){
+  if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
+  const from=fromInput.value.trim(), to=toInput.value.trim(), msg=msgInput.value.trim();
+  if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
+  if(otherRow.style.display!=='none'){ let v=+String(otherAmount.value||'').replace(',','.'); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
+
+  const clientId = genId();
+  const body={ id:clientId, lat:+(+selectedLat).toFixed(6), lng:+(+selectedLng).toFixed(6), place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
+
+  savePending({ ...body, shareUrl:`${location.origin}/?id=${encodeURIComponent(clientId)}` });
+
+  veil.style.display='flex'; veilText.textContent='Preparando la semilla…';
+  try{
+    const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), cache:'no-store'});
+    const j=await r.json().catch(()=>null);
+    if(!j||!j.ok||!j.url){ veil.style.display='none'; return toast('Error creando pago', false); }
+    window.location.assign(j.url);
+  }catch{ veil.style.display='none'; toast('Fallo de red', false); }
+}
+
+/* === Compartir === */
+async function shareAny(url){
+  try{ if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
+        else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } }catch{}
+}
+window.shareAny=shareAny;
+
+/* === VUELTA DE STRIPE (zoom 19) === */
+async function afterStripe(){
+  const u=new URL(location.href);
+  const okBack = ((u.searchParams.get('success')==='1' || u.searchParams.get('redirect_status')==='succeeded') && u.searchParams.get('session_id'));
+  if(!okBack) return;
+
+  const p = readPending();
+  if(p && isFinite(p.lat) && isFinite(p.lng)){
+    if(selectedMarker){ map.removeLayer(selectedMarker); selectedMarker=null; }
+    if(ringMarker){ map.removeLayer(ringMarker); ringMarker=null; }
+    if(ctaPopup){ map.closePopup(ctaPopup); ctaPopup=null; }
+    addrBadge.style.display='none'; closeSheet();
+
+    const mk=L.marker([p.lat,p.lng],{icon:emojiIcon(),zIndexOffset:1400}).addTo(map);
+    mk.bindPopup(`<div style="min-width:260px;max-width:320px">
+      <div class="muted" style="margin-bottom:6px">${fmtDate(Date.now())}</div>
+      <div style="margin-bottom:6px"><strong>De ${escHtml(p.fromName)}</strong> para <strong>${escHtml(p.toName)}</strong></div>
+      <div style="margin-bottom:10px">${escHtml(p.message)}</div>
+      <button onclick="shareAny('${p.shareUrl.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
+    </div>`, {autoClose:false,closeOnClick:false});
+    setViewHard(p.lat,p.lng, RETURN_ZOOM);
+    mk.openPopup();
+  }
+
+  ['success','session_id','redirect_status'].forEach(k=>u.searchParams.delete(k));
+  history.replaceState({},'',u.toString());
+  clearPending();
+  setTimeout(()=>refetch(true),800);
+}
+
+/* === Popup final (listar) === */
+function popupHtml(from,to,msg,dt,shareUrl,total){
+  const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg), tt=fmt(total||0);
+  const url=shareUrl||location.href;
+  return `<div style="min-width:260px;max-width:320px">
+    <div class="muted" style="margin-bottom:6px">${dt||''}</div>
+    <div style="margin-bottom:6px"><strong>De ${safeFrom}</strong> para <strong>${safeTo}</strong></div>
+    <div style="margin-bottom:10px">${safeMsg}</div>
+    <div class="muted" style="margin-bottom:10px">Donación: <strong>${tt} €</strong></div>
+    <button onclick="shareAny('${url.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
+  </div>`;
+}
+
+/* === Datos === */
+function normalize(items){ const out=[]; for(const f of (items||[])){ const lat=+f.lat,lng=+f.lng; if(!isFinite(lat)||!isFinite(lng)) continue;
+  out.push({ id:String(f.id||''),lat,lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp:+f.timestamp||0,amount_total:isFinite(+f.amount_total)?+f.amount_total:(isFinite(+f.amountTotal)?+f.amountTotal:0)});} return out;}
+function render(list){ if(!map) return; const rm=[]; map.eachLayer(l=>{ if(l&&l._isFlower) rm.push(l); }); rm.forEach(l=>map.removeLayer(l));
+  for(const f of (list||[])){ const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1000}); mk._isFlower=true; mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,fmtDate(f.timestamp),`${location.origin}/?id=${encodeURIComponent(f.id)}`,f.amount_total),{autoClose:false,closeOnClick:false}); mk.addTo(map); } }
+async function refetch(incr){ try{ const d=await jsonp(SCRIPT_URL+'?action=list'+(incr&&lastTs?('&since='+encodeURIComponent(lastTs)):''));
+  if(d&&Array.isArray(d.items)){ const norm=normalize(d.items); if(incr){ if(!norm.length) return; const m=new Map([...flowersCache,...norm].map(x=>[x.id,x])); flowersCache=[...m.values()]; } else { flowersCache=norm; } render(flowersCache); for(const it of d.items){ const t=+it.timestamp||0; if(t>lastTs) lastTs=t; } } }catch{} }
+
+/* === Deep link desde URL compartida: ZOOM 17 === */
+async function deepLink(){
+  const u=new URL(location.href);
+  let id=u.searchParams.get('id');
+  if(!id){
+    const m=location.pathname.match(/\/f\/([^\/?#]+)/);
+    if(m&&m[1]) id=decodeURIComponent(m[1]);
+  }
+  if(id){
+    try{
+      const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
+      if(d&&d.ok&&d.item){
+        const it=d.item;
+        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1200}).addTo(map);
+        mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',fmtDate(it.timestamp),`${location.origin}/?id=${encodeURIComponent(String(id))}`,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false});
+        setViewHard(+it.lat,+it.lng, SHARE_ZOOM);  /* << zoom 17 al abrir enlace compartido */
+        mk.openPopup();
+      }
+    }catch{}
+  }
+}
+</script>
+</body>
+</html>
