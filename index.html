@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-FIRST -->
+<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-INSTANT + CTA-TIP -->
 
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
 <link rel="preconnect" href="https://js.stripe.com" crossorigin>
@@ -48,9 +48,15 @@
   .ring{width:64px;height:64px;border-radius:999px;border:3px solid #22c55e;box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9)}
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
 
+  /* Popup CTA pequeño con triángulo blanco arriba */
   .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{background:transparent;box-shadow:none;border:none}
   .leaflet-popup.pin-cta .leaflet-popup-content{margin:0}
-  .pin-cta-btn{background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:16px;padding:12px 16px;font-size:1rem;font-weight:800;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer}
+  .pin-cta-btn{position:relative;background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:14px;padding:9px 14px;font-size:.95rem;font-weight:800;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer}
+  .pin-cta-btn::before{
+    content:""; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:10px solid #fff; /* triángulo blanco */
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
+  }
 
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;transform:translateY(100%);transition:transform .25s ease;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -20px 60px rgba(0,0,0,.25);max-height:85dvh;display:flex;flex-direction:column}
   .sheet.open{transform:translateY(0)}
@@ -149,6 +155,7 @@ function escHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<"
 function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,22], popupAnchor:[0,-22]}); }
 function ringIcon(){ return L.divIcon({html:'<div class="ring"></div>', iconSize:[64,64], iconAnchor:[32,32]}); }
 function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function end(fn){clearTimeout(to);try{delete window[cb]}catch{};s.remove();fn&&fn()}window[cb]=(d)=>{end();resolve(d)};s.onerror=()=>{end(()=>reject(new Error('jsonp')))};document.head.appendChild(s);to=setTimeout(()=>end(()=>reject(new Error('timeout'))),timeoutMs)})}
+function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(); const s=()=>Math.floor((1+Math.random())*0x10000).toString(16).slice(1); return `fm-${s()}${s()}-${s()}-${s()}-${s()}${s()}${s()}`; }
 
 /* === STATE / VIEW-LOCK === */
 let map, tiles, selectedMarker, ringMarker, ctaPopup;
@@ -234,7 +241,7 @@ function ensureRing(lat,lng){
 function ensureCta(lat,lng){
   const html = `<button id="pinCtaBtn" class="pin-cta-btn">Plantar aquí</button>`;
   if(!ctaPopup){
-    ctaPopup = L.popup({closeButton:false, autoClose:false, closeOnClick:false, offset:[0,90], className:'pin-cta'})
+    ctaPopup = L.popup({closeButton:false, autoClose:false, closeOnClick:false, offset:[0,86], className:'pin-cta'})
       .setLatLng([lat,lng]).setContent(html).openOn(map);
   } else { ctaPopup.setLatLng([lat,lng]); ctaPopup.setContent(html); ctaPopup.openOn(map); }
   setTimeout(()=>{ const b=$('pinCtaBtn'); if(b) b.onclick = ()=>{ if(!selectedLat) return toast('Elige un punto primero', false); openSheet(); }; },0);
@@ -264,12 +271,10 @@ function reverseAt(lat,lng){
     }).catch(()=>addrBadge.textContent='Ubicación aproximada');
 }
 
-/* === CHECKOUT (guarda retorno optimista) === */
-function savePending(body){ try{ sessionStorage.setItem('fm_pending', JSON.stringify(body)); }catch{} }
+/* === CHECKOUT (ID cliente para compartir inmediato) === */
+function savePending(obj){ try{ sessionStorage.setItem('fm_pending', JSON.stringify(obj)); }catch{} }
 function readPending(){ try{ const s=sessionStorage.getItem('fm_pending'); return s?JSON.parse(s):null; }catch{ return null; } }
-function setShareUrl(u){ try{ sessionStorage.setItem('fm_share_url', String(u||'')); }catch{} }
-function getShareUrl(){ try{ return sessionStorage.getItem('fm_share_url')||''; }catch{ return ''; } }
-function clearPending(){ try{ sessionStorage.removeItem('fm_pending'); sessionStorage.removeItem('fm_share_url'); }catch{} }
+function clearPending(){ try{ sessionStorage.removeItem('fm_pending'); }catch{} }
 
 async function startCheckout(){
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
@@ -277,92 +282,79 @@ async function startCheckout(){
   if(!from||!to||!msg) return toast('Completa tu dedicatoria', false);
   if(otherRow.style.display!=='none'){ let v=+String(otherAmount.value||'').replace(',','.'); if(!isFinite(v)||v<1) v=25; amount=v; otherAmount.value=amount.toFixed(2); payBtn.textContent=`Pagar y plantar — ${fmt(amount)} €`; }
 
-  const body={ lat:+(+selectedLat).toFixed(6), lng:+(+selectedLng).toFixed(6), place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
+  const clientId = genId(); // << usamos este id para compartir desde YA
+  const body={ id:clientId, lat:+(+selectedLat).toFixed(6), lng:+(+selectedLng).toFixed(6), place:addrBadge.textContent||'', fromName:from, toName:to, message:msg, ngo:String(ngoSel.value||''), ngo_label:ngoSel.options[ngoSel.selectedIndex]?.text||'', amount_total:+(+amount).toFixed(2) };
+
+  savePending({ ...body, shareUrl:`${location.origin}/?id=${encodeURIComponent(clientId)}` });
 
   veil.style.display='flex'; veilText.textContent='Preparando la semilla…';
   try{
     const r=await fetch(`${BACKEND_URL}/create-checkout-session`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body), cache:'no-store'});
     const j=await r.json().catch(()=>null);
     if(!j||!j.ok||!j.url){ veil.style.display='none'; return toast('Error creando pago', false); }
-    savePending(body); window.location.assign(j.url);
+    window.location.assign(j.url);
   }catch{ veil.style.display='none'; toast('Fallo de red', false); }
 }
 
-/* === Compartir mientras se confirma === */
+/* === Compartir === */
 async function shareAny(url){
-  try{
-    if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
-    else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
-  }catch{}
+  try{ if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
+        else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } }catch{}
 }
 window.shareAny=shareAny;
 
-async function sharePending(){
-  const u = getShareUrl();
-  if(u){ return shareAny(u); }
-  toast('Generando enlace…'); // aún no tenemos el id; en segundos se activará
-}
-window.sharePending=sharePending;
-
-/* === VUELTA DE STRIPE (zoom cercano y compartir desde el principio) === */
+/* === VUELTA DE STRIPE: botón Compartir desde el primer segundo (con URL ya lista) === */
 async function afterStripe(){
   const u=new URL(location.href);
-  const successA = (u.searchParams.get('success')==='1' && u.searchParams.get('session_id'));
-  const successB = (u.searchParams.get('redirect_status')==='succeeded' && u.searchParams.get('session_id'));
-  if(!(successA || successB)) return;
+  const okBack = ((u.searchParams.get('success')==='1' || u.searchParams.get('redirect_status')==='succeeded') && u.searchParams.get('session_id'));
+  if(!okBack) return;
 
-  const sid=u.searchParams.get('session_id');
-
-  // 1) Optimista con botón Compartir desde YA (aún sin URL final)
   const p = readPending();
   if(p && isFinite(p.lat) && isFinite(p.lng)){
-    try{
-      if(selectedMarker){ map.removeLayer(selectedMarker); selectedMarker=null; }
-      if(ringMarker){ map.removeLayer(ringMarker); ringMarker=null; }
-      if(ctaPopup){ map.closePopup(ctaPopup); ctaPopup=null; }
-      addrBadge.style.display='none'; closeSheet();
+    // limpiar UI
+    if(selectedMarker){ map.removeLayer(selectedMarker); selectedMarker=null; }
+    if(ringMarker){ map.removeLayer(ringMarker); ringMarker=null; }
+    if(ctaPopup){ map.closePopup(ctaPopup); ctaPopup=null; }
+    addrBadge.style.display='none'; closeSheet();
 
-      const mk=L.marker([p.lat,p.lng],{icon:emojiIcon(),zIndexOffset:1400}).addTo(map);
-      mk.bindPopup(`<div style="min-width:260px;max-width:320px">
-        <div class="muted" style="margin-bottom:6px">${fmtDate(Date.now())}</div>
-        <div style="margin-bottom:6px"><strong>De ${escHtml(p.fromName)}</strong> para <strong>${escHtml(p.toName)}</strong></div>
-        <div style="margin-bottom:10px">${escHtml(p.message)}</div>
-        <button onclick="sharePending()" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
-        <div class="muted" style="margin-top:6px;font-size:.9rem">El enlace se activará en segundos…</div>
-      </div>`, {autoClose:false,closeOnClick:false});
-      setViewHard(p.lat,p.lng, RETURN_ZOOM);
-      mk.openPopup();
-    }catch{}
+    // pintar optimista con botón Compartir (URL ya conocida)
+    const mk=L.marker([p.lat,p.lng],{icon:emojiIcon(),zIndexOffset:1400}).addTo(map);
+    mk.bindPopup(`<div style="min-width:260px;max-width:320px">
+      <div class="muted" style="margin-bottom:6px">${fmtDate(Date.now())}</div>
+      <div style="margin-bottom:6px"><strong>De ${escHtml(p.fromName)}</strong> para <strong>${escHtml(p.toName)}</strong></div>
+      <div style="margin-bottom:10px">${escHtml(p.message)}</div>
+      <button onclick="shareAny('${p.shareUrl.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
+    </div>`, {autoClose:false,closeOnClick:false});
+    setViewHard(p.lat,p.lng, RETURN_ZOOM);
+    mk.openPopup();
   }
 
-  // 2) Confirmación real → ya tenemos el id y el enlace definitivo
-  veil.style.display='flex'; veilText.textContent='Confirmando tu flor…';
+  // Confirmación real (opcionalmente refresca datos; el enlace ya funciona)
   try{
+    const sid=u.searchParams.get('session_id');
     const r=await fetch(`${BACKEND_URL}/session?id=${encodeURIComponent(sid)}`,{cache:'no-store'});
     const j=await r.json();
     if(j&&j.ok&&j.id){
-      const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(j.id)}`).catch(()=>null);
+      // Si quieres, puedes verificar que j.id === p.id; en cualquier caso, recarga el item
+      const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(p?.id||j.id)}`).catch(()=>null);
       if(d&&d.ok&&d.item){
-        const it=d.item; const dt=fmtDate(it.timestamp);
-        const shareUrl=`${location.origin}/?id=${encodeURIComponent(String(it.id))}`;
-        setShareUrl(shareUrl); // << activa el botón “Compartir” de inmediato
-
+        // ya está todo OK; opcional: volver a abrir popup “final”
+        const it=d.item;
         const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1600}).addTo(map);
-        mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',dt,shareUrl,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false});
+        mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',fmtDate(it.timestamp),`${location.origin}/?id=${encodeURIComponent(String(it.id))}`,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false});
         setViewHard(+it.lat,+it.lng, RETURN_ZOOM);
-        setTimeout(()=>{ mk.openPopup(); veil.style.display='none'; toast('¡Gracias! Flor plantada 🌸'); }, 80);
-      } else { veil.style.display='none'; }
-    } else { veil.style.display='none'; }
-  }catch{ veil.style.display='none'; }
-  clearPending();
-
-  // Limpia query
+        setTimeout(()=>{ mk.openPopup(); toast('¡Gracias! Flor plantada 🌸'); }, 60);
+      }
+    }
+  }catch{}
+  // limpia query y estado temporal
   ['success','session_id','redirect_status'].forEach(k=>u.searchParams.delete(k));
   history.replaceState({},'',u.toString());
+  clearPending();
   setTimeout(()=>refetch(true),800);
 }
 
-/* === Popup “final” con enlace real === */
+/* === Popup “final” (también usado al listar) === */
 function popupHtml(from,to,msg,dt,shareUrl,total){
   const safeFrom=escHtml(from), safeTo=escHtml(to), safeMsg=escHtml(msg), tt=fmt(total||0);
   const url=shareUrl||location.href;
@@ -375,7 +367,7 @@ function popupHtml(from,to,msg,dt,shareUrl,total){
   </div>`;
 }
 
-/* === Datos (carga y render) === */
+/* === Datos === */
 function normalize(items){ const out=[]; for(const f of (items||[])){ const lat=+f.lat,lng=+f.lng; if(!isFinite(lat)||!isFinite(lng)) continue;
   out.push({ id:String(f.id||''),lat,lng,fromName:f.fromName||'',toName:f.toName||'',message:f.message||'',timestamp:+f.timestamp||0,amount_total:isFinite(+f.amount_total)?+f.amount_total:(isFinite(+f.amountTotal)?+f.amountTotal:0)});} return out;}
 function render(list){ if(!map) return; const rm=[]; map.eachLayer(l=>{ if(l&&l._isFlower) rm.push(l); }); rm.forEach(l=>map.removeLayer(l));
