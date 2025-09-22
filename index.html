@@ -6,7 +6,7 @@
 <title>Flovermaps - Plant a Flower Change the World</title>
 <meta name="theme-color" content="#f6fff9" />
 <meta name="description" content="Planta una flor solidaria en el mapa y dedica un mensaje. Tu aportación es íntegra para la ONG elegida, excepto 0,90 € para el mantenimiento de tu flor para siempre.">
-<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-INSTANT + CTA-TIP-v2 (FIX) -->
+<!-- BUILD: FM-ZOOM-LOCK-2025-09-22 + SHARE-INSTANT + CTA-TIP-v2 (FIX) + SHARE-CLICK-17 -->
 
 <link rel="preconnect" href="https://api.stripe.com" crossorigin>
 <link rel="preconnect" href="https://js.stripe.com" crossorigin>
@@ -41,19 +41,15 @@
   .sitem{padding:12px 14px;border-bottom:1px solid #f3f3f3;cursor:pointer;font-size:1rem}
   .addr-badge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(190px + var(--safe-b));z-index:8;background:#fff;border:1px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-size:1rem;font-weight:700;max-width:min(92vw,520px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px rgba(0,0,0,.10);display:none}
 
-  /* Quita recuadro de L.divIcon */
   .leaflet-div-icon{ background:transparent!important; border:none!important; }
-
   .emoji-marker .e{font-size:44px;line-height:44px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
   .ring{width:64px;height:64px;border-radius:999px;border:3px solid #22c55e;box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9)}
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
 
-  /* Popup CTA: quitamos la “punta” inferior por defecto de Leaflet */
   .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{background:transparent;box-shadow:none;border:none}
   .leaflet-popup.pin-cta .leaflet-popup-content{margin:0}
-  .leaflet-popup.pin-cta .leaflet-popup-tip{display:none!important;} /* ← sin triángulo inferior */
+  .leaflet-popup.pin-cta .leaflet-popup-tip{display:none!important;}
 
-  /* Botón CTA pequeño con triángulo blanco superior (no pisa el anillo) */
   .pin-cta-btn{
     position:relative;background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:14px;
     padding:9px 14px;font-size:.95rem;font-weight:800;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer
@@ -150,14 +146,14 @@
 /* === CONFIG === */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const BACKEND_URL = "https://flovermaps-stripe-backend.onrender.com";
-const STREET_ZOOM = 17, RETURN_ZOOM = 19;
+const STREET_ZOOM = 17, RETURN_ZOOM = 19, SHARE_ZOOM = 17;
 
 /* === HELPERS === */
 const $=id=>document.getElementById(id);
 function toast(m,ok=true){const t=$('toast');t.textContent=m;t.style.background=ok?"#111":"#b30000";t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
 function fmt(n){return (Number(n)||0).toFixed(2).replace('.',',')}
 function fmtDate(ts){try{return new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(+ts||Date.now())).replace(',','');}catch{return ''}}
-function escHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","\">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function escHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 function emojiIcon(){ return L.divIcon({className:'emoji-marker', html:'<span class="e" role="img" aria-label="flor">🌸</span>', iconSize:[44,44], iconAnchor:[22,22], popupAnchor:[0,-22]}); }
 function ringIcon(){ return L.divIcon({html:'<div class="ring"></div>', iconSize:[64,64], iconAnchor:[32,32]}); }
 function jsonp(url,timeoutMs=12000){return new Promise((resolve,reject)=>{const cb='__cb_'+Math.random().toString(36).slice(2);const s=document.createElement('script');const sep=url.includes('?')?'&':'?';s.src=url+sep+'callback='+cb+'&_ts='+Date.now();let to;function end(fn){clearTimeout(to);try{delete window[cb]}catch{};s.remove();fn&&fn()}window[cb]=(d)=>{end();resolve(d)};s.onerror=()=>{end(()=>reject(new Error('jsonp')))};document.head.appendChild(s);to=setTimeout(()=>end(()=>reject(new Error('timeout'))),timeoutMs)})}
@@ -223,7 +219,7 @@ window.addEventListener('load', ()=>{
   msgInput.addEventListener('input', ()=>{ msgInput.value=msgInput.value.replace(/\r?\n/g,'').slice(0,30); $('chars').textContent='('+msgInput.value.length+'/30)'; });
   chips.addEventListener('click', e=>{
     const b=e.target.closest('.chip'); if(!b) return;
-    chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); /* ← FIX */
+    chips.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
     b.classList.add('active');
     if(b.dataset.amount==='other'){ otherRow.style.display='block'; amount=25; otherAmount.value='25.00'; otherAmount.focus(); }
     else { otherRow.style.display='none'; amount=+b.dataset.amount; }
@@ -310,7 +306,7 @@ async function shareAny(url){
 }
 window.shareAny=shareAny;
 
-/* === VUELTA DE STRIPE === */
+/* === VUELTA DE STRIPE (zoom 19) === */
 async function afterStripe(){
   const u=new URL(location.href);
   const okBack = ((u.searchParams.get('success')==='1' || u.searchParams.get('redirect_status')==='succeeded') && u.searchParams.get('session_id'));
@@ -360,8 +356,28 @@ function render(list){ if(!map) return; const rm=[]; map.eachLayer(l=>{ if(l&&l.
   for(const f of (list||[])){ const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1000}); mk._isFlower=true; mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,fmtDate(f.timestamp),`${location.origin}/?id=${encodeURIComponent(f.id)}`,f.amount_total),{autoClose:false,closeOnClick:false}); mk.addTo(map); } }
 async function refetch(incr){ try{ const d=await jsonp(SCRIPT_URL+'?action=list'+(incr&&lastTs?('&since='+encodeURIComponent(lastTs)):''));
   if(d&&Array.isArray(d.items)){ const norm=normalize(d.items); if(incr){ if(!norm.length) return; const m=new Map([...flowersCache,...norm].map(x=>[x.id,x])); flowersCache=[...m.values()]; } else { flowersCache=norm; } render(flowersCache); for(const it of d.items){ const t=+it.timestamp||0; if(t>lastTs) lastTs=t; } } }catch{} }
-async function deepLink(){ const u=new URL(location.href); let id=u.searchParams.get('id'); if(!id){ const m=location.pathname.match(/\/f\/([^\/?#]+)/); if(m&&m[1]) id=decodeURIComponent(m[1]); }
-  if(id){ try{ const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`); if(d&&d.ok&&d.item){ const it=d.item; const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1200}).addTo(map); mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',fmtDate(it.timestamp),`${location.origin}/?id=${encodeURIComponent(String(id))}`,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false}); mk.openPopup(); setViewHard(+it.lat,+it.lng, RETURN_ZOOM); } }catch{} } }
+
+/* === Deep link desde URL compartida: ZOOM 17 === */
+async function deepLink(){
+  const u=new URL(location.href);
+  let id=u.searchParams.get('id');
+  if(!id){
+    const m=location.pathname.match(/\/f\/([^\/?#]+)/);
+    if(m&&m[1]) id=decodeURIComponent(m[1]);
+  }
+  if(id){
+    try{
+      const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
+      if(d&&d.ok&&d.item){
+        const it=d.item;
+        const mk=L.marker([+it.lat,+it.lng],{icon:emojiIcon(),zIndexOffset:1200}).addTo(map);
+        mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',fmtDate(it.timestamp),`${location.origin}/?id=${encodeURIComponent(String(id))}`,+it.amount_total||+it.amountTotal||0),{autoClose:false,closeOnClick:false});
+        setViewHard(+it.lat,+it.lng, SHARE_ZOOM);  /* << zoom 17 al abrir enlace compartido */
+        mk.openPopup();
+      }
+    }catch{}
+  }
+}
 </script>
 </body>
 </html>
