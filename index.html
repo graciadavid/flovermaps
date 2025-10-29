@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa y dedica un mensaje.">
-<!-- BUILD: FM-PLANT-ONLY-NAVBAR-ZOOMBR-SEARCH-2025-10-29 -->
+<!-- BUILD: FM-PLANT-ONLY-NAVBAR-FOOTER-SEARCH3+ACTIONS2-2025-10-29 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,7 +14,7 @@
 
 <style>
   :root{
-    --ink:#0f172a;        /* color del logo/tipografía */
+    --ink:#0f172a;
     --muted:#64748b;
     --green:#22c55e;
     --bg:#f6fff9;
@@ -29,7 +29,7 @@
     background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%); overflow:hidden
   }
 
-  /* NAVBAR: logo grande a la izquierda, menús a la derecha */
+  /* NAVBAR solo logo */
   .site-header{
     position:fixed; z-index:1000; top:0; left:0; right:0;
     height:88px; background:var(--navbar); display:flex; align-items:center;
@@ -37,36 +37,12 @@
   }
   .nav{
     width:100%; max-width:1280px; margin:0 auto;
-    display:grid; grid-template-columns:auto 1fr; align-items:center; gap:16px; padding:0 16px;
+    display:flex; align-items:center; gap:16px; padding:0 16px;
   }
   .brand{ display:flex; align-items:center; gap:12px; cursor:pointer }
-  .brand img{ height:80px; display:block } /* ≈ doble de tamaño anterior */
-  @media (min-width:768px){ .brand img{ height:96px; } }
+  .brand img{ height:96px; display:block } /* logo grande a la izquierda */
 
-  .menu{ display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap }
-  .menu a, .menu button{
-    appearance:none; border:0; background:transparent;
-    text-decoration:none; color:var(--brand);
-    font-weight:700; font-size:.85rem; padding:8px 10px; border-radius:10px; cursor:pointer;
-  }
-  .menu a:hover, .menu button:hover{ background:#e1efd5; }
-
-  /* Panel desplegable del BUSCADOR */
-  .search-panel{
-    position:absolute; top:88px; right:16px; z-index:1200;
-    width:min(92vw,520px); background:#fff; border:1px solid #e6e6e6; border-radius:14px;
-    box-shadow:0 10px 30px rgba(0,0,0,.12); padding:12px; display:none;
-  }
-  .search-panel.open{ display:block; }
-  .search-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
-  .search-grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px }
-  .search-panel label{ display:block; font-size:.85rem; margin:4px 0 }
-  .search-panel input{ width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem }
-  .search-panel .actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px }
-  .btn-small{ padding:10px 12px; border-radius:10px; background:#111; color:#fff; border:0; font-weight:800; cursor:pointer }
-  .btn-ghost{ padding:10px 12px; border-radius:10px; background:#f3f5f2; color:#111; border:1px solid #e1e4df; font-weight:700; cursor:pointer }
-
-  /* Mapa full y control de zoom abajo-derecha */
+  /* MAPA */
   #map{ position:fixed; inset:0; width:100%; height:100vh; height:100dvh }
   .leaflet-bottom.leaflet-right{
     right:12px;
@@ -75,20 +51,27 @@
   }
   .leaflet-control-zoom a{ border-radius:10px !important; }
 
-  /* Controles propios al pie */
-  .controls{ position:fixed; z-index:1050; left:50%; transform:translateX(-50%); bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:8px }
-  .actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
+  /* CONTROLES INFERIORES (buscador 3 campos + 2 botones debajo) */
+  .controls{
+    position:fixed; z-index:1050; left:50%; transform:translateX(-50%);
+    bottom:calc(18px + var(--safe-b));
+    width:min(94vw,1000px); display:flex; flex-direction:column; gap:10px
+  }
+  .search3{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
+    background:#fff; border:1px solid #e6e6e6; border-radius:12px;
+    padding:10px; box-shadow:0 6px 14px rgba(0,0,0,.04)
+  }
+  .search3 label{ display:block; font-size:.85rem; margin:4px 0 }
+  .search3 input{ width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem }
+  .actions{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px
+  }
   .btn{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
     border:1px solid #e6e6e6; background:#fff; color:#111; font-weight:800;
-    border-radius:12px; padding:11px 12px; font-size:.95rem; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.04)
+    border-radius:12px; padding:12px; font-size:.95rem; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.04)
   }
-  .searchRow{ display:flex; gap:8px }
-  .searchRow .input{ flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04) }
-  .searchRow input{ border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink) }
-
-  .slist{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(120px + var(--safe-b)); width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:1050; box-shadow:0 6px 14px rgba(0,0,0,.06) }
-  .sitem{ padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem }
 
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%);
@@ -125,10 +108,17 @@
   input{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
   .btn-wide{ width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px; background:#111; color:#fff; border:0; cursor:pointer }
 
+  /* Toast + veil */
   .toast{ position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
   .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:1600 }
   .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
+
+  @media (max-width:640px){
+    .brand img{ height:84px; }
+    .search3{ grid-template-columns:1fr; }
+    .actions{ grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -138,52 +128,35 @@
     <div class="brand" id="logoBtn" aria-label="Inicio">
       <img src="logo.png" alt="Flovermaps" onerror="this.style.display='none'">
     </div>
-    <div class="menu">
-      <a href="/como-funciona" id="linkComo">COMO FUNCIONA</a>
-      <a href="/memorial-wall" id="linkMemorial">MEMORIAL WALL</a>
-      <button id="menuSearchBtn" aria-expanded="false" aria-controls="menuSearchPanel">BUSCADOR</button>
-    </div>
   </nav>
-
-  <!-- Panel desplegable del BUSCADOR -->
-  <div id="menuSearchPanel" class="search-panel" role="dialog" aria-labelledby="menuSearchBtn" aria-hidden="true">
-    <div class="search-grid-3">
-      <div>
-        <label for="srCountry">País</label>
-        <input id="srCountry" placeholder="Ej. España">
-      </div>
-      <div>
-        <label for="srCity">Ciudad</label>
-        <input id="srCity" placeholder="Ej. Barcelona">
-      </div>
-      <div>
-        <label for="srPlace">Lugar</label>
-        <input id="srPlace" placeholder="Barrio, calle, punto…">
-      </div>
-    </div>
-    <div class="actions">
-      <button class="btn-ghost" id="srClear">Limpiar</button>
-      <button class="btn-small" id="srGo">Buscar</button>
-    </div>
-  </div>
 </header>
 
 <div id="map" aria-label="Mapa"></div>
 
+<!-- CONTROLES INFERIORES -->
 <div class="controls" aria-label="Controles">
+  <!-- Fila 1: Buscador (3 campos) -->
+  <div class="search3">
+    <div>
+      <label for="srCountry">País</label>
+      <input id="srCountry" placeholder="Ej. España">
+    </div>
+    <div>
+      <label for="srCity">Ciudad</label>
+      <input id="srCity" placeholder="Ej. Barcelona">
+    </div>
+    <div>
+      <label for="srPlace">Lugar</label>
+      <input id="srPlace" placeholder="Barrio, calle, punto…">
+    </div>
+  </div>
+  <!-- Fila 2: Acciones (2 botones) -->
   <div class="actions">
     <button id="btnFromMap" class="btn">🌸 Plantar desde el mapa</button>
     <button id="btnGps" class="btn">📍 Mi ubicación</button>
   </div>
-  <div class="searchRow">
-    <div class="input">
-      <span aria-hidden="true">🔎</span>
-      <input id="searchInput" placeholder="Buscar un lugar (calle, ciudad…)" autocomplete="off" aria-autocomplete="list" aria-controls="slist" />
-    </div>
-  </div>
 </div>
 
-<div id="slist" class="slist" role="listbox" aria-label="Sugerencias de lugares"></div>
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
 <section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
@@ -225,13 +198,12 @@ function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(
 /* === STATE === */
 let map, tiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
-let flowerMarkers=[]; // referencias a marcadores de flores para contarlas por bounds
+let flowerMarkers=[]; // refs para conteo en bounds
 
 /* === INIT === */
 window.addEventListener('load', ()=>{
   if(!window.L) return alert('No se pudo cargar Leaflet.');
 
-  // mapa sin control por defecto y control de zoom abajo-derecha
   map = L.map('map', { zoomControl:false, worldCopyJump:true });
   tiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     attribution:'© OpenStreetMap © CARTO', maxZoom:19
@@ -241,28 +213,11 @@ window.addEventListener('load', ()=>{
   map.setView([40.4168,-3.7038],5);
   setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 120);
 
-  // Logo vuelve a inicio
   $('logoBtn').onclick=()=>location.href='/';
 
-  // Menú BUSCADOR (toggle)
-  const btnSearch = $('menuSearchBtn');
-  const panelSearch = $('menuSearchPanel');
-  btnSearch.addEventListener('click', ()=>{
-    const open = panelSearch.classList.toggle('open');
-    btnSearch.setAttribute('aria-expanded', open?'true':'false');
-    panelSearch.setAttribute('aria-hidden', open?'false':'true');
-    if(open) $('srCountry').focus();
-  });
-  document.addEventListener('click', (e)=>{
-    if(panelSearch.classList.contains('open')){
-      const isInside = panelSearch.contains(e.target) || btnSearch.contains(e.target);
-      if(!isInside){ panelSearch.classList.remove('open'); btnSearch.setAttribute('aria-expanded','false'); panelSearch.setAttribute('aria-hidden','true'); }
-    }
-  });
-  $('srClear').onclick=()=>{ $('srCountry').value=''; $('srCity').value=''; $('srPlace').value=''; $('srCountry').focus(); };
-  $('srGo').onclick=runHeaderSearch;
+  // Buscador inferior (3 campos): enter para buscar
   ['srCountry','srCity','srPlace'].forEach(id=>{
-    $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runHeaderSearch(); } });
+    $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(); } });
   });
 
   // Acciones de plantar
@@ -282,31 +237,6 @@ window.addEventListener('load', ()=>{
   };
   map.on('click', e=>{ if(plantMode){ setPoint(e.latlng.lat,e.latlng.lng,true); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
 
-  // Buscador inferior (sugerencias rápidas)
-  const slist=$('slist'); let timer=null, abortCtrl=null, currentSuggest=[];
-  const search=$('searchInput');
-  search.addEventListener('input', e=>{
-    const q=e.target.value.trim(); clearTimeout(timer);
-    if(!q){ slist.style.display='none'; return; }
-    timer=setTimeout(async ()=>{
-      if(abortCtrl) abortCtrl.abort(); abortCtrl=new AbortController();
-      slist.innerHTML='<div class="sitem">Buscando…</div>'; slist.style.display='block';
-      try{
-        const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10&accept-language=es,en&q='+encodeURIComponent(q),{signal:abortCtrl.signal});
-        const list=await r.json(); currentSuggest=list||[]; slist.innerHTML='';
-        (list||[]).forEach((it)=>{
-          const dn=String(it.display_name||'').split(','), el=document.createElement('div');
-          el.className='sitem'; el.textContent=(dn[0]||'')+' · '+[dn[1]||'',dn[2]||''].filter(Boolean).join(', ');
-          el.onclick=()=>{ slist.style.display='none'; plantMode=true; setPoint(+it.lat,+it.lon,true); map.setView([+it.lat,+it.lon], Math.max(STREET_ZOOM, 13), {animate:false}); };
-          slist.appendChild(el);
-        });
-        if(!(list&&list.length)) slist.style.display='none';
-      }catch{ slist.style.display='none'; }
-    },220);
-  });
-  document.addEventListener('click', e=>{ if(!slist.contains(e.target) && e.target!==search) slist.style.display='none'; });
-  search.addEventListener('keydown', e=>{ if(e.key==='Enter' && currentSuggest.length){ e.preventDefault(); slist.style.display='none'; const it=currentSuggest[0]; plantMode=true; setPoint(+it.lat,+it.lon,true); map.setView([+it.lat,+it.lon], Math.max(STREET_ZOOM, 13), {animate:false}); } });
-
   // Formulario
   $('chars').textContent='(0/30)';
   $('message').addEventListener('input', ()=>{ const m=$('message'); m.value=m.value.replace(/\r?\n/g,'').slice(0,30); $('chars').textContent='('+m.value.length+'/30)'; });
@@ -316,8 +246,8 @@ window.addEventListener('load', ()=>{
   refetch(false); setInterval(()=>refetch(true),15000); deepLink();
 });
 
-/* === BUSCADOR (navbar) === */
-async function runHeaderSearch(){
+/* === BUSCADOR inferior (3 campos) === */
+async function runBottomSearch(){
   const country = $('srCountry').value.trim();
   const city    = $('srCity').value.trim();
   const place   = $('srPlace').value.trim();
@@ -342,18 +272,13 @@ async function runHeaderSearch(){
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
     }
 
-    // cuenta cuántas flores quedan visibles
+    // conteo de flores visibles
     setTimeout(()=>{
       try{
         const c = countFlowersInBounds();
         toast(c===1 ? '1 flor encontrada en esta zona' : `${c} flores encontradas en esta zona`);
       }catch{}
     }, 150);
-
-    // cierra panel
-    $('menuSearchPanel').classList.remove('open');
-    $('menuSearchBtn').setAttribute('aria-expanded','false');
-    $('menuSearchPanel').setAttribute('aria-hidden','true');
   }catch{
     toast('Error buscando', false);
   }
@@ -480,7 +405,7 @@ function normalize(items){
 function render(list){
   if(!map) return;
 
-  // elimina previos
+  // elimina previos marcados como flores
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
   toRemove.forEach(l=>map.removeLayer(l));
   flowerMarkers=[];
