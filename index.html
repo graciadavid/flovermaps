@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa y dedica un mensaje.">
-<!-- BUILD: FM-PLANT-ONLY-NAVBAR-FOOTER-SEARCH3+ACTIONS2-2025-10-29 -->
+<!-- BUILD: FM-PLANT-ONLY-MOBILE-SEARCH-LAYOUT-2025-10-29 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,14 +14,9 @@
 
 <style>
   :root{
-    --ink:#0f172a;
-    --muted:#64748b;
-    --green:#22c55e;
-    --bg:#f6fff9;
-    --safe-b:env(safe-area-inset-bottom,0);
-    --safe-t:env(safe-area-inset-top,0);
-    --navbar:#eef7e8;
-    --brand:#0f172a;
+    --ink:#0f172a; --muted:#64748b; --green:#22c55e; --bg:#f6fff9;
+    --safe-b:env(safe-area-inset-bottom,0); --safe-t:env(safe-area-inset-top,0);
+    --navbar:#eef7e8; --brand:#0f172a;
   }
   *{box-sizing:border-box} html,body{height:100%}
   body{
@@ -29,44 +24,47 @@
     background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%); overflow:hidden
   }
 
-  /* NAVBAR solo logo */
+  /* NAVBAR: logo centrado */
   .site-header{
     position:fixed; z-index:1000; top:0; left:0; right:0;
-    height:88px; background:var(--navbar); display:flex; align-items:center;
+    height:88px; background:var(--navbar); display:flex; align-items:center; justify-content:center;
     padding-top:var(--safe-t); border-bottom:1px solid #dfead6;
   }
-  .nav{
-    width:100%; max-width:1280px; margin:0 auto;
-    display:flex; align-items:center; gap:16px; padding:0 16px;
-  }
-  .brand{ display:flex; align-items:center; gap:12px; cursor:pointer }
-  .brand img{ height:96px; display:block } /* logo grande a la izquierda */
+  .nav{ width:100%; max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:center; padding:0 16px; }
+  .brand{ display:flex; align-items:center; cursor:pointer }
+  .brand img{ height:96px; display:block }
 
   /* MAPA */
   #map{ position:fixed; inset:0; width:100%; height:100vh; height:100dvh }
-  .leaflet-bottom.leaflet-right{
-    right:12px;
-    bottom:calc(18px + var(--safe-b));
-    z-index:1100;
-  }
+  .leaflet-bottom.leaflet-right{ right:12px; bottom:calc(18px + var(--safe-b)); z-index:1100; }
   .leaflet-control-zoom a{ border-radius:10px !important; }
 
-  /* CONTROLES INFERIORES (buscador 3 campos + 2 botones debajo) */
+  /* CONTROLES INFERIORES */
   .controls{
     position:fixed; z-index:1050; left:50%; transform:translateX(-50%);
-    bottom:calc(18px + var(--safe-b));
-    width:min(94vw,1000px); display:flex; flex-direction:column; gap:10px
+    bottom:calc(18px + var(--safe-b)); width:min(94vw,1000px);
+    display:flex; flex-direction:column; gap:10px
   }
+
+  /* Buscador: desktop = 3 columnas; móvil = 2 columnas (País+Ciudad) + fila Lugar+btn */
   .search3{
-    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
-    background:#fff; border:1px solid #e6e6e6; border-radius:12px;
-    padding:10px; box-shadow:0 6px 14px rgba(0,0,0,.04)
+    background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:10px;
+    box-shadow:0 6px 14px rgba(0,0,0,.04); display:grid; gap:8px;
+    grid-template-columns:1fr 1fr 1fr; align-items:end;
   }
-  .search3 label{ display:block; font-size:.85rem; margin:4px 0 }
+  .search3 .field{ display:flex; flex-direction:column; gap:6px; }
+  .search3 label{ font-size:.85rem }
   .search3 input{ width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem }
-  .actions{
-    display:grid; grid-template-columns:1fr 1fr; gap:8px
+
+  /* Lugar + botón pequeño a la derecha */
+  .placeRow{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
+  .btn-small{
+    padding:10px 12px; border-radius:10px; border:1px solid #e6e6e6; background:#fff; cursor:pointer;
+    font-weight:800; font-size:.9rem; box-shadow:0 6px 14px rgba(0,0,0,.04)
   }
+
+  /* Acciones (siempre dos columnas, también en móvil) */
+  .actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
   .btn{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
     border:1px solid #e6e6e6; background:#fff; color:#111; font-weight:800;
@@ -114,15 +112,18 @@
   .veil{ position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:1600 }
   .veil .box{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700 }
 
+  /* Móvil: dos columnas para País+Ciudad; Lugar+botón en fila aparte */
   @media (max-width:640px){
     .brand img{ height:84px; }
-    .search3{ grid-template-columns:1fr; }
-    .actions{ grid-template-columns:1fr; }
+    .search3{ grid-template-columns:1fr 1fr; }
+    .field.placeWrap{ grid-column:1 / span 2; }
+    .actions{ grid-template-columns:1fr 1fr; } /* fuerzo 2 columnas también en móvil */
   }
 </style>
 </head>
 <body>
 
+<!-- NAV -->
 <header class="site-header">
   <nav class="nav">
     <div class="brand" id="logoBtn" aria-label="Inicio">
@@ -131,26 +132,31 @@
   </nav>
 </header>
 
+<!-- MAP -->
 <div id="map" aria-label="Mapa"></div>
 
 <!-- CONTROLES INFERIORES -->
 <div class="controls" aria-label="Controles">
-  <!-- Fila 1: Buscador (3 campos) -->
+  <!-- Buscador -->
   <div class="search3">
-    <div>
+    <div class="field">
       <label for="srCountry">País</label>
       <input id="srCountry" placeholder="Ej. España">
     </div>
-    <div>
+    <div class="field">
       <label for="srCity">Ciudad</label>
       <input id="srCity" placeholder="Ej. Barcelona">
     </div>
-    <div>
+    <div class="field placeWrap">
       <label for="srPlace">Lugar</label>
-      <input id="srPlace" placeholder="Barrio, calle, punto…">
+      <div class="placeRow">
+        <input id="srPlace" placeholder="Barrio, calle, punto…">
+        <button id="srGoBtn" class="btn-small" title="Buscar/Plantar">Plantar</button>
+      </div>
     </div>
   </div>
-  <!-- Fila 2: Acciones (2 botones) -->
+
+  <!-- Acciones -->
   <div class="actions">
     <button id="btnFromMap" class="btn">🌸 Plantar desde el mapa</button>
     <button id="btnGps" class="btn">📍 Mi ubicación</button>
@@ -159,6 +165,7 @@
 
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
+<!-- Sheet dedicatoria -->
 <section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div class="body">
@@ -179,7 +186,7 @@
 <div id="veil" class="veil"><div class="box" id="veilText">Plantando…</div></div>
 
 <script>
-/* === CONFIG (sólo Sheets) === */
+/* === CONFIG (solo Sheets) === */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
 const STREET_ZOOM = 17;
 const SHARE_ZOOM  = 17;
@@ -198,7 +205,7 @@ function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(
 /* === STATE === */
 let map, tiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
-let flowerMarkers=[]; // refs para conteo en bounds
+let flowerMarkers=[];
 
 /* === INIT === */
 window.addEventListener('load', ()=>{
@@ -215,10 +222,11 @@ window.addEventListener('load', ()=>{
 
   $('logoBtn').onclick=()=>location.href='/';
 
-  // Buscador inferior (3 campos): enter para buscar
+  // Buscador inferior (Enter o botón "Plantar" disparan la búsqueda)
   ['srCountry','srCity','srPlace'].forEach(id=>{
     $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(); } });
   });
+  $('srGoBtn').addEventListener('click', runBottomSearch);
 
   // Acciones de plantar
   $('btnFromMap').onclick=()=>{
@@ -272,7 +280,7 @@ async function runBottomSearch(){
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
     }
 
-    // conteo de flores visibles
+    // Conteo de flores visibles
     setTimeout(()=>{
       try{
         const c = countFlowersInBounds();
@@ -378,8 +386,10 @@ async function plantNow(){
 
 /* === Compartir === */
 async function shareAny(url){
-  try{ if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
-        else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } }catch{}
+  try{
+    if(navigator.share){ await navigator.share({title:'Flovermaps', text:'He plantado esta 🌸 en un lugar del Mundo, especialmente para ti.', url}); }
+    else { await navigator.clipboard.writeText(url); toast('Enlace copiado'); }
+  }catch{}
 }
 window.shareAny=shareAny;
 
@@ -404,13 +414,9 @@ function normalize(items){
 }
 function render(list){
   if(!map) return;
-
-  // elimina previos marcados como flores
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
   toRemove.forEach(l=>map.removeLayer(l));
   flowerMarkers=[];
-
-  // pinta y guarda referencia
   for(const f of (list||[])){
     const shareUrl=`${location.origin}/?id=${encodeURIComponent(f.id)}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1000});
