@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flovermaps — Planta una flor</title>
-<meta name="theme-color" content="#f6fff9" />
+<meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa y dedica un mensaje.">
-<!-- BUILD: FM-PLANT-ONLY-2025-10-29 -->
+<!-- BUILD: FM-PLANT-ONLY-NAVBAR-2025-10-29 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -18,34 +18,51 @@
   body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);
        background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%);overflow:hidden}
 
-  .site-header{position:fixed;z-index:10;top:0;left:0;right:0;display:flex;justify-content:center;padding:8px 10px;padding-top:calc(8px + var(--safe-t))}
-  .brand{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:6px 16px;box-shadow:0 6px 18px rgba(2,6,12,.06);cursor:pointer}
-  .brand img{height:84px;display:block}
+  /* NAVBAR full width */
+  .site-header{
+    position:fixed; z-index:10; top:0; left:0; right:0;
+    height:64px; background:#eef7e8; display:flex; align-items:center;
+    padding-top:var(--safe-t); border-bottom:1px solid #dfead6;
+  }
+  .nav{
+    width:100%; max-width:1200px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; cursor:pointer}
+  .brand img{height:36px; display:block}
+  .brand-title{font-weight:800; letter-spacing:.2px}
 
-  #map{position:fixed;inset:0;width:100%;height:100vh;height:100dvh}
+  /* Map */
+  #map{position:fixed; inset:0; width:100%; height:100vh; height:100dvh}
 
-  .controls{position:fixed;z-index:9;left:50%;transform:translateX(-50%);bottom:calc(18px + var(--safe-b));width:min(94vw,960px);display:flex;flex-direction:column;gap:8px}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #e6e6e6;background:#fff;color:#111;font-weight:800;border-radius:12px;padding:11px 12px;font-size:.95rem;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,.04)}
-  .searchRow{display:flex;gap:8px}
-  .searchRow .input{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:12px 14px;box-shadow:0 6px 14px rgba(0,0,0,.04)}
-  .searchRow input{border:0;outline:none;width:100%;font:inherit;background:transparent;color:var(--ink)}
-  .slist{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + var(--safe-b));width:min(94vw,960px);background:#fff;border:1px solid #e6e6e6;border-radius:12px;max-height:260px;overflow:auto;display:none;z-index:9;box-shadow:0 6px 14px rgba(0,0,0,.06)}
-  .sitem{padding:12px 14px;border-bottom:1px solid #f3f3f3;cursor:pointer;font-size:1rem}
-  .addr-badge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(190px + var(--safe-b));z-index:8;background:#fff;border:1px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-size:1rem;font-weight:700;max-width:min(92vw,520px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 24px rgba(0,0,0,.10);display:none}
+  /* Controls */
+  .controls{position:fixed; z-index:9; left:50%; transform:translateX(-50%); bottom:calc(18px + var(--safe-b)); width:min(94vw,960px); display:flex; flex-direction:column; gap:8px}
+  .actions{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid #e6e6e6; background:#fff; color:#111; font-weight:800; border-radius:12px; padding:11px 12px; font-size:.95rem; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.04)}
 
+  .searchRow{display:flex; gap:8px}
+  .searchRow .input{flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:12px 14px; box-shadow:0 6px 14px rgba(0,0,0,.04)}
+  .searchRow input{border:0; outline:none; width:100%; font:inherit; background:transparent; color:var(--ink)}
+
+  .slist{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(120px + var(--safe-b)); width:min(94vw,960px); background:#fff; border:1px solid #e6e6e6; border-radius:12px; max-height:260px; overflow:auto; display:none; z-index:9; box-shadow:0 6px 14px rgba(0,0,0,.06)}
+  .sitem{padding:12px 14px; border-bottom:1px solid #f3f3f3; cursor:pointer; font-size:1rem}
+
+  .addr-badge{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(190px + var(--safe-b)); z-index:8; background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none}
+
+  /* Marker + ring */
   .leaflet-div-icon{ background:transparent!important; border:none!important; }
-  .emoji-marker .e{font-size:44px;line-height:44px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
-  .ring{width:64px;height:64px;border-radius:999px;border:3px solid #22c55e;box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9)}
+  .emoji-marker .e{font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25)}
+  .ring{width:64px; height:64px; border-radius:999px; border:3px solid #22c55e; box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9)}
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{display:none!important}
 
-  .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{background:transparent;box-shadow:none;border:none}
+  /* CTA popup */
+  .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{background:transparent; box-shadow:none; border:none}
   .leaflet-popup.pin-cta .leaflet-popup-content{margin:0}
   .leaflet-popup.pin-cta .leaflet-popup-tip{display:none!important;}
-
   .pin-cta-btn{
-    position:relative;background:linear-gradient(180deg,#26d166,#1fb057);color:#fff;border:0;border-radius:14px;
-    padding:9px 14px;font-size:.95rem;font-weight:800;box-shadow:0 16px 36px rgba(0,0,0,.22);cursor:pointer
+    position:relative; background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:14px;
+    padding:9px 14px; font-size:.95rem; font-weight:800; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer
   }
   .pin-cta-btn::before{
     content:""; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
@@ -53,25 +70,33 @@
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
   }
 
-  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;transform:translateY(100%);transition:transform .25s ease;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -20px 60px rgba(0,0,0,.25);max-height:85dvh;display:flex;flex-direction:column}
+  /* Sheet */
+  .sheet{position:fixed; left:0; right:0; bottom:0; z-index:10; transform:translateY(100%); transition:transform .25s ease; background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column}
   .sheet.open{transform:translateY(0)}
-  .sheet .handle{align-self:center;width:54px;height:5px;border-radius:999px;background:#e5e7eb;margin:8px 0 4px}
-  .sheet .body{padding:10px 14px 16px;overflow:auto;-webkit-overflow-scrolling:touch}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  label{display:block;margin:6px 0 4px;font-size:.92rem}
-  input{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem}
-  .btn-wide{width:100%;font-size:1.05rem;padding:14px 18px;border-radius:10px;background:#111;color:#fff;border:0;cursor:pointer}
+  .sheet .handle{align-self:center; width:54px; height:5px; border-radius:999px; background:#e5e7eb; margin:8px 0 4px}
+  .sheet .body{padding:10px 14px 16px; overflow:auto; -webkit-overflow-scrolling:touch}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  label{display:block; margin:6px 0 4px; font-size:.92rem}
+  input{width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem}
+  .btn-wide{width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px; background:#111; color:#fff; border:0; cursor:pointer}
 
-  .toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:10px;z-index:15;opacity:0;pointer-events:none;transition:opacity .18s,bottom .18s}
-  .toast.show{opacity:1;bottom:calc(110px + var(--safe-b))}
-  .veil{position:fixed;inset:0;background:rgba(246,255,249,.85);display:none;align-items:center;justify-content:center;z-index:20}
-  .veil .box{background:#fff;border:1px solid #e6e6e6;border-radius:14px;padding:14px 18px;box-shadow:0 12px 36px rgba(0,0,0,.12);font-weight:700}
+  .toast{position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:15; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s}
+  .toast.show{opacity:1; bottom:calc(110px + var(--safe-b))}
+  .veil{position:fixed; inset:0; background:rgba(246,255,249,.85); display:none; align-items:center; justify-content:center; z-index:20}
+  .veil .box{background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px 18px; box-shadow:0 12px 36px rgba(0,0,0,.12); font-weight:700}
 </style>
 </head>
 <body>
 
 <header class="site-header">
-  <div class="brand" id="logoBtn"><img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'"></div>
+  <div class="nav">
+    <div class="brand" id="logoBtn">
+      <img src="logo.png" alt="FLOVERMAPS" onerror="this.style.display='none'">
+      <span class="brand-title">Flovermaps</span>
+    </div>
+    <!-- espacio futuro para enlaces si los quieres -->
+    <div></div>
+  </div>
 </header>
 
 <div id="map" aria-label="Mapa"></div>
@@ -114,9 +139,9 @@
 <script>
 /* === CONFIG (sólo Sheets) === */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
-const STREET_ZOOM = 17;          // zoom al elegir punto
-const SHARE_ZOOM  = 17;          // zoom al abrir enlace compartido
-const NEW_ZOOM    = 18;          // zoom tras plantar (ligeramente más cerca)
+const STREET_ZOOM = 17;
+const SHARE_ZOOM  = 17;
+const NEW_ZOOM    = 18;
 
 /* === HELPERS === */
 const $=id=>document.getElementById(id);
@@ -243,16 +268,13 @@ async function plantNow(){
 
   $('veil').style.display='flex';
   try{
-    // Guardar en Sheets
     const url = `${SCRIPT_URL}?action=add&id=${encodeURIComponent(id)}&lat=${encodeURIComponent(selectedLat)}&lng=${encodeURIComponent(selectedLng)}&place=${encodeURIComponent(place)}&fromName=${encodeURIComponent(from)}&toName=${encodeURIComponent(to)}&message=${encodeURIComponent(msg)}`;
     const r = await jsonp(url, 10000);
-
     if(!(r && r.ok)){
       $('veil').style.display='none';
       return toast('No se pudo plantar. Prueba de nuevo.', false);
     }
 
-    // Pintar ya la flor
     closeSheet();
     if(selectedMarker){ map.removeLayer(selectedMarker); selectedMarker=null; }
     if(ringMarker){ map.removeLayer(ringMarker); ringMarker=null; }
@@ -272,9 +294,7 @@ async function plantNow(){
     map.setView([lat,lng], NEW_ZOOM, {animate:false});
     mk.openPopup();
 
-    // Refrescar lista para que quede en cache local
     setTimeout(()=>refetch(true), 800);
-
     toast('¡Flor plantada! 🌸');
   }catch(e){
     toast('Error de red', false);
