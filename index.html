@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa, escribe una dedicatoria y compártala.">
-<!-- BUILD: FM-PLANT-ONLY—HERO-CENTER—NARROW-CONTROLS—GREEN-CTAS—2025-10-31 -->
+<!-- BUILD: FM-PLANT-ONLY—MAP-STABLE—HERO-SMALL—2025-10-31 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -31,27 +31,33 @@
   }
   .nav{ width:100%; max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:center; padding:8px 16px }
   .brand{ display:flex; align-items:center; cursor:pointer }
-  .brand img{ height:100px; display:block }
+  .brand img{ height:96px; display:block }
   @media (max-width:640px){ .brand img{ height:84px } }
 
-  /* HERO centrado */
+  /* HERO (más pequeño) */
   .hero{
     position:fixed; z-index:950;
     left:50%; top:48%; transform:translate(-50%,-50%);
     display:flex; align-items:center; justify-content:center; text-align:center;
-    padding:16px 22px; border-radius:16px; background:#ffffff;
+    padding:14px 18px; border-radius:16px; background:#ffffff;
     border:1px solid #e6e6e6; box-shadow:0 10px 30px rgba(0,0,0,.06);
     max-width:min(90vw,720px);
   }
-  .hero h1{ margin:0; font-size:1.6rem; line-height:1.25; font-weight:800; }
+  .hero h1{ margin:0; font-size:1.25rem; line-height:1.25; font-weight:800; }
+  @media (max-width:640px){ .hero h1{ font-size:1.1rem; } }
   .hero.hide{ opacity:0; transform:translate(-50%,-44%); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
 
-  /* MAPA */
-  #map{ position:fixed; inset:0; width:100%; height:100vh; height:100dvh }
+  /* MAPA (robusto) */
+  #map{
+    position:fixed; inset:0; width:100%;
+    height:100dvh; min-height:100vh; /* iOS/Android safe */
+    background:#e6f1e0;             /* color fondo mientras cargan tiles */
+  }
+  .leaflet-container{ background:#e6f1e0 !important; }
   .leaflet-bottom.leaflet-right{ right:12px; bottom:calc(18px + var(--safe-b)); z-index:1100; }
   .leaflet-control-zoom a{ border-radius:10px !important; }
 
-  /* CONTROLES INFERIORES (más estrechos en desktop/tablet) */
+  /* CONTROLES INFERIORES */
   .controls{
     position:fixed; z-index:1050; left:50%;
     bottom:calc(18px + var(--safe-b)); width:min(94vw,760px);
@@ -72,7 +78,7 @@
 
   .placeRow{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
   .btn-small{
-    padding:10px 12px; border-radius:10px; border:1px solid #22c55e; background:#22c55e; color:#fff; cursor:pointer;
+    padding:10px 12px; border-radius:10px; border:1px solid var(--green); background:var(--green); color:#fff; cursor:pointer;
     font-weight:800; font-size:.9rem; box-shadow:0 6px 14px rgba(0,0,0,.04)
   }
 
@@ -128,7 +134,6 @@
     .search3{ grid-template-columns:1fr 1fr; }
     .field.placeWrap{ grid-column:1 / span 2; }
     .actions{ grid-template-columns:1fr 1fr; }
-    .hero h1{ font-size:1.25rem; }
   }
 </style>
 </head>
@@ -151,7 +156,7 @@
 <!-- MAP -->
 <div id="map" aria-label="Mapa"></div>
 
-<!-- CONTROLES INFERIORES (más estrechos) -->
+<!-- CONTROLES -->
 <div class="controls" aria-label="Controles">
   <!-- Buscador -->
   <div class="search3">
@@ -181,7 +186,7 @@
 
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
-<!-- Sheet dedicatoria -->
+<!-- Dedicatoria -->
 <section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div class="body">
@@ -204,9 +209,7 @@
 <script>
 /* === CONFIG (solo Sheets) === */
 const SCRIPT_URL  = "https://script.google.com/macros/s/AKfycbzhi7PdPv_g4GifrGXWzwsPxKMIFhPilMpc14vB-ruwrO9NW0pAlFd1vS72K1KNPO8NIg/exec";
-const STREET_ZOOM = 17;
-const SHARE_ZOOM  = 17;
-const NEW_ZOOM    = 18;
+const STREET_ZOOM = 17, SHARE_ZOOM = 17, NEW_ZOOM = 18;
 
 /* === HELPERS === */
 const $=id=>document.getElementById(id);
@@ -219,7 +222,7 @@ function jsonp(url,timeoutMs=10000){return new Promise((resolve,reject)=>{const 
 function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(); const s=()=>Math.floor((1+Math.random())*0x10000).toString(16).slice(1); return `fm-${s()}${s()}-${s()}-${s()}-${s()}${s()}${s()}`; }
 
 /* === STATE === */
-let map, tiles, selectedMarker, ringMarker, ctaPopup;
+let map, tiles, fallbackTiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
 let flowerMarkers=[];
 const controlsEl = document.querySelector('.controls');
@@ -227,29 +230,40 @@ const heroEl = $('hero');
 
 /* === INIT === */
 window.addEventListener('load', ()=>{
-  if(!window.L) return alert('No se pudo cargar Leaflet.');
+  if(!window.L){ alert('No se pudo cargar Leaflet.'); return; }
 
-  map = L.map('map', { zoomControl:false, worldCopyJump:true });
+  // Base tiles + fallback
   tiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     attribution:'© OpenStreetMap © CARTO', maxZoom:19
-  }).addTo(map);
+  });
+  tiles.on('tileerror', ()=>{
+    try{ if(map && tiles) map.removeLayer(tiles); }catch{}
+    if(!fallbackTiles){
+      fallbackTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap', maxZoom:19 });
+    }
+    try{ if(map && !map.hasLayer(fallbackTiles)) fallbackTiles.addTo(map); }catch{}
+  });
+
+  map = L.map('map', { zoomControl:false, worldCopyJump:true });
+  tiles.addTo(map);
   L.control.zoom({ position:'bottomright' }).addTo(map);
 
   map.setView([40.4168,-3.7038],5);
-  setTimeout(()=>{ try{ map.invalidateSize(); }catch{} }, 120);
+  // Asegurar cálculo de tamaño correcto
+  setTimeout(()=>{ try{ map.invalidateSize(false); }catch{} }, 140);
+  window.addEventListener('resize', ()=>{ setTimeout(()=>{ try{ map.invalidateSize(false); }catch{} },120); });
 
   $('logoBtn').onclick=()=>location.href='/';
 
-  // Buscador: Enter o botón "Plantar"
+  // Buscador inferior
   ['srCountry','srCity','srPlace'].forEach(id=>{
     $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(); } });
   });
   $('srGoBtn').addEventListener('click', runBottomSearch);
 
-  // Acciones de plantar
+  // Acciones plantar
   $('btnFromMap').onclick=()=>{
-    plantMode=true;
-    hideHero(); hideControls();
+    plantMode=true; hideHero(); hideControls();
     const c=map.getCenter();
     setPoint(c.lat,c.lng);
     map.setView(c, Math.max(map.getZoom(), STREET_ZOOM), {animate:false});
@@ -264,22 +278,22 @@ window.addEventListener('load', ()=>{
   };
   map.on('click', e=>{ if(plantMode){ hideHero(); setPoint(e.latlng.lat,e.latlng.lng); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
 
-  // Formulario
+  // Form
   $('chars').textContent='(0/30)';
   $('message').addEventListener('input', ()=>{ const m=$('message'); m.value=m.value.replace(/\r?\n/g,'').slice(0,30); $('chars').textContent='('+m.value.length+'/30)'; });
   $('plantBtn').onclick = plantNow;
 
-  // Datos iniciales y deep link
+  // Datos + deep link
   refetch(false); setInterval(()=>refetch(true),15000); deepLink();
 });
 
-/* === Mostrar/Ocultar controles y hero === */
-function hideControls(){ try{ controlsEl.classList.add('hide'); }catch{} }
-function showControls(){ try{ controlsEl.classList.remove('hide'); }catch{} }
-function hideHero(){ try{ heroEl.classList.add('hide'); }catch{} }
-function showHero(){ try{ heroEl.classList.remove('hide'); }catch{} }
+/* === Mostrar/Ocultar === */
+function hideControls(){ controlsEl?.classList.add('hide'); }
+function showControls(){ controlsEl?.classList.remove('hide'); }
+function hideHero(){ heroEl?.classList.add('hide'); }
+function showHero(){ heroEl?.classList.remove('hide'); }
 
-/* === BUSCADOR inferior (3 campos) — coloca pin + CTA como "Plantar desde mapa" === */
+/* === Buscador (3 campos) === */
 async function runBottomSearch(){
   const country = $('srCountry').value.trim();
   const city    = $('srCity').value.trim();
@@ -311,7 +325,7 @@ async function runBottomSearch(){
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
     }
 
-    // Info de densidad en zona
+    // Densidad aproximada
     setTimeout(()=>{
       try{
         const c = countFlowersInBounds();
@@ -367,7 +381,7 @@ function reverseAt(lat,lng){
     }).catch(()=>$('addrBadge').textContent='Ubicación aproximada');
 }
 
-/* === GUARDAR (sin pagos) === */
+/* === GUARDAR (Sheets) === */
 async function plantNow(){
   if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
   const from= $('fromName').value.trim();
@@ -424,7 +438,7 @@ async function shareAny(url){
 }
 window.shareAny=shareAny;
 
-/* === Popup render/list === */
+/* === Listado / render === */
 function popupHtml(from,to,msg,dt,shareUrl){
   return `<div style="min-width:260px;max-width:320px">
     <div class="muted" style="margin-bottom:6px">${dt||''}</div>
@@ -433,8 +447,6 @@ function popupHtml(from,to,msg,dt,shareUrl){
     <button onclick="shareAny('${shareUrl.replace(/'/g,'&#39;')}')" style="width:100%;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem;background:#111;color:#fff;cursor:pointer">🔗 Compartir</button>
   </div>`;
 }
-
-/* === Datos (Sheets) === */
 function normalize(items){
   const out=[];
   for(const f of (items||[])){
@@ -443,7 +455,6 @@ function normalize(items){
   }
   return out;
 }
-let flowerMarkers=[];
 function render(list){
   if(!map) return;
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
@@ -471,7 +482,7 @@ async function refetch(incr){
   }catch{}
 }
 
-/* === Deep link: abrir flor compartida con zoom cercano === */
+/* === Deep link === */
 async function deepLink(){
   const u=new URL(location.href);
   let id=u.searchParams.get('id');
@@ -492,7 +503,7 @@ async function deepLink(){
       mk.bindPopup(popupHtml(it.fromName||'',it.toName||'',it.message||'',fmtDate(it.timestamp),shareUrl),{autoClose:false,closeOnClick:false});
       map.setView([lat,lng], SHARE_ZOOM, {animate:false});
       mk.openPopup();
-      setTimeout(()=>{ try{ map.invalidateSize(); map.setView([lat,lng], SHARE_ZOOM, {animate:false}); }catch{} }, 140);
+      setTimeout(()=>{ try{ map.invalidateSize(false); map.setView([lat,lng], SHARE_ZOOM, {animate:false}); }catch{} }, 160);
     }
   }catch{}
 }
