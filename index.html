@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa, escribe una dedicatoria y compártala.">
-<!-- BUILD: FM-PLANT-ONLY—SEARCH-DROPS-PIN—UX-HEADLINE-2025-10-31 -->
+<!-- BUILD: FM-PLANT-ONLY—HERO-CENTER—NARROW-CONTROLS—GREEN-CTAS—2025-10-31 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -31,23 +31,30 @@
   }
   .nav{ width:100%; max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:center; padding:8px 16px }
   .brand{ display:flex; align-items:center; cursor:pointer }
-  .brand img{ height:96px; display:block }
-  .headline{
-    position:absolute; left:50%; transform:translateX(-50%);
-    bottom:-36px; background:#fff; border:1px solid #e6e6e6; border-radius:999px;
-    padding:8px 14px; font-weight:800; box-shadow:0 6px 14px rgba(0,0,0,.04); white-space:nowrap
+  .brand img{ height:100px; display:block }
+  @media (max-width:640px){ .brand img{ height:84px } }
+
+  /* HERO centrado */
+  .hero{
+    position:fixed; z-index:950;
+    left:50%; top:48%; transform:translate(-50%,-50%);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    padding:16px 22px; border-radius:16px; background:#ffffff;
+    border:1px solid #e6e6e6; box-shadow:0 10px 30px rgba(0,0,0,.06);
+    max-width:min(90vw,720px);
   }
-  @media (max-width:640px){ .brand img{ height:84px } .headline{ font-size:.92rem } }
+  .hero h1{ margin:0; font-size:1.6rem; line-height:1.25; font-weight:800; }
+  .hero.hide{ opacity:0; transform:translate(-50%,-44%); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
 
   /* MAPA */
   #map{ position:fixed; inset:0; width:100%; height:100vh; height:100dvh }
   .leaflet-bottom.leaflet-right{ right:12px; bottom:calc(18px + var(--safe-b)); z-index:1100; }
   .leaflet-control-zoom a{ border-radius:10px !important; }
 
-  /* CONTROLES INFERIORES */
+  /* CONTROLES INFERIORES (más estrechos en desktop/tablet) */
   .controls{
     position:fixed; z-index:1050; left:50%;
-    bottom:calc(18px + var(--safe-b)); width:min(94vw,1000px);
+    bottom:calc(18px + var(--safe-b)); width:min(94vw,760px);
     display:flex; flex-direction:column; gap:10px;
     transform:translate(-50%,0);
     transition:transform .28s ease, opacity .28s ease;
@@ -65,10 +72,9 @@
 
   .placeRow{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
   .btn-small{
-    padding:10px 12px; border-radius:10px; border:1px solid #e6e6e6; background:#fff; cursor:pointer;
+    padding:10px 12px; border-radius:10px; border:1px solid #22c55e; background:#22c55e; color:#fff; cursor:pointer;
     font-weight:800; font-size:.9rem; box-shadow:0 6px 14px rgba(0,0,0,.04)
   }
-  .examples{ font-size:.85rem; color:var(--muted); margin-top:2px; padding:0 2px }
 
   .actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
   .btn{
@@ -110,7 +116,7 @@
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
   label{ display:block; margin:6px 0 4px; font-size:.92rem }
   input{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
-  .btn-wide{ width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px; background:#111; color:#fff; border:0; cursor:pointer }
+  .btn-wide{ width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px; background:#22c55e; color:#fff; border:1px solid #22c55e; cursor:pointer; font-weight:800 }
 
   /* Toast + veil */
   .toast{ position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
@@ -122,6 +128,7 @@
     .search3{ grid-template-columns:1fr 1fr; }
     .field.placeWrap{ grid-column:1 / span 2; }
     .actions{ grid-template-columns:1fr 1fr; }
+    .hero h1{ font-size:1.25rem; }
   }
 </style>
 </head>
@@ -133,14 +140,18 @@
     <div class="brand" id="logoBtn" aria-label="Inicio">
       <img src="logo.png" alt="Flovermaps" onerror="this.style.display='none'">
     </div>
-    <div class="headline">Planta una flor en el mapa y dedica un mensaje</div>
   </nav>
 </header>
+
+<!-- HERO -->
+<div id="hero" class="hero">
+  <h1>Planta una flor en el mapa y dedica un mensaje</h1>
+</div>
 
 <!-- MAP -->
 <div id="map" aria-label="Mapa"></div>
 
-<!-- CONTROLES INFERIORES -->
+<!-- CONTROLES INFERIORES (más estrechos) -->
 <div class="controls" aria-label="Controles">
   <!-- Buscador -->
   <div class="search3">
@@ -158,7 +169,6 @@
         <input id="srPlace" placeholder="Barrio, calle, punto…">
         <button id="srGoBtn" class="btn-small" title="Buscar/Plantar">Plantar</button>
       </div>
-      <div class="examples">Ejemplos: España · Madrid · Retiro — Francia · París — México · Chapultepec</div>
     </div>
   </div>
 
@@ -213,6 +223,7 @@ let map, tiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
 let flowerMarkers=[];
 const controlsEl = document.querySelector('.controls');
+const heroEl = $('hero');
 
 /* === INIT === */
 window.addEventListener('load', ()=>{
@@ -238,21 +249,20 @@ window.addEventListener('load', ()=>{
   // Acciones de plantar
   $('btnFromMap').onclick=()=>{
     plantMode=true;
+    hideHero(); hideControls();
     const c=map.getCenter();
     setPoint(c.lat,c.lng);
     map.setView(c, Math.max(map.getZoom(), STREET_ZOOM), {animate:false});
-    hideControls();
   };
   $('btnGps').onclick=()=>{
-    plantMode=true;
+    plantMode=true; hideHero(); hideControls();
     if(!navigator.geolocation) return toast('Tu dispositivo no permite geolocalización', false);
     navigator.geolocation.getCurrentPosition(p=>{
       setPoint(p.coords.latitude,p.coords.longitude);
       map.setView([p.coords.latitude,p.coords.longitude], STREET_ZOOM, {animate:false});
-      hideControls();
     }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
   };
-  map.on('click', e=>{ if(plantMode){ setPoint(e.latlng.lat,e.latlng.lng); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
+  map.on('click', e=>{ if(plantMode){ hideHero(); setPoint(e.latlng.lat,e.latlng.lng); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
 
   // Formulario
   $('chars').textContent='(0/30)';
@@ -263,17 +273,21 @@ window.addEventListener('load', ()=>{
   refetch(false); setInterval(()=>refetch(true),15000); deepLink();
 });
 
-/* === Mostrar/Ocultar controles === */
+/* === Mostrar/Ocultar controles y hero === */
 function hideControls(){ try{ controlsEl.classList.add('hide'); }catch{} }
 function showControls(){ try{ controlsEl.classList.remove('hide'); }catch{} }
+function hideHero(){ try{ heroEl.classList.add('hide'); }catch{} }
+function showHero(){ try{ heroEl.classList.remove('hide'); }catch{} }
 
-/* === BUSCADOR inferior (3 campos) — CORREGIDO: deja pin + CTA como "Plantar desde mapa" === */
+/* === BUSCADOR inferior (3 campos) — coloca pin + CTA como "Plantar desde mapa" === */
 async function runBottomSearch(){
   const country = $('srCountry').value.trim();
   const city    = $('srCity').value.trim();
   const place   = $('srPlace').value.trim();
   const parts = [place, city, country].filter(Boolean);
   if(!parts.length) return toast('Escribe país, ciudad o lugar', false);
+
+  hideHero(); hideControls();
 
   const q = parts.join(', ');
   try{
@@ -284,9 +298,8 @@ async function runBottomSearch(){
 
     const it = arr[0];
     const lat = +it.lat, lon = +it.lon;
-    plantMode = true;           // << activa modo plantar
-    hideControls();             // << oculta panel inferior
-    // Si hay bounding box, centramos al centro; si no, usamos lat/lon
+    plantMode = true;
+
     if (it.boundingbox && it.boundingbox.length === 4){
       const south=+it.boundingbox[0], north=+it.boundingbox[1], west=+it.boundingbox[2], east=+it.boundingbox[3];
       const b = L.latLngBounds([[south,west],[north,east]]);
@@ -294,15 +307,15 @@ async function runBottomSearch(){
       map.fitBounds(b, { padding:[40,40] });
       setTimeout(()=>{ setPoint(center.lat, center.lng); map.setView(center, Math.max(map.getZoom(), STREET_ZOOM), {animate:false}); }, 120);
     } else {
-      setPoint(lat, lon);       // << coloca pin, anillo y CTA "Plantar aquí"
+      setPoint(lat, lon);
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
     }
 
-    // Pequeño aviso de cuántas flores hay a la vista
+    // Info de densidad en zona
     setTimeout(()=>{
       try{
         const c = countFlowersInBounds();
-        toast(c===1 ? '1 flor encontrada en esta zona' : `${c} flores encontradas en esta zona`);
+        if (c>=0) toast(c===1 ? '1 flor en esta zona' : `${c} flores en esta zona`);
       }catch{}
     }, 200);
   }catch{
@@ -430,6 +443,7 @@ function normalize(items){
   }
   return out;
 }
+let flowerMarkers=[];
 function render(list){
   if(!map) return;
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
@@ -466,6 +480,8 @@ async function deepLink(){
     if(m&&m[1]) id=decodeURIComponent(m[1]);
   }
   if(!id) return;
+
+  hideHero();
 
   try{
     const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
