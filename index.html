@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa y dedica un mensaje.">
-<!-- BUILD: FM-PLANT-ONLY-MOBILE-SEARCH-LAYOUT-2025-10-29 -->
+<!-- BUILD: FM-PLANT-ONLY-MOBILE-SEARCH-LAYOUT-HIDE-CONTROLS-ON-ACTION-2025-10-31 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -41,9 +41,15 @@
 
   /* CONTROLES INFERIORES */
   .controls{
-    position:fixed; z-index:1050; left:50%; transform:translateX(-50%);
+    position:fixed; z-index:1050; left:50%;
     bottom:calc(18px + var(--safe-b)); width:min(94vw,1000px);
-    display:flex; flex-direction:column; gap:10px
+    display:flex; flex-direction:column; gap:10px;
+    transform:translate(-50%,0);
+    transition:transform .28s ease, opacity .28s ease;
+  }
+  .controls.hide{
+    transform:translate(-50%, calc(100% + 28px));
+    opacity:0; pointer-events:none;
   }
 
   /* Buscador: desktop = 3 columnas; móvil = 2 columnas (País+Ciudad) + fila Lugar+btn */
@@ -117,7 +123,7 @@
     .brand img{ height:84px; }
     .search3{ grid-template-columns:1fr 1fr; }
     .field.placeWrap{ grid-column:1 / span 2; }
-    .actions{ grid-template-columns:1fr 1fr; } /* fuerzo 2 columnas también en móvil */
+    .actions{ grid-template-columns:1fr 1fr; }
   }
 </style>
 </head>
@@ -206,6 +212,7 @@ function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(
 let map, tiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
 let flowerMarkers=[];
+const controlsEl = document.querySelector('.controls');
 
 /* === INIT === */
 window.addEventListener('load', ()=>{
@@ -222,7 +229,7 @@ window.addEventListener('load', ()=>{
 
   $('logoBtn').onclick=()=>location.href='/';
 
-  // Buscador inferior (Enter o botón "Plantar" disparan la búsqueda)
+  // Buscador: Enter o botón "Plantar"
   ['srCountry','srCity','srPlace'].forEach(id=>{
     $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(); } });
   });
@@ -234,6 +241,7 @@ window.addEventListener('load', ()=>{
     const c=map.getCenter();
     setPoint(c.lat,c.lng,false);
     map.setView(c, Math.max(map.getZoom(), STREET_ZOOM), {animate:false});
+    hideControls();
   };
   $('btnGps').onclick=()=>{
     plantMode=true;
@@ -241,6 +249,7 @@ window.addEventListener('load', ()=>{
     navigator.geolocation.getCurrentPosition(p=>{
       setPoint(p.coords.latitude,p.coords.longitude,true);
       map.setView([p.coords.latitude,p.coords.longitude], STREET_ZOOM, {animate:false});
+      hideControls();
     }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
   };
   map.on('click', e=>{ if(plantMode){ setPoint(e.latlng.lat,e.latlng.lng,true); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
@@ -253,6 +262,10 @@ window.addEventListener('load', ()=>{
   // Datos iniciales y deep link
   refetch(false); setInterval(()=>refetch(true),15000); deepLink();
 });
+
+/* === Mostrar/Ocultar controles === */
+function hideControls(){ try{ controlsEl.classList.add('hide'); }catch{} }
+function showControls(){ try{ controlsEl.classList.remove('hide'); }catch{} }
 
 /* === BUSCADOR inferior (3 campos) === */
 async function runBottomSearch(){
@@ -280,7 +293,8 @@ async function runBottomSearch(){
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
     }
 
-    // Conteo de flores visibles
+    hideControls(); // << oculta controles tras usar el buscador
+
     setTimeout(()=>{
       try{
         const c = countFlowersInBounds();
