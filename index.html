@@ -6,7 +6,7 @@
 <title>Flovermaps — Planta una flor</title>
 <meta name="theme-color" content="#eef7e8" />
 <meta name="description" content="Planta una flor en el mapa, escribe una dedicatoria y compártela.">
-<!-- BUILD: FM-PLANT-ONLY — PANEL-UNICO — HERO-TRIGGER — 2025-10-31 -->
+<!-- BUILD: FM-PLANT-ONLY — PANEL-UNICO — HERO-TRIGGER — SEARCH-AUTOSET-OPEN — 2025-10-31 -->
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -24,91 +24,68 @@
     background:linear-gradient(180deg,#f6fff9 0%,#ecfaf2 60%,#e8f8ef 100%); overflow:hidden;
   }
 
-  /* NAV (solo barra con logo centrado) */
-  .site-header{
-    position:fixed; z-index:1000; top:0; left:0; right:0;
-    background:var(--navbar); border-bottom:1px solid #dfead6; padding-top:var(--safe-t);
-  }
+  /* NAV (barra con logo centrado) */
+  .site-header{ position:fixed; z-index:1000; top:0; left:0; right:0; background:var(--navbar); border-bottom:1px solid #dfead6; padding-top:var(--safe-t) }
   .nav{ width:100%; max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:center; padding:8px 16px }
   .brand{ display:flex; align-items:center; cursor:pointer }
   .brand img{ height:96px; display:block }
   @media (max-width:640px){ .brand img{ height:84px } }
 
-  /* MAPA robusto */
-  #map{
-    position:fixed; inset:0; width:100%;
-    height:100dvh; min-height:100vh;
-    background:#e6f1e0;
-  }
-  .leaflet-container{ background:#e6f1e0 !important; }
-  .leaflet-bottom.leaflet-right{ right:12px; bottom:calc(18px + var(--safe-b)); z-index:1100; }
-  .leaflet-control-zoom a{ border-radius:10px !important; }
+  /* MAPA */
+  #map{ position:fixed; inset:0; width:100%; height:100dvh; min-height:100vh; background:#e6f1e0 }
+  .leaflet-container{ background:#e6f1e0 !important }
+  .leaflet-bottom.leaflet-right{ right:12px; bottom:calc(18px + var(--safe-b)); z-index:1100 }
+  .leaflet-control-zoom a{ border-radius:10px !important }
 
-  /* HERO (botón central). Hace de trigger del panel */
+  /* HERO (trigger) */
   .hero{
     position:fixed; z-index:950; left:50%; top:48%; transform:translate(-50%,-50%);
     display:flex; align-items:center; justify-content:center; text-align:center;
-    padding:14px 18px; border-radius:16px; background:#ffffff;
-    border:1px solid #e6e6e6; box-shadow:0 10px 30px rgba(0,0,0,.06);
-    max-width:min(90vw,720px); cursor:pointer;
+    padding:14px 18px; border-radius:16px; background:#fff; border:1px solid #e6e6e6;
+    box-shadow:0 10px 30px rgba(0,0,0,.06); max-width:min(90vw,720px); cursor:pointer;
   }
-  .hero h1{ margin:0; font-size:1.15rem; line-height:1.25; font-weight:800; }
-  @media (max-width:640px){ .hero h1{ font-size:1.05rem; } }
-  .hero.hide{ opacity:0; transform:translate(-50%,-44%); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
+  .hero h1{ margin:0; font-size:1.05rem; line-height:1.25; font-weight:800 }
+  @media (min-width:768px){ .hero h1{ font-size:1.15rem } }
+  .hero.hide{ opacity:0; transform:translate(-50%,-44%); pointer-events:none; transition:opacity .25s ease, transform .25s ease }
 
-  /* PANEL ÚNICO (buscador + acciones) */
-  .panel{
-    position:fixed; left:50%; transform:translate(-50%, calc(100% + 24px));
-    bottom:0; width:min(94vw,820px); z-index:1050; transition:transform .32s ease, opacity .32s ease;
-  }
-  .panel.open{ transform:translate(-50%, -8px); }
-  .card{
-    background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:12px;
-    box-shadow:0 12px 28px rgba(0,0,0,.08);
+  /* PANEL (form buscador + acciones) */
+  .panel{ position:fixed; left:50%; transform:translate(-50%, calc(100% + 24px)); bottom:0; width:min(94vw,820px); z-index:1050; transition:transform .32s ease }
+  .panel.open{ transform:translate(-50%, -8px) }
+  .card{ background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:12px; box-shadow:0 12px 28px rgba(0,0,0,.08) }
+
+  .search3{ display:grid; gap:8px; grid-template-columns:1fr 1fr 1.2fr }
+  .field{ display:flex; flex-direction:column; gap:6px }
+  .field label{ font-size:.85rem; color:var(--muted) }
+  .field input{ width:100%; padding:11px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem }
+
+  /* Campo LUGAR con botón plantar inline */
+  .place-row{ display:grid; grid-template-columns:1fr auto; gap:8px }
+  .btn-mini{
+    padding:11px 14px; border-radius:10px; border:1px solid var(--green);
+    background:var(--green); color:#fff; font-weight:800; cursor:pointer; white-space:nowrap;
   }
 
-  .search3{
-    display:grid; gap:8px; grid-template-columns:1fr 1fr 1.2fr;
-  }
-  .field{ display:flex; flex-direction:column; gap:6px; }
-  .field label{ font-size:.85rem; color:var(--muted); }
-  .field input{ width:100%; padding:11px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem; }
-
-  .actions{
-    margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:8px;
-  }
+  .actions{ margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:8px }
   .btn-green{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
     border:1px solid var(--green); background:var(--green); color:#fff;
-    border-radius:12px; padding:12px; font-size:.95rem; cursor:pointer; font-weight:700;
-    box-shadow:0 6px 14px rgba(0,0,0,.04);
+    border-radius:12px; padding:12px; font-size:.95rem; cursor:pointer; font-weight:700; box-shadow:0 6px 14px rgba(0,0,0,.04)
   }
 
-  .panel-cta{
-    margin-top:8px; display:flex; justify-content:center;
-  }
-  .btn-wide{
-    width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px;
-    background:var(--green); color:#fff; border:1px solid var(--green); cursor:pointer; font-weight:800;
-    box-shadow:0 8px 20px rgba(34,197,94,.18);
-  }
-
-  /* Badge de dirección */
   .addr-badge{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(220px + var(--safe-b)); z-index:1040; background:#fff; border:1px solid #e6e6e6; border-radius:999px; padding:8px 12px; font-size:1rem; font-weight:700; max-width:min(92vw,520px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 8px 24px rgba(0,0,0,.10); display:none
   }
 
-  /* Marker + ring */
-  .leaflet-div-icon{ background:transparent!important; border:none!important; }
+  /* Marker + ring + CTA */
+  .leaflet-div-icon{ background:transparent!important; border:none!important }
   .emoji-marker .e{ font-size:44px; line-height:44px; text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff,0 0 4px rgba(0,0,0,.25) }
   .ring{ width:64px; height:64px; border-radius:999px; border:3px solid #22c55e; box-shadow:0 0 0 10px rgba(34,197,94,.14), inset 0 0 0 3px rgba(255,255,255,.9) }
   .leaflet-marker-icon[src*="marker-icon"], .leaflet-marker-shadow{ display:none!important }
 
-  /* CTA “Plantar aquí” encima del anillo */
   .leaflet-popup.pin-cta .leaflet-popup-content-wrapper{ background:transparent; box-shadow:none; border:none }
   .leaflet-popup.pin-cta .leaflet-popup-content{ margin:0 }
-  .leaflet-popup.pin-cta .leaflet-popup-tip{ display:none!important; }
+  .leaflet-popup.pin-cta .leaflet-popup-tip{ display:none!important }
   .pin-cta-btn{
     position:relative; background:linear-gradient(180deg,#26d166,#1fb057); color:#fff; border:0; border-radius:14px;
     padding:9px 14px; font-size:.95rem; font-weight:800; box-shadow:0 16px 36px rgba(0,0,0,.22); cursor:pointer
@@ -119,7 +96,7 @@
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
   }
 
-  /* Sheet dedicatoria (aparece desde abajo) */
+  /* Sheet dedicatoria */
   .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:1060; transform:translateY(100%); transition:transform .25s ease; background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -20px 60px rgba(0,0,0,.25); max-height:85dvh; display:flex; flex-direction:column }
   .sheet.open{ transform:translateY(0) }
   .sheet .handle{ align-self:center; width:54px; height:5px; border-radius:999px; background:#e5e7eb; margin:8px 0 4px }
@@ -129,13 +106,12 @@
   input{ width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem }
   .btn-white{ width:100%; font-size:1.05rem; padding:14px 18px; border-radius:10px; background:#111; color:#fff; border:0; cursor:pointer; font-weight:800 }
 
-  /* Toast */
   .toast{ position:fixed; left:50%; bottom:calc(100px + var(--safe-b)); transform:translateX(-50%); background:#111; color:#fff; padding:10px 12px; border-radius:10px; z-index:1500; opacity:0; pointer-events:none; transition:opacity .18s,bottom .18s }
   .toast.show{ opacity:1; bottom:calc(110px + var(--safe-b)) }
 
   @media (max-width:820px){
-    .search3{ grid-template-columns:1fr 1fr; }
-    .field.place{ grid-column:1 / span 2; }
+    .search3{ grid-template-columns:1fr 1fr }
+    .field.place{ grid-column:1 / span 2 }
   }
 </style>
 </head>
@@ -158,7 +134,7 @@
 <!-- MAP -->
 <div id="map" aria-label="Mapa"></div>
 
-<!-- PANEL ÚNICO (buscador + acciones) -->
+<!-- PANEL -->
 <div id="panel" class="panel" aria-label="Formulario de ubicación">
   <div class="card">
     <div class="search3">
@@ -172,7 +148,10 @@
       </div>
       <div class="field place">
         <label for="srPlace">Lugar</label>
-        <input id="srPlace" placeholder="Barrio, calle, punto…">
+        <div class="place-row">
+          <input id="srPlace" placeholder="Barrio, calle, punto…">
+          <button id="btnPlacePlant" class="btn-mini">Plantar</button>
+        </div>
       </div>
     </div>
 
@@ -181,16 +160,12 @@
       <button id="btnGps" class="btn-green">📍 Mi ubicación</button>
     </div>
   </div>
-
-  <div class="panel-cta">
-    <button id="openDedication" class="btn-wide">Plantar</button>
-  </div>
 </div>
 
 <!-- Badge dirección -->
 <div id="addrBadge" class="addr-badge" aria-live="polite"></div>
 
-<!-- Dedicatoria (slide-up) -->
+<!-- Dedicatoria -->
 <section id="sheet" class="sheet" role="dialog" aria-labelledby="sheetTitle" aria-hidden="true">
   <div class="handle"></div>
   <div class="body">
@@ -227,7 +202,6 @@ function genId(){ if(window.crypto?.randomUUID) return window.crypto.randomUUID(
 /* === STATE === */
 let map, tiles, fallbackTiles, selectedMarker, ringMarker, ctaPopup;
 let selectedLat=null, selectedLng=null, lastTs=0, plantMode=false, flowersCache=[];
-let flowerMarkers=[];
 
 const heroEl = $('hero');
 const panelEl = $('panel');
@@ -237,10 +211,7 @@ const sheetEl = $('sheet');
 window.addEventListener('load', ()=>{
   if(!window.L){ alert('No se pudo cargar Leaflet.'); return; }
 
-  // Base tiles + fallback
-  tiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
-    attribution:'© OpenStreetMap © CARTO', maxZoom:19
-  });
+  tiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{ attribution:'© OpenStreetMap © CARTO', maxZoom:19 });
   tiles.on('tileerror', ()=>{
     try{ if(map && tiles) map.removeLayer(tiles); }catch{}
     if(!fallbackTiles){
@@ -259,19 +230,9 @@ window.addEventListener('load', ()=>{
 
   $('logoBtn').onclick=()=>location.href='/';
 
-  // HERO abre/cierra panel
   heroEl.addEventListener('click', ()=>{
     heroEl.classList.add('hide');
     panelEl.classList.add('open');
-  });
-
-  // Botón "Plantar" del panel abre la hoja de dedicatoria
-  $('openDedication').addEventListener('click', ()=>{
-    if(!selectedLat || !selectedLng){
-      toast('Elige un punto: mapa, ubicación o busca', false);
-      return;
-    }
-    openSheet();
   });
 
   // Acciones del panel
@@ -287,18 +248,20 @@ window.addEventListener('load', ()=>{
     navigator.geolocation.getCurrentPosition(p=>{
       setPoint(p.coords.latitude,p.coords.longitude);
       map.setView([p.coords.latitude,p.coords.longitude], STREET_ZOOM, {animate:false});
+      openSheet(); // abre directamente para agilizar
     }, ()=>toast('No se pudo obtener tu ubicación', false), {timeout:8000});
   };
 
-  // Búsqueda 3 campos
+  // Buscar con Enter y botón mini “Plantar”
   ['srCountry','srCity','srPlace'].forEach(id=>{
-    $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(); } });
+    $(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); runBottomSearch(true); } });
   });
+  $('btnPlacePlant').addEventListener('click', ()=> runBottomSearch(true));
 
-  // Map click (si el usuario quiere afinar)
+  // Click en mapa para afinar
   map.on('click', e=>{ if(plantMode){ setPoint(e.latlng.lat,e.latlng.lng); map.setView(e.latlng, STREET_ZOOM, {animate:false}); } });
 
-  // Form de dedicatoria
+  // Dedicatoria
   $('chars').textContent='(0/30)';
   $('message').addEventListener('input', ()=>{ const m=$('message'); m.value=m.value.replace(/\r?\n/g,'').slice(0,30); $('chars').textContent='('+m.value.length+'/30)'; });
   $('plantBtn').onclick = plantNow;
@@ -307,8 +270,8 @@ window.addEventListener('load', ()=>{
   refetch(false); setInterval(()=>refetch(true),15000); deepLink();
 });
 
-/* === Panel search === */
-async function runBottomSearch(){
+/* === Panel search mejorado (auto set + abrir sheet) === */
+async function runBottomSearch(openAfter){
   const country = $('srCountry').value.trim();
   const city    = $('srCity').value.trim();
   const place   = $('srPlace').value.trim();
@@ -323,7 +286,6 @@ async function runBottomSearch(){
     if(!arr || !arr.length) return toast('No encontrado', false);
 
     const it = arr[0];
-    const lat = +it.lat, lon = +it.lon;
     plantMode = true;
 
     if (it.boundingbox && it.boundingbox.length === 4){
@@ -331,10 +293,15 @@ async function runBottomSearch(){
       const b = L.latLngBounds([[south,west],[north,east]]);
       const center = b.getCenter();
       map.fitBounds(b, { padding:[40,40] });
-      setTimeout(()=>{ setPoint(center.lat, center.lng); map.setView(center, Math.max(map.getZoom(), STREET_ZOOM), {animate:false}); }, 120);
+      // fijamos inmediatamente el punto y abrimos la hoja si se pidió
+      setPoint(center.lat, center.lng);
+      map.setView(center, Math.max(map.getZoom(), STREET_ZOOM), {animate:false});
+      if(openAfter) openSheet();
     } else {
+      const lat=+it.lat, lon=+it.lon;
       setPoint(lat, lon);
       map.setView([lat,lon], Math.max(12, STREET_ZOOM), {animate:false});
+      if(openAfter) openSheet();
     }
   }catch{
     toast('Error buscando', false);
@@ -352,7 +319,7 @@ function ensureCta(lat,lng){
     ctaPopup = L.popup({closeButton:false, autoClose:false, closeOnClick:false, offset:[0,104], className:'pin-cta'})
       .setLatLng([lat,lng]).setContent(html).openOn(map);
   } else { ctaPopup.setLatLng([lat,lng]); ctaPopup.setContent(html); ctaPopup.openOn(map); }
-  setTimeout(()=>{ const b=$('pinCtaBtn'); if(b) b.onclick = ()=>{ if(!selectedLat) return toast('Elige un punto primero', false); openSheet(); }; },0);
+  setTimeout(()=>{ const b=$('pinCtaBtn'); if(b) b.onclick = ()=>{ if(!selectedLat) return; openSheet(); }; },0);
 }
 function setPoint(lat,lng){
   if(!selectedMarker){
@@ -382,7 +349,7 @@ function reverseAt(lat,lng){
 
 /* === Guardar en Sheets y mostrar popup compartible === */
 async function plantNow(){
-  if(!selectedLat||!selectedLng) return toast('Coloca la flor en el mapa', false);
+  if(!selectedLat||!selectedLng){ toast('Elige un punto (busca, mapa o ubicación)', false); return; }
   const from= $('fromName').value.trim();
   const to  = $('toName').value.trim();
   const msg = $('message').value.trim();
@@ -418,7 +385,7 @@ async function plantNow(){
 
     setTimeout(()=>refetch(true), 800);
     toast('¡Flor plantada! 🌸');
-  }catch(e){
+  }catch{
     toast('Error de red', false);
   }
 }
@@ -453,14 +420,12 @@ function render(list){
   if(!map) return;
   const toRemove=[]; map.eachLayer(l=>{ if(l&&l._isFlower) toRemove.push(l); });
   toRemove.forEach(l=>map.removeLayer(l));
-  flowerMarkers=[];
   for(const f of (list||[])){
     const shareUrl=`${location.origin}/?id=${encodeURIComponent(f.id)}`;
     const mk=L.marker([f.lat,f.lng],{icon:emojiIcon(),zIndexOffset:1000});
     mk._isFlower=true;
     mk.bindPopup(popupHtml(f.fromName,f.toName,f.message,fmtDate(f.timestamp),shareUrl),{autoClose:false,closeOnClick:false});
     mk.addTo(map);
-    flowerMarkers.push(mk);
   }
 }
 async function refetch(incr){
@@ -486,8 +451,7 @@ async function deepLink(){
   }
   if(!id) return;
 
-  heroEl.classList.add('hide'); // esconder hero si venimos por enlace
-
+  heroEl.classList.add('hide');
   try{
     const d=await jsonp(`${SCRIPT_URL}?action=get&id=${encodeURIComponent(id)}`);
     if(d&&d.ok&&d.item){
